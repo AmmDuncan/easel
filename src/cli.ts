@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -123,46 +123,96 @@ function cmdSetup() {
     return;
   }
 
+  // 1. Register the MCP via the Claude Code CLI (writes ~/.claude.json).
+  //    Falling back to a direct edit if the CLI isn't on PATH.
+  registerMcp(mcpEntry);
+
+  // 2. Add SessionStart hooks to ~/.claude/settings.json (hooks DO belong here).
   const settings = existsSync(settingsPath)
     ? (JSON.parse(readFileSync(settingsPath, "utf-8")) as Record<string, unknown>)
     : {};
-
-  const mcpServers = (settings.mcpServers as Record<string, unknown>) ?? {};
-  mcpServers["display"] = {
-    command: "node",
-    args: [mcpEntry],
-  };
-  settings.mcpServers = mcpServers;
+  // Drop any prior mcpServers.display entry — it lives in ~/.claude.json now.
+  if (settings.mcpServers && typeof settings.mcpServers === "object") {
+    delete (settings.mcpServers as Record<string, unknown>)["display"];
+  }
 
   const hooks = (settings.hooks as Record<string, unknown>) ?? {};
   const sessionStart = (hooks.SessionStart as unknown[]) ?? [];
-  const hookEntryShell = { type: "command", command: `bash ${hookScript}` };
-  const hookEntryOpen = { type: "command", command: `${cliEntry} open --quiet` };
+  const idCaptureBlock = {
+    hooks: [{ type: "command", command: `bash ${hookScript}` }],
+  };
+  const autoOpenBlock = {
+    hooks: [{ type: "command", command: `${cliEntry} open --quiet` }],
+  };
 
-  const containsCommand = (arr: unknown[], substr: string) =>
-    arr.some(
-      (e) =>
-        typeof e === "object" &&
-        e !== null &&
-        typeof (e as { command?: unknown }).command === "string" &&
-        ((e as { command: string }).command).includes(substr),
-    );
+  const containsBlockMatching = (substr: string) =>
+    sessionStart.some((block) => {
+      const inner = (block as { hooks?: unknown[]; command?: unknown })?.hooks ?? [block];
+      return (Array.isArray(inner) ? inner : []).some(
+        (h) =>
+          typeof h === "object" &&
+          h !== null &&
+          typeof (h as { command?: unknown }).command === "string" &&
+          ((h as { command: string }).command).includes(substr),
+      );
+    });
 
-  if (!containsCommand(sessionStart, "claude-display-session-id.sh")) {
-    sessionStart.push(hookEntryShell);
+  if (!containsBlockMatching("claude-display-session-id.sh")) {
+    sessionStart.push(idCaptureBlock);
   }
-  if (!containsCommand(sessionStart, "claude-display") && !containsCommand(sessionStart, cliEntry)) {
-    sessionStart.push(hookEntryOpen);
+  if (!containsBlockMatching("claude-display") || !containsBlockMatching("open --quiet")) {
+    sessionStart.push(autoOpenBlock);
   }
   hooks.SessionStart = sessionStart;
   settings.hooks = hooks;
 
   mkdirSync(dirname(settingsPath), { recursive: true });
   writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
-  console.log(`[claude-display] updated ${settingsPath}`);
-  console.log(`  - mcpServers.display → node ${mcpEntry}`);
-  console.log(`  - SessionStart hooks: id-capture + open --quiet`);
-  console.log(`Restart your Claude Code session to activate.`);
+  console.log(`[claude-display] setup complete`);
+  console.log(`  - MCP registered at user scope (\`claude mcp list\` to verify)`);
+  console.log(`  - SessionStart hooks added to ${settingsPath}`);
+  console.log(`Restart Claude Code (fully quit + relaunch) to activate.`);
+}
+
+function registerMcp(mcpEntry: string): void {
+  // Try `claude mcp add` first — that's the supported path and writes to ~/.claude.json.
+  // Re-add idempotently by removing first (CLI errors if the name already exists).
+  const trySpawn = (args: string[]) => {
+    try {
+      const r = spawnSync("claude", args, {
+        encoding: "utf-8",
+        stdio: ["ignore", "pipe", "pipe"],
+      });
+      return r.status === 0;
+    } catch {
+      return false;
+    }
+  };
+  trySpawn(["mcp", "remove", "display", "--scope", "user"]);
+  const added = trySpawn([
+    "mcp",
+    "add",
+    "--scope",
+    "user",
+    "display",
+    "node",
+    mcpEntry,
+  ]);
+  if (added) return;
+
+  // Fallback: patch ~/.claude.json directly.
+  const userConfigPath = join(homedir(), ".claude.json");
+  const config = existsSync(userConfigPath)
+    ? (JSON.parse(readFileSync(userConfigPath, "utf-8")) as Record<string, unknown>)
+    : {};
+  const mcpServers = (config.mcpServers as Record<string, unknown>) ?? {};
+  mcpServers["display"] = {
+    type: "stdio",
+    command: "node",
+    args: [mcpEntry],
+  };
+  config.mcpServers = mcpServers;
+  writeFileSync(userConfigPath, JSON.stringify(config, null, 2));
 }
 
 async function cmdServer() {
