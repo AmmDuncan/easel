@@ -187,7 +187,15 @@ Default to tokens. Reach for `light-dark()` only when the design needs a value t
 
 ### Session names
 
-By default sessions show as the cwd basename — `dvla`, `harmony-platform`. With multiple tabs that's not enough to tell them apart. Call `label` early once you know the focus, and again when the theme shifts:
+By default sessions show as the cwd basename — `dvla`, `harmony-platform`. With multiple tabs open that's not enough to tell them apart.
+
+**Hard convention: every chat must call `label` no later than its first `push` call.** If the chat ends without a label, the session is unfindable in the switcher.
+
+Practical rule:
+1. As soon as the user describes what they want (first non-trivial message), call `label`.
+2. If you forgot to and you're about to call `push` for the first time, call `label` first.
+3. Re-call when the work's theme shifts meaningfully (started on a bug, now moved on to a refactor).
+4. Pass `""` to clear back to cwd basename.
 
 ```
 label({ label: "Roadworthy 401 investigation" })
@@ -195,7 +203,7 @@ label({ label: "Roadworthy 401 — fixed, ready to PR" })
 label({ label: "" })   # clear back to cwd basename
 ```
 
-Format: 1–8 words, sentence case, no trailing punctuation. Mention the artefact (file/feature/bug), not the verb.
+Format: 1–8 words, sentence case, no trailing punctuation. Mention the **artefact** (file/feature/bug) — not the verb. Good: `RegistrationNumberInput extraction`. Bad: `Extracting RegistrationNumberInput`.
 
 ### Presets
 
