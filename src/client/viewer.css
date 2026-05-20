@@ -1,5 +1,5 @@
 /* ============================================================
-   claude-display viewer — design tokens (light + dark)
+   easel viewer — design tokens (light + dark)
    Pushed iframes receive the same variable names so authors can
    reference `var(--ds-ink)` etc. and theme for free.
    ============================================================ */

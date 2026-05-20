@@ -8,4 +8,4 @@ const dst = resolve(__dirname, "../dist/client");
 
 mkdirSync(dst, { recursive: true });
 cpSync(src, dst, { recursive: true });
-console.log(`[claude-display] copied client → ${dst}`);
+console.log(`[easel] copied client → ${dst}`);

@@ -1,4 +1,4 @@
-/* claude-display — index page (session list) */
+/* easel — index page (session list) */
 
 .index-main {
   width: min(92vw, 1100px);
@@ -173,13 +173,12 @@
 }
 
 .session-right {
-  position: relative;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
   gap: 6px;
   white-space: nowrap;
-  padding-top: 22px;
+  padding-right: 34px;
 }
 
 .session-pushcount {

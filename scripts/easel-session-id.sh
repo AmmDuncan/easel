@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# claude-display-session-id.sh — SessionStart hook for Claude Code.
+# easel-session-id.sh — SessionStart hook for Claude Code.
 #
 # Captures Claude's session_id (passed as JSON on stdin per the hooks spec)
 # into ~/.claude-display/hook/cc-session-<ppid>.txt so the MCP adapter can

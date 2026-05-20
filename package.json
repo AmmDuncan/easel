@@ -1,11 +1,11 @@
 {
-  "name": "claude-display",
+  "name": "easel",
   "version": "0.1.0",
   "private": true,
-  "description": "MCP server that gives every Claude Code session a live browser tab. Agents push HTML; you read it in split-screen.",
+  "description": "A live browser tab for every Claude Code session. The display_push MCP tool appends HTML cards to a scrolling feed you keep open in split-screen.",
   "type": "module",
   "bin": {
-    "claude-display": "bin/claude-display"
+    "easel": "bin/easel"
   },
   "scripts": {
     "build": "tsc && node scripts/copy-client.mjs",

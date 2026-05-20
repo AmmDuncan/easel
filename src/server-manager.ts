@@ -84,7 +84,7 @@ export async function ensureHttpServer(): Promise<{ port: number; reused: boolea
     }
     await new Promise((r) => setTimeout(r, 120));
   }
-  throw new Error(`claude-display HTTP server failed to start on port ${port}`);
+  throw new Error(`easel HTTP server failed to start on port ${port}`);
 }
 
 export function writeLock(port: number): void {

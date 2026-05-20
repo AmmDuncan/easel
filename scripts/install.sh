@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# install.sh — one-shot installer for claude-display.
+# install.sh — one-shot installer for easel.
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/AmmDuncan/claude-display/main/scripts/install.sh | bash
-#   curl -fsSL .../install.sh | CLAUDE_DISPLAY_DIR=~/code/claude-display bash
+#   curl -fsSL https://raw.githubusercontent.com/AmmDuncan/easel/main/scripts/install.sh | bash
+#   curl -fsSL .../install.sh | EASEL_DIR=~/code/easel bash
 #
 # What it does:
 #   1. Checks prerequisites (node 20+, jq, git).
-#   2. Clones (or updates) claude-display into ~/.local/share/claude-display.
+#   2. Clones (or updates) easel into ~/.local/share/easel.
 #   3. Installs npm deps and builds.
 #   4. Patches ~/.claude/settings.json (MCP registration + SessionStart hooks).
 #   5. Backs up the previous settings.json with a timestamp.
@@ -16,8 +16,8 @@
 
 set -euo pipefail
 
-REPO_URL="${CLAUDE_DISPLAY_REPO:-https://github.com/AmmDuncan/claude-display.git}"
-INSTALL_DIR="${CLAUDE_DISPLAY_DIR:-$HOME/.local/share/claude-display}"
+REPO_URL="${EASEL_REPO:-https://github.com/AmmDuncan/easel.git}"
+INSTALL_DIR="${EASEL_DIR:-$HOME/.local/share/easel}"
 BRANCH="${CLAUDE_DISPLAY_BRANCH:-main}"
 
 c_dim() { printf '\033[2m%s\033[0m' "$1"; }
@@ -41,7 +41,7 @@ require_cmd jq
 
 NODE_MAJOR="$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0)"
 if [ "$NODE_MAJOR" -lt 20 ]; then
-  die "node $NODE_MAJOR detected — claude-display needs node 20 or newer"
+  die "node $NODE_MAJOR detected — easel needs node 20 or newer"
 fi
 ok "node $(node --version), npm $(npm --version), jq, git"
 
@@ -67,17 +67,17 @@ ok "build"
 
 # --- 4. wire settings ----------------------------------------------------------
 step "Wiring Claude Code settings"
-"$INSTALL_DIR/bin/claude-display" setup
+"$INSTALL_DIR/bin/easel" setup
 
 # --- 5. done -------------------------------------------------------------------
 step "All set"
 echo "  install dir: $INSTALL_DIR"
-echo "  cli:         $INSTALL_DIR/bin/claude-display"
+echo "  cli:         $INSTALL_DIR/bin/easel"
 echo
 echo "  Restart Claude Code (or open a new chat). The SessionStart hook"
 echo "  will open this session's tab automatically."
 echo
 echo "  Useful commands:"
-echo "    $INSTALL_DIR/bin/claude-display url       # print this session's URL"
-echo "    $INSTALL_DIR/bin/claude-display open      # ensure server + open tab"
-echo "    $INSTALL_DIR/bin/claude-display setup     # re-wire settings.json"
+echo "    $INSTALL_DIR/bin/easel url       # print this session's URL"
+echo "    $INSTALL_DIR/bin/easel open      # ensure server + open tab"
+echo "    $INSTALL_DIR/bin/easel setup     # re-wire settings.json"

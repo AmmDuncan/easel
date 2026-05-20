@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { spawn, spawnSync } from "node:child_process";
-import { copyFileSync, mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
+import { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync, existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { homedir } from "node:os";
@@ -13,20 +13,20 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = resolve(__dirname, "..");
 
 function help() {
-  console.log(`claude-display — live browser feed for Claude Code sessions
+  console.log(`easel — live browser feed for Claude Code for Claude Code sessions
 
 Usage:
-  claude-display open            ensure server is running, open this session's tab (or skip if a tab is already alive)
-  claude-display open --quiet    same but no stdout (for SessionStart hook)
-  claude-display open --force    always open a new browser tab regardless of presence
-  claude-display url             print this session's URL
-  claude-display config                    print current { preset, theme }
-  claude-display config preset paper       set preset to paper | aurora | slate
-  claude-display config theme dark         set theme to light | dark
-  claude-display config preset aurora theme light   set both at once
-  claude-display setup           install SessionStart hook + register MCP in ~/.claude/settings.json
-  claude-display server          run the HTTP server in the foreground (debug)
-  claude-display version
+  easel open            ensure server is running, open this session's tab (or skip if a tab is already alive)
+  easel open --quiet    same but no stdout (for SessionStart hook)
+  easel open --force    always open a new browser tab regardless of presence
+  easel url             print this session's URL
+  easel config                    print current { preset, theme }
+  easel config preset paper       set preset to paper | aurora | slate
+  easel config theme dark         set theme to light | dark
+  easel config preset aurora theme light   set both at once
+  easel setup           install SessionStart hook + register MCP in ~/.claude/settings.json
+  easel server          run the HTTP server in the foreground (debug)
+  easel version
 `);
 }
 
@@ -39,7 +39,7 @@ async function cmdOpen(opts: { quiet: boolean; force: boolean }) {
   if (!sessionId) {
     if (!opts.quiet) {
       console.error(
-        "[claude-display] couldn't resolve a Claude session id yet — hook may not have fired. Server is running on port " +
+        "[easel] couldn't resolve a Claude session id yet — hook may not have fired. Server is running on port " +
           port +
           ".",
       );
@@ -56,7 +56,7 @@ async function cmdOpen(opts: { quiet: boolean; force: boolean }) {
     if (!opts.quiet) console.log(url);
   } else if (!opts.quiet) {
     console.log(
-      `[claude-display] tab already open — registered session ${sessionId.slice(0, 8)} silently. Use the topbar switcher to view it, or 'claude-display open --force' for a new window.`,
+      `[easel] tab already open — registered session ${sessionId.slice(0, 8)} silently. Use the topbar switcher to view it, or 'easel open --force' for a new window.`,
     );
   }
 }
@@ -94,7 +94,7 @@ async function cmdUrl() {
   const { port } = await ensureHttpServer();
   const sessionId = resolveClaudeSessionId();
   if (!sessionId) {
-    console.error("[claude-display] no session id resolved.");
+    console.error("[easel] no session id resolved.");
     process.exitCode = 1;
     return;
   }
@@ -109,7 +109,7 @@ function openInBrowser(url: string) {
     const child = spawn(cmd, args, { stdio: "ignore", detached: true });
     child.unref();
   } catch (err) {
-    console.error(`[claude-display] couldn't open browser: ${(err as Error).message}`);
+    console.error(`[easel] couldn't open browser: ${(err as Error).message}`);
   }
 }
 
@@ -117,12 +117,12 @@ function cmdSetup() {
   mkdirSync(HOOK_DIR, { recursive: true });
 
   const settingsPath = join(homedir(), ".claude", "settings.json");
-  const hookScript = resolve(PROJECT_ROOT, "scripts", "claude-display-session-id.sh");
+  const hookScript = resolve(PROJECT_ROOT, "scripts", "easel-session-id.sh");
   const mcpEntry = resolve(PROJECT_ROOT, "dist", "mcp.js");
-  const cliEntry = resolve(PROJECT_ROOT, "bin", "claude-display");
+  const cliEntry = resolve(PROJECT_ROOT, "bin", "easel");
 
   if (!existsSync(hookScript)) {
-    console.error(`[claude-display] hook script missing at ${hookScript}`);
+    console.error(`[easel] hook script missing at ${hookScript}`);
     process.exitCode = 1;
     return;
   }
@@ -144,7 +144,24 @@ function cmdSetup() {
   }
 
   const hooks = (settings.hooks as Record<string, unknown>) ?? {};
-  const sessionStart = (hooks.SessionStart as unknown[]) ?? [];
+  let sessionStart = (hooks.SessionStart as unknown[]) ?? [];
+
+  // Drop any legacy entries from prior versions (claude-display-session-id.sh,
+  // bin/claude-display, etc) before re-adding the current ones.
+  const isLegacy = (block: unknown): boolean => {
+    const inner = (block as { hooks?: unknown[]; command?: unknown })?.hooks ?? [block];
+    if (!Array.isArray(inner)) return false;
+    return inner.some((h) => {
+      const cmd = (h as { command?: unknown })?.command;
+      if (typeof cmd !== "string") return false;
+      return (
+        cmd.includes("claude-display-session-id.sh") ||
+        cmd.includes("bin/claude-display ")
+      );
+    });
+  };
+  sessionStart = sessionStart.filter((b) => !isLegacy(b));
+
   const idCaptureBlock = {
     hooks: [{ type: "command", command: `bash ${hookScript}` }],
   };
@@ -164,10 +181,10 @@ function cmdSetup() {
       );
     });
 
-  if (!containsBlockMatching("claude-display-session-id.sh")) {
+  if (!containsBlockMatching("easel-session-id.sh")) {
     sessionStart.push(idCaptureBlock);
   }
-  if (!containsBlockMatching("claude-display") || !containsBlockMatching("open --quiet")) {
+  if (!containsBlockMatching("easel") || !containsBlockMatching("open --quiet")) {
     sessionStart.push(autoOpenBlock);
   }
   hooks.SessionStart = sessionStart;
@@ -175,23 +192,32 @@ function cmdSetup() {
 
   mkdirSync(dirname(settingsPath), { recursive: true });
   writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
-  console.log(`[claude-display] setup complete`);
+  console.log(`[easel] setup complete`);
   console.log(`  - MCP registered at user scope (\`claude mcp list\` to verify)`);
   console.log(`  - SessionStart hooks added to ${settingsPath}`);
   console.log(`Restart Claude Code (fully quit + relaunch) to activate.`);
 }
 
 function installSkill(): void {
-  const src = resolve(PROJECT_ROOT, "skills", "using-display", "SKILL.md");
+  const src = resolve(PROJECT_ROOT, "skills", "using-easel", "SKILL.md");
   if (!existsSync(src)) {
-    console.warn(`[claude-display] skill source missing at ${src} — skipping skill install`);
+    console.warn(`[easel] skill source missing at ${src} — skipping skill install`);
     return;
   }
-  const destDir = join(homedir(), ".claude", "skills", "using-display");
+  const destDir = join(homedir(), ".claude", "skills", "using-easel");
   const dest = join(destDir, "SKILL.md");
   mkdirSync(destDir, { recursive: true });
   copyFileSync(src, dest);
-  console.log(`  - using-display skill installed to ${dest}`);
+  // Remove the legacy skill from prior versions if it exists.
+  const legacy = join(homedir(), ".claude", "skills", "using-display");
+  if (existsSync(legacy)) {
+    try {
+      rmSync(legacy, { recursive: true, force: true });
+    } catch {
+      /* swallow */
+    }
+  }
+  console.log(`  - using-easel skill installed to ${dest}`);
 }
 
 function registerMcp(mcpEntry: string): void {
@@ -208,13 +234,15 @@ function registerMcp(mcpEntry: string): void {
       return false;
     }
   };
+  // Drop any old registrations from prior versions.
   trySpawn(["mcp", "remove", "display", "--scope", "user"]);
+  trySpawn(["mcp", "remove", "easel", "--scope", "user"]);
   const added = trySpawn([
     "mcp",
     "add",
     "--scope",
     "user",
-    "display",
+    "easel",
     "node",
     mcpEntry,
   ]);
@@ -226,7 +254,8 @@ function registerMcp(mcpEntry: string): void {
     ? (JSON.parse(readFileSync(userConfigPath, "utf-8")) as Record<string, unknown>)
     : {};
   const mcpServers = (config.mcpServers as Record<string, unknown>) ?? {};
-  mcpServers["display"] = {
+  delete mcpServers["display"];
+  mcpServers["easel"] = {
     type: "stdio",
     command: "node",
     args: [mcpEntry],
@@ -252,7 +281,7 @@ async function cmdConfig(args: string[]) {
   }
   if (Object.keys(body).length === 0) {
     console.error(
-      "usage: claude-display config [preset paper|aurora|slate] [theme light|dark] [density carded|flat]",
+      "usage: easel config [preset paper|aurora|slate] [theme light|dark] [density carded|flat]",
     );
     process.exitCode = 1;
     return;
@@ -319,6 +348,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error("[claude-display cli] fatal:", err);
+  console.error("[easel cli] fatal:", err);
   process.exit(1);
 });

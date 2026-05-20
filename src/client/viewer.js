@@ -126,13 +126,24 @@
 
   window.addEventListener("message", (e) => {
     const data = e && e.data;
-    if (!data || data.type !== "claude-display:size") return;
-    if (!data.pushId || typeof data.height !== "number") return;
-    const iframe = cardsEl.querySelector(
-      'iframe[data-push-id="' + cssEscape(data.pushId) + '"]',
-    );
-    if (!iframe) return;
-    iframe.style.height = Math.max(0, Math.ceil(data.height)) + "px";
+    if (!data) return;
+    if (data.type === "claude-display:size") {
+      if (!data.pushId || typeof data.height !== "number") return;
+      const iframe = cardsEl.querySelector(
+        'iframe[data-push-id="' + cssEscape(data.pushId) + '"]',
+      );
+      if (!iframe) return;
+      iframe.style.height = Math.max(0, Math.ceil(data.height)) + "px";
+      return;
+    }
+    if (data.type === "claude-display:click") {
+      // An iframe was clicked — close any open dropdowns in the parent.
+      if (switcherMenuEl && !switcherMenuEl.hidden) {
+        switcherMenuEl.hidden = true;
+        switcherBtnEl.setAttribute("aria-expanded", "false");
+      }
+      return;
+    }
   });
 
   function cssEscape(s) {
@@ -357,7 +368,7 @@
         );
         removeCardFromDom(push.id);
       } catch (err) {
-        console.error("[claude-display] delete failed", err);
+        console.error("[easel] delete failed", err);
       }
     });
     meta.appendChild(del);
@@ -693,7 +704,7 @@ ${body}
       }
       requestAnimationFrame(() => scrollToBottom(false));
     } catch (err) {
-      console.error("[claude-display] hydrate failed", err);
+      console.error("[easel] hydrate failed", err);
     }
   }
 
@@ -730,7 +741,7 @@ ${body}
           bumpUnread(push.id);
         }
       } catch (err) {
-        console.error("[claude-display] bad push payload", err);
+        console.error("[easel] bad push payload", err);
       }
     });
     es.onerror = () => {
@@ -881,7 +892,7 @@ ${body}
       // Keep the brand label in sync with the current session.
       if (s.id === sessionId && projectLabelEl && !projectLabelEl.dataset.editing) {
         projectLabelEl.textContent =
-          s.label || basenameOf(s.cwd) || "claude-display";
+          s.label || basenameOf(s.cwd) || "easel";
         projectLabelEl.dataset.cwd = s.cwd || "";
         projectLabelEl.dataset.hasLabel = s.label ? "true" : "false";
       }
@@ -927,10 +938,28 @@ ${body}
 
   document.addEventListener("click", (e) => {
     if (!switcherMenuEl.hidden && !switcherMenuEl.contains(e.target) && e.target !== switcherBtnEl) {
-      switcherMenuEl.hidden = true;
-      switcherBtnEl.setAttribute("aria-expanded", "false");
+      closeSwitcher();
     }
   });
+
+  // Clicks inside sandboxed iframes don't bubble — but they steal window
+  // focus. When that happens, close the menu.
+  window.addEventListener("blur", () => {
+    if (!switcherMenuEl.hidden) {
+      // Defer one tick so the focus change settles and the activeElement check
+      // is reliable across browsers.
+      setTimeout(() => {
+        if (document.activeElement && document.activeElement.tagName === "IFRAME") {
+          closeSwitcher();
+        }
+      }, 0);
+    }
+  });
+
+  function closeSwitcher() {
+    switcherMenuEl.hidden = true;
+    switcherBtnEl.setAttribute("aria-expanded", "false");
+  }
 
   /* === Click-to-edit session label in the topbar === */
   if (projectLabelEl) {
@@ -967,7 +996,7 @@ ${body}
       input.replaceWith(projectLabelEl);
       delete projectLabelEl.dataset.editing;
       projectLabelEl.textContent =
-        newLabel || basenameOf(projectLabelEl.dataset.cwd) || "claude-display";
+        newLabel || basenameOf(projectLabelEl.dataset.cwd) || "easel";
       projectLabelEl.dataset.hasLabel = newLabel ? "true" : "false";
       if (save) {
         try {

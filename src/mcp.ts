@@ -21,10 +21,10 @@ function openUrlInBrowser(url: string): void {
   }
 }
 
-const TOOL_PUSH = "display_push";
-const TOOL_OPEN = "display_open";
-const TOOL_CONFIG = "display_config";
-const TOOL_LABEL = "display_label";
+const TOOL_PUSH = "push";
+const TOOL_OPEN = "open";
+const TOOL_CONFIG = "config";
+const TOOL_LABEL = "label";
 
 const inputSchema = {
   type: "object" as const,
@@ -74,7 +74,7 @@ async function pushToServer(args: {
 
 async function main() {
   const server = new Server(
-    { name: "claude-display", version: "0.1.0" },
+    { name: "easel", version: "0.1.0" },
     { capabilities: { tools: {} } },
   );
 
@@ -83,13 +83,13 @@ async function main() {
       {
         name: TOOL_PUSH,
         description:
-          "Push an HTML card to this session's live browser tab (claude-display). Every card appends to a single scrolling page that the user keeps open in split-screen. Use proactively (per global Rule 33) for wordy explanations, mockups, diagrams, diffs, ≥3-option comparisons, or progress views — do NOT ask permission. Pass full HTML (not Markdown).",
+          "Push an HTML card to this session's live browser tab (easel). Every card appends to a single scrolling page that the user keeps open in split-screen. Use proactively (per global Rule 33) for wordy explanations, mockups, diagrams, diffs, ≥3-option comparisons, or progress views — do NOT ask permission. Pass full HTML (not Markdown).",
         inputSchema,
       },
       {
         name: TOOL_OPEN,
         description:
-          "Force-open a fresh browser tab for the current claude-display session. Call this when the user asks for a new window, side-by-side view, or to re-open a closed tab. The default SessionStart hook only opens a tab if none are alive; this tool overrides that.",
+          "Force-open a fresh browser tab for the current easel session. Call this when the user asks for a new window, side-by-side view, or to re-open a closed tab. The default SessionStart hook only opens a tab if none are alive; this tool overrides that.",
         inputSchema: {
           type: "object" as const,
           properties: {},
@@ -116,7 +116,7 @@ async function main() {
       {
         name: TOOL_CONFIG,
         description:
-          "Update the claude-display viewer's preset, theme, and/or density. Changes apply live across every open tab (SSE-broadcast) and persist. Presets: `paper` (pitstop warm canvas, amber accent — default), `aurora` (deep canvas + violet/blue glow halos), `slate` (cool slate, cyan accent). Themes: `light` or `dark`. Density: `carded` (default — each push is a bordered card) or `flat` (no card chrome — pushes flow as sections with whitespace between). Pass only the field(s) you want to change.",
+          "Update the easel viewer's preset, theme, and/or density. Changes apply live across every open tab (SSE-broadcast) and persist. Presets: `paper` (pitstop warm canvas, amber accent — default), `aurora` (deep canvas + violet/blue glow halos), `slate` (cool slate, cyan accent). Themes: `light` or `dark`. Density: `carded` (default — each push is a bordered card) or `flat` (no card chrome — pushes flow as sections with whitespace between). Pass only the field(s) you want to change.",
         inputSchema: {
           type: "object" as const,
           properties: {
@@ -150,7 +150,7 @@ async function main() {
         content: [
           {
             type: "text" as const,
-            text: "claude-display: could not resolve a Claude session id. Run `claude-display setup` to install the SessionStart hook, then restart this Claude session.",
+            text: "easel: could not resolve a Claude session id. Run `easel setup` to install the SessionStart hook, then restart this Claude session.",
           },
         ],
         isError: true,
@@ -226,7 +226,7 @@ async function main() {
       kind?: string;
     };
     if (typeof args.html !== "string" || !args.html.length) {
-      throw new Error("display_push: `html` is required");
+      throw new Error("easel.push: `html` is required");
     }
 
     const result = await pushToServer({
@@ -252,6 +252,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error("[claude-display mcp] fatal:", err);
+  console.error("[easel mcp] fatal:", err);
   process.exit(1);
 });
