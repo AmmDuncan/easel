@@ -117,7 +117,6 @@
   const iframes = new Set();
   const cardObservers = new Map(); // pushId → IntersectionObserver
   let bumpAt = 0;
-  let hasContentBelow = false;
 
   /* ============================================================
      Self-measure message bridge — iframes post their measured body
@@ -685,27 +684,28 @@ ${body}
     updatePill();
   }
 
-  function checkContentBelow() {
-    const remaining =
-      document.documentElement.scrollHeight -
-      window.scrollY -
-      window.innerHeight;
-    hasContentBelow = remaining > 200;
+  /* True when the LATEST card's header is still below the viewport — i.e.
+     you haven't reached it yet. Once the header crosses in (or past), you're
+     inside/past the latest card and the 'Scroll to last' pill should hide. */
+  function lastCardHeaderBelowViewport() {
+    const last = cardsEl.lastElementChild;
+    if (!last) return false;
+    const rect = last.getBoundingClientRect();
+    return rect.top > window.innerHeight - 100;
   }
 
   /* Pill state machine:
-     - any unread       → "N new push(es)", click jumps to oldest unread
-     - none, more below → "↓ Scroll to last", click jumps to last card
-     - none, at bottom  → hidden */
+     - any unread                    → "N new push(es)", click → oldest unread
+     - none, last header still below → "Scroll to last", click → last card
+     - none, last header reached     → hidden */
   function updatePill() {
-    checkContentBelow();
     const n = unreadIds.size;
     if (n > 0) {
       newPillEl.hidden = false;
       newPillEl.dataset.mode = "unread";
       newPillText.textContent =
         n + " new push" + (n === 1 ? "" : "es");
-    } else if (hasContentBelow) {
+    } else if (lastCardHeaderBelowViewport()) {
       newPillEl.hidden = false;
       newPillEl.dataset.mode = "scroll";
       newPillText.textContent = "Scroll to last";
