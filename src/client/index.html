@@ -14,11 +14,14 @@
       var stored = JSON.parse(localStorage.getItem("claude-display:config") || "null");
       var preset = stored && stored.preset ? stored.preset : "paper";
       var theme = stored && stored.theme ? stored.theme : "dark";
+      var density = stored && stored.density ? stored.density : "carded";
       document.documentElement.setAttribute("data-preset", preset);
       document.documentElement.setAttribute("data-theme", theme);
+      document.documentElement.setAttribute("data-density", density);
     } catch (e) {
       document.documentElement.setAttribute("data-preset", "paper");
       document.documentElement.setAttribute("data-theme", "dark");
+      document.documentElement.setAttribute("data-density", "carded");
     }
   })();
 </script>
@@ -37,6 +40,10 @@
       <button class="preset-btn" data-preset="paper" type="button" aria-label="Paper preset" title="Paper · warm cream"><span class="preset-swatch swatch-paper"></span></button>
       <button class="preset-btn" data-preset="aurora" type="button" aria-label="Aurora preset" title="Aurora · violet glow"><span class="preset-swatch swatch-aurora"></span></button>
       <button class="preset-btn" data-preset="slate" type="button" aria-label="Slate preset" title="Slate · cool neutral"><span class="preset-swatch swatch-slate"></span></button>
+    </div>
+    <div class="density-group" role="group" aria-label="Density">
+      <button class="density-btn" data-density="carded" type="button" aria-label="Carded" title="Carded · bordered cards"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="3.5" width="12" height="3.5" rx="1"/><rect x="2" y="9" width="12" height="3.5" rx="1"/></svg></button>
+      <button class="density-btn" data-density="flat" type="button" aria-label="Flat" title="Flat · no chrome, whitespace only"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 4.5h10M3 11.5h10"/></svg></button>
     </div>
     <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Toggle theme" title="Toggle light / dark">
       <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>

@@ -116,7 +116,7 @@ async function main() {
       {
         name: TOOL_CONFIG,
         description:
-          "Update the claude-display viewer's preset and/or theme. Changes apply live across every open tab (SSE-broadcast) and persist. Presets: `paper` (pitstop-style warm canvas, single amber accent, layered shadow depth — the default), `aurora` (deep canvas with soft violet/blue glow halos), `slate` (cool slate canvas with cyan accent). Themes: `light` or `dark`. Pass only the field(s) you want to change. Call this when the user asks to change the look, switch palettes, or pick a different preset.",
+          "Update the claude-display viewer's preset, theme, and/or density. Changes apply live across every open tab (SSE-broadcast) and persist. Presets: `paper` (pitstop warm canvas, amber accent — default), `aurora` (deep canvas + violet/blue glow halos), `slate` (cool slate, cyan accent). Themes: `light` or `dark`. Density: `carded` (default — each push is a bordered card) or `flat` (no card chrome — pushes flow as sections with whitespace between). Pass only the field(s) you want to change.",
         inputSchema: {
           type: "object" as const,
           properties: {
@@ -129,6 +129,12 @@ async function main() {
               type: "string",
               enum: ["light", "dark"],
               description: "Light or dark mode.",
+            },
+            density: {
+              type: "string",
+              enum: ["carded", "flat"],
+              description:
+                "Layout density. `flat` removes card borders/shadow/bg and uses whitespace to separate pushes.",
             },
           },
           additionalProperties: false,
@@ -189,10 +195,12 @@ async function main() {
       const args = (req.params.arguments ?? {}) as {
         preset?: string;
         theme?: string;
+        density?: string;
       };
       const body: Record<string, string> = {};
       if (args.preset) body.preset = args.preset;
       if (args.theme) body.theme = args.theme;
+      if (args.density) body.density = args.density;
       const r = await fetch(`http://127.0.0.1:${port}/api/config`, {
         method: "POST",
         headers: { "content-type": "application/json" },

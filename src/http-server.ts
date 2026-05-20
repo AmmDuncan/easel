@@ -99,11 +99,14 @@ export function startHttpServer(): void {
   });
 
   app.post("/api/config", (req, res) => {
-    const { preset, theme } = req.body ?? {};
-    const patch: { preset?: string; theme?: string } = {};
+    const { preset, theme, density } = req.body ?? {};
+    const patch: { preset?: string; theme?: string; density?: string } = {};
     if (typeof preset === "string") patch.preset = preset;
     if (typeof theme === "string") patch.theme = theme;
-    const next = writeConfig(patch as { preset?: never; theme?: never });
+    if (typeof density === "string") patch.density = density;
+    const next = writeConfig(
+      patch as { preset?: never; theme?: never; density?: never },
+    );
     broadcastAll("config", next);
     res.json({ config: next });
   });

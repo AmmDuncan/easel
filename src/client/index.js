@@ -164,9 +164,8 @@
     when.textContent = relTime(session.lastActivity);
     right.appendChild(when);
 
-    a.appendChild(right);
-
-    // Hover-revealed delete
+    // Hover-revealed delete — placed inside the right column so it sits
+    // above the count text in the reserved 22px slot.
     const del = document.createElement("button");
     del.className = "session-del";
     del.type = "button";
@@ -183,7 +182,9 @@
       });
       load();
     });
-    a.appendChild(del);
+    right.appendChild(del);
+
+    a.appendChild(right);
 
     return a;
   }

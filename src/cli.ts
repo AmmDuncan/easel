@@ -248,11 +248,11 @@ async function cmdConfig(args: string[]) {
     const key = args[i];
     const val = args[i + 1];
     if (!key || !val) continue;
-    if (key === "preset" || key === "theme") body[key] = val;
+    if (key === "preset" || key === "theme" || key === "density") body[key] = val;
   }
   if (Object.keys(body).length === 0) {
     console.error(
-      "usage: claude-display config [preset paper|aurora|slate] [theme light|dark]",
+      "usage: claude-display config [preset paper|aurora|slate] [theme light|dark] [density carded|flat]",
     );
     process.exitCode = 1;
     return;
