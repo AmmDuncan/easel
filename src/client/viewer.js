@@ -346,6 +346,25 @@
     time.textContent = formatTime(push.createdAt);
     meta.appendChild(time);
 
+    const printBtn = document.createElement("button");
+    printBtn.className = "push-print";
+    printBtn.type = "button";
+    printBtn.title = "Print / save as PDF";
+    printBtn.setAttribute("aria-label", "Print this push");
+    printBtn.innerHTML =
+      '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>';
+    printBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      try {
+        iframe.contentWindow &&
+          iframe.contentWindow.postMessage({ type: "easel:print" }, "*");
+      } catch (err) {
+        console.error("[easel] print failed", err);
+      }
+    });
+    meta.appendChild(printBtn);
+
     const del = document.createElement("button");
     del.className = "push-del";
     del.type = "button";
@@ -379,7 +398,7 @@
     body.className = "push-body";
 
     const iframe = document.createElement("iframe");
-    iframe.setAttribute("sandbox", "allow-scripts");
+    iframe.setAttribute("sandbox", "allow-scripts allow-modals");
     iframe.setAttribute("scrolling", "no");
     iframe.setAttribute("title", push.title || "push " + push.index);
     iframe.dataset.pushId = push.id;
@@ -569,6 +588,21 @@ th { color: var(--ds-muted); font-weight: 500; font-size: 13px; text-transform: 
 img { max-width: 100%; height: auto; border-radius: 10px; }
 :root[data-density="flat"] html,
 :root[data-density="flat"] body { background: transparent; }
+
+@media print {
+  /* Always print on white paper with dark text — ignore the host theme. */
+  :root, html, body {
+    background: #ffffff !important;
+    color: #111 !important;
+    color-scheme: light !important;
+  }
+  body { padding: 24px !important; max-width: none !important; }
+  body > p, body > .deck, body > .lede, body > ul, body > ol, body > blockquote,
+  body > h1, body > h2, body > h3, body > h4 { max-width: none !important; }
+  pre, code { background: #f4f3ed !important; color: #111 !important; border: 1px solid #ddd; }
+  .card, .panel { background: #fff !important; border: 1px solid #ddd !important; box-shadow: none !important; }
+  a { color: #111 !important; text-decoration: underline; border-bottom: 0 !important; }
+}
 </style>
 </head>
 <body>
@@ -594,6 +628,9 @@ ${body}
     if (!e || !e.data) return;
     if (e.data.type === "claude-display:config") apply(e.data);
     if (e.data.type === "claude-display:theme") apply({ theme: e.data.theme });
+    if (e.data.type === "easel:print") {
+      try { window.print(); } catch(_) {}
+    }
   });
 })();
 </script>
@@ -607,7 +644,7 @@ ${body}
     const configScript =
       "<script>(function(){function a(c){if(!c)return;if(c.theme==='light'||c.theme==='dark'){document.documentElement.setAttribute('data-theme',c.theme);window.__claudeDisplayTheme=c.theme}if(c.preset==='paper'||c.preset==='aurora'||c.preset==='slate'){document.documentElement.setAttribute('data-preset',c.preset);window.__claudeDisplayPreset=c.preset}if(c.density==='carded'||c.density==='flat'){document.documentElement.setAttribute('data-density',c.density);window.__claudeDisplayDensity=c.density}}a(" +
       JSON.stringify({ theme, preset, density }) +
-      ");window.addEventListener('message',function(e){if(!e||!e.data)return;if(e.data.type==='claude-display:config')a(e.data);if(e.data.type==='claude-display:theme')a({theme:e.data.theme})})})();</script>";
+      ");window.addEventListener('message',function(e){if(!e||!e.data)return;if(e.data.type==='claude-display:config')a(e.data);if(e.data.type==='claude-display:theme')a({theme:e.data.theme});if(e.data.type==='easel:print'){try{window.print()}catch(_){}}})})();</script>";
     const measureScript = "<script>" + selfMeasureScript(pushId) + "</script>";
     const combined = configScript + measureScript;
     if (/<\/body>/i.test(html)) return html.replace(/<\/body>/i, combined + "</body>");
