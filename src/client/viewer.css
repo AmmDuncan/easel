@@ -422,7 +422,6 @@ body {
   border-radius: 16px;
   box-shadow: var(--ds-shadow-md);
   margin-bottom: 28px;
-  overflow: hidden;
   scroll-margin-top: 88px;
 }
 
@@ -443,6 +442,13 @@ body {
   border-bottom: 1px solid var(--ds-line);
   background: var(--ds-surface-soft);
   font-size: 13px;
+  position: sticky;
+  top: 50px;
+  z-index: 5;
+  border-top-left-radius: 16px;
+  border-top-right-radius: 16px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 .push-index {
@@ -506,6 +512,9 @@ body {
 
 .push-body {
   background: var(--ds-bg-elev);
+  overflow: hidden;
+  border-bottom-left-radius: 16px;
+  border-bottom-right-radius: 16px;
 }
 
 .push-body iframe {
