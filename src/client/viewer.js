@@ -832,8 +832,8 @@ ${body}
 
       const project = document.createElement("span");
       project.className = "project";
-      project.textContent = basenameOf(s.cwd) || s.id.slice(0, 8);
-      project.title = s.cwd || s.id;
+      project.textContent = s.label || basenameOf(s.cwd) || s.id.slice(0, 8);
+      project.title = [s.label, s.cwd, s.id].filter(Boolean).join(" · ");
       item.appendChild(project);
 
       const count = document.createElement("span");
@@ -851,9 +851,32 @@ ${body}
         item.appendChild(dot);
       }
 
-      // Keep the brand label in sync with the current session's project.
+      // Keep the brand label in sync with the current session.
       if (s.id === sessionId && projectLabelEl) {
-        projectLabelEl.textContent = basenameOf(s.cwd) || "claude-display";
+        projectLabelEl.textContent =
+          s.label || basenameOf(s.cwd) || "claude-display";
+      }
+
+      // Delete button (skip on the current session — can't delete the one you're viewing)
+      if (s.id !== sessionId) {
+        const del = document.createElement("button");
+        del.className = "switcher-del";
+        del.type = "button";
+        del.title = "Delete this session";
+        del.setAttribute("aria-label", "Delete session");
+        del.innerHTML =
+          '<svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3.5 4h9M6 4V2.5h4V4M5 4l.5 9a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1L11 4"/></svg>';
+        del.addEventListener("click", async (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const name = s.label || basenameOf(s.cwd) || s.id.slice(0, 8);
+          if (!window.confirm(`Delete session "${name}" and all its pushes?`)) return;
+          await fetch("/api/sessions/" + encodeURIComponent(s.id), {
+            method: "DELETE",
+          });
+          loadSessionsForSwitcher();
+        });
+        item.appendChild(del);
       }
 
       list.appendChild(item);

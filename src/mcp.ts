@@ -24,6 +24,7 @@ function openUrlInBrowser(url: string): void {
 const TOOL_PUSH = "display_push";
 const TOOL_OPEN = "display_open";
 const TOOL_CONFIG = "display_config";
+const TOOL_LABEL = "display_label";
 
 const inputSchema = {
   type: "object" as const,
@@ -96,6 +97,23 @@ async function main() {
         },
       },
       {
+        name: TOOL_LABEL,
+        description:
+          "Set or update this Claude session's display label — a short, human phrase that names what the session is about (e.g. 'Roadworthy 401 fix', 'Bulk-add cost items redesign', 'Investigating slow query'). The label appears in the topbar, switcher dropdown, and session index, replacing the cwd basename. Call this proactively whenever the work's theme shifts so the user can navigate sessions by what they ARE, not where they live. Pass an empty string to clear back to cwd basename.",
+        inputSchema: {
+          type: "object" as const,
+          properties: {
+            label: {
+              type: "string",
+              description:
+                "Short human label (1–8 words). Pass empty string to clear.",
+            },
+          },
+          required: ["label"],
+          additionalProperties: false,
+        },
+      },
+      {
         name: TOOL_CONFIG,
         description:
           "Update the claude-display viewer's preset and/or theme. Changes apply live across every open tab (SSE-broadcast) and persist. Presets: `paper` (pitstop-style warm canvas, single amber accent, layered shadow depth — the default), `aurora` (deep canvas with soft violet/blue glow halos), `slate` (cool slate canvas with cyan accent). Themes: `light` or `dark`. Pass only the field(s) you want to change. Call this when the user asks to change the look, switch palettes, or pick a different preset.",
@@ -142,6 +160,26 @@ async function main() {
           {
             type: "text" as const,
             text: `opened a new tab → ${url}`,
+          },
+        ],
+      };
+    }
+
+    if (req.params.name === TOOL_LABEL) {
+      const args = (req.params.arguments ?? {}) as { label?: string };
+      const label = typeof args.label === "string" ? args.label.trim() : "";
+      await fetch(`http://127.0.0.1:${port}/api/register`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ sessionId, label }),
+      });
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: label
+              ? `session labelled: ${label}`
+              : `session label cleared`,
           },
         ],
       };

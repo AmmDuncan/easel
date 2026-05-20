@@ -38,6 +38,7 @@
 }
 
 .session-row {
+  position: relative;
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 18px;
@@ -51,6 +52,58 @@
   text-decoration: none;
   color: inherit;
   transition: border-color 150ms ease, background 150ms ease, transform 120ms ease;
+}
+
+.session-del {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: var(--ds-muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 120ms ease, background 120ms ease, color 120ms ease;
+}
+.session-row:hover .session-del { opacity: 0.6; }
+.session-del:hover {
+  background: var(--ds-surface-soft);
+  color: var(--ds-danger);
+  opacity: 1 !important;
+}
+
+.switcher-item {
+  position: relative;
+}
+.switcher-del {
+  position: absolute;
+  top: 50%;
+  right: 36px;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: var(--ds-muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 120ms ease, background 120ms ease, color 120ms ease;
+}
+.switcher-item:hover .switcher-del { opacity: 0.65; }
+.switcher-del:hover {
+  background: var(--ds-surface-soft);
+  color: var(--ds-danger);
+  opacity: 1 !important;
 }
 
 .session-row:hover {

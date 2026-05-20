@@ -106,9 +106,11 @@
 
     const project = document.createElement("span");
     project.className = "session-project";
-    const name = basenameOf(session.cwd) || "Untitled session";
+    const name = session.label || basenameOf(session.cwd) || "Untitled session";
     project.textContent = name;
-    project.title = session.cwd || session.id;
+    project.title = [session.label, session.cwd, session.id]
+      .filter(Boolean)
+      .join(" · ");
     head.appendChild(project);
 
     const idChip = document.createElement("span");
@@ -163,6 +165,25 @@
     right.appendChild(when);
 
     a.appendChild(right);
+
+    // Hover-revealed delete
+    const del = document.createElement("button");
+    del.className = "session-del";
+    del.type = "button";
+    del.title = "Delete this session";
+    del.setAttribute("aria-label", "Delete session");
+    del.innerHTML =
+      '<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3.5 4h9M6 4V2.5h4V4M5 4l.5 9a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1L11 4"/></svg>';
+    del.addEventListener("click", async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!window.confirm(`Delete session "${name}" and all its pushes?`)) return;
+      await fetch("/api/sessions/" + encodeURIComponent(session.id), {
+        method: "DELETE",
+      });
+      load();
+    });
+    a.appendChild(del);
 
     return a;
   }
