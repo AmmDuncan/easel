@@ -1,0 +1,25 @@
+{
+  "name": "claude-display",
+  "version": "0.1.0",
+  "private": true,
+  "description": "MCP server that gives every Claude Code session a live browser tab. Agents push HTML; you read it in split-screen.",
+  "type": "module",
+  "bin": {
+    "claude-display": "bin/claude-display"
+  },
+  "scripts": {
+    "build": "tsc && node scripts/copy-client.mjs",
+    "start": "node dist/cli.js",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "express": "^4.21.2",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.10.5",
+    "typescript": "^5.7.2"
+  }
+}
