@@ -39,14 +39,7 @@
       'iframe[data-push-id="' + cssEscape(data.pushId) + '"]',
     );
     if (!iframe) return;
-    const stickToBottom = nearBottom();
     iframe.style.height = Math.max(0, Math.ceil(data.height)) + "px";
-    if (stickToBottom) {
-      window.scrollTo({
-        top: document.documentElement.scrollHeight,
-        behavior: "auto",
-      });
-    }
   });
 
   function cssEscape(s) {
@@ -122,6 +115,18 @@
     window.scrollTo({
       top: document.documentElement.scrollHeight,
       behavior: smooth ? "smooth" : "auto",
+    });
+  }
+
+  function scrollToLatestCard(smooth) {
+    const last = cardsEl.lastElementChild;
+    if (!last) {
+      scrollToBottom(smooth);
+      return;
+    }
+    last.scrollIntoView({
+      behavior: smooth ? "smooth" : "auto",
+      block: "start",
     });
   }
 
@@ -474,7 +479,7 @@ ${body}
 
   newPillEl.addEventListener("click", () => {
     clearUnread();
-    scrollToBottom(true);
+    scrollToLatestCard(true);
   });
 
   window.addEventListener("scroll", () => {
@@ -510,7 +515,8 @@ ${body}
         const push = JSON.parse(e.data);
         const { wasNearBottom } = appendPush(push, { fresh: true });
         if (wasNearBottom) {
-          scrollToBottom(true);
+          // Wait a frame so the new card is in the DOM and laid out.
+          requestAnimationFrame(() => scrollToLatestCard(true));
         } else {
           bumpUnread();
         }
