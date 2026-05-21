@@ -162,6 +162,18 @@ How to do it: paint the mockup's outer container with the app's actual `backgrou
 
 Same principle for light-themed apps: lock to the app's cream/white surface, lock the ink, lock every accent. The host toggle moves the prose around the mock; the mock stays put.
 
+#### Use the actual colors, not approximations
+
+When the mockup references a real thing — a real app, a real component, a real Figma — **use that thing's actual colors**. Don't ballpark them.
+
+- Read the project's theme/token file (`config/theme.ts`, `tailwind.config.ts`, design-system CSS vars, Figma styles, brand-asset SVGs) and pull the exact values.
+- Use the literal hex / oklch / named tokens from the codebase — `#2f5fd1`, not "blue-600 ish".
+- For accents, pull the project's primary, not whatever blue felt close.
+- For state colors (success, danger, warning), pull the project's status palette — many apps use unusual greens / ambers / reds that don't match Tailwind defaults.
+- For typography, match the project's font stack, weights, and sizes — don't substitute "system-ui" for an Inter app or vice-versa.
+
+If you can't find the actual colors (no theme file, no Figma, no brand assets), say so in the response text. Don't ship an approximation as if it were accurate — a recreation that's "kinda close" is more misleading than no mockup at all.
+
 ```css
 .terminal {
   background: #0f172a;  /* locked dark, ignores host mode */
