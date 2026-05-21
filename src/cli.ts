@@ -25,6 +25,7 @@ Usage:
   easel config theme dark         set theme to light | dark
   easel config preset aurora theme light   set both at once
   easel setup           install SessionStart hook + register MCP in ~/.claude/settings.json
+  easel update          git pull + npm install + build + setup (re-runs setup to apply new conventions)
   easel server          run the HTTP server in the foreground (debug)
   easel version
 `);
@@ -295,6 +296,40 @@ async function cmdConfig(args: string[]) {
   console.log(JSON.stringify(data.config, null, 2));
 }
 
+function cmdUpdate(): void {
+  console.log("[easel] checking for updates…");
+  const run = (cmd: string, args: string[]) =>
+    spawnSync(cmd, args, { stdio: "inherit", cwd: PROJECT_ROOT });
+
+  let r = run("git", ["fetch", "--quiet", "origin", "main"]);
+  if (r.status !== 0) {
+    console.error("[easel] git fetch failed");
+    process.exitCode = 1;
+    return;
+  }
+  r = run("git", ["pull", "--ff-only", "--quiet", "origin", "main"]);
+  if (r.status !== 0) {
+    console.error("[easel] git pull failed (local changes? merge conflict?)");
+    process.exitCode = 1;
+    return;
+  }
+  r = run("npm", ["install", "--silent", "--no-audit", "--no-fund"]);
+  if (r.status !== 0) {
+    console.error("[easel] npm install failed");
+    process.exitCode = 1;
+    return;
+  }
+  r = run("npm", ["run", "build", "--silent"]);
+  if (r.status !== 0) {
+    console.error("[easel] build failed");
+    process.exitCode = 1;
+    return;
+  }
+  // Re-run setup so any new hook/skill conventions take effect.
+  cmdSetup();
+  console.log("[easel] updated. Restart Claude Code to pick up tool/skill changes.");
+}
+
 async function cmdServer() {
   const { startHttpServer } = await import("./http-server.js");
   startHttpServer();
@@ -328,6 +363,9 @@ async function main() {
       return;
     case "config":
       await cmdConfig(rest);
+      return;
+    case "update":
+      cmdUpdate();
       return;
     case "version":
     case "--version":

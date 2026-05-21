@@ -681,15 +681,25 @@ ${body}
         getComputedStyle(document.documentElement).getPropertyValue("--ds-bg-elev").trim() ||
         "#ffffff";
       function render() {
-        var target = document.body;
         if (!window.htmlToImage) {
           console.error("[easel] html-to-image not loaded");
           return;
         }
-        window.htmlToImage.toPng(target, {
+        // Capture the html root at full viewport width so fixed/absolute
+        // positioning resolves the same as on screen. Capturing body alone
+        // honours max-width:auto-margins and breaks fixed elements that
+        // anchor to the viewport (modals at left:50% etc).
+        var width = document.documentElement.clientWidth;
+        var height = Math.max(
+          document.documentElement.scrollHeight,
+          document.body ? document.body.scrollHeight : 0,
+        );
+        window.htmlToImage.toPng(document.documentElement, {
           backgroundColor: bgColor,
           pixelRatio: 4,
           cacheBust: true,
+          width: width,
+          height: height,
         }).then(function(dataUrl){
           parent.postMessage({ type: "easel:image-ready", pushId: pushId, dataUrl: dataUrl, filename: filename }, "*");
         }).catch(function(err){
