@@ -162,17 +162,31 @@ How to do it: paint the mockup's outer container with the app's actual `backgrou
 
 Same principle for light-themed apps: lock to the app's cream/white surface, lock the ink, lock every accent. The host toggle moves the prose around the mock; the mock stays put.
 
-#### Use the actual colors, not approximations
+#### Use the actual values, not approximations
 
-When the mockup references a real thing — a real app, a real component, a real Figma — **use that thing's actual colors**. Don't ballpark them.
+When the mockup references a real thing — a real app, a real component, a real Figma — **every visual value must come from the source**. Don't ballpark anything: not colors, not sizing, not spacing, not typography, not radii. A close-but-wrong recreation is more misleading than no recreation at all.
 
-- Read the project's theme/token file (`config/theme.ts`, `tailwind.config.ts`, design-system CSS vars, Figma styles, brand-asset SVGs) and pull the exact values.
-- Use the literal hex / oklch / named tokens from the codebase — `#2f5fd1`, not "blue-600 ish".
-- For accents, pull the project's primary, not whatever blue felt close.
-- For state colors (success, danger, warning), pull the project's status palette — many apps use unusual greens / ambers / reds that don't match Tailwind defaults.
-- For typography, match the project's font stack, weights, and sizes — don't substitute "system-ui" for an Inter app or vice-versa.
+**Where to find the actual values** (in this order of preference):
 
-If you can't find the actual colors (no theme file, no Figma, no brand assets), say so in the response text. Don't ship an approximation as if it were accurate — a recreation that's "kinda close" is more misleading than no mockup at all.
+1. The component's own CSS / styled-components / template (`components/.../Foo.vue`, `Foo.tsx`, `Foo.module.css`).
+2. The project's theme / token file — `config/theme.ts`, `tailwind.config.ts`, `app.css` `@theme`, design-system CSS vars.
+3. The Figma node (`get_design_context` in the figma MCP) — exact px, font, weight, fill.
+4. Computed styles in the browser — open DevTools on the running app, inspect, copy.
+5. Brand-asset SVGs for logos/marks.
+
+**What to copy literally**:
+
+- **Colors** — the actual hex / oklch / token. `#2f5fd1`, not "blue-600 ish". Pull the project's primary, status palette (success/danger/warning), and surface tones — many apps use unusual values that don't match Tailwind defaults.
+- **Spacing** — paddings, margins, gaps. If the source uses a 4-px scale (`p-4`, `gap-6`), use those literal values. If it uses arbitrary px (`padding: 22px`), use 22, not 24 because it "looked close enough".
+- **Sizing** — heights, widths, max-widths, min-heights of buttons, inputs, rows, modals, sidebars. A button that's 36 px tall in the app should be 36 px in the mock. The "Tailwind h-10 / h-11 / h-12" guess is wrong if the app actually uses 40 or 38.
+- **Border radii** — components vary wildly (4 / 6 / 8 / 10 / 12 / 14 / 16 px). Pull the exact one.
+- **Borders** — thickness, color, dashed vs solid. A 1 px line and a 1.5 px line read differently; copy what's there.
+- **Shadows** — drop the literal `box-shadow` value from the source, not a generic `0 1px 3px rgba(0,0,0,0.1)`.
+- **Typography** — font stack, weight, size, line-height, letter-spacing. Don't substitute "system-ui" for an Inter app, and don't render a 13 px label as 14. Inter ≠ Manrope ≠ Geist ≠ SF Pro.
+- **Layout** — gap, grid-template-columns, flex-direction, justify-content alignment. If the app's table has 6 columns at specific min-widths, your mock should have 6 columns at those widths.
+- **States** — hover, active, focused, disabled visuals. If you're showing a focused input, render the actual focus ring color and offset from the source.
+
+**If you can't reach the actuals**, say so explicitly in the chat reply (e.g. *"Couldn't find the project's theme file — colors and sizing in this mock are estimates"*) and skip the mock if it would mislead. A recreation labelled "approximation" is fine; one passed off as accurate is a trap.
 
 ```css
 .terminal {
