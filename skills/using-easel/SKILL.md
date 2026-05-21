@@ -112,6 +112,56 @@ Use CSS `light-dark()` to swap:
 
 **Locked-mode containers must lock their own text color too.** Any container that paints a *fixed*, non-adaptive background — a terminal/code block locked to dark, an always-dark callout, a hero filled with a brand color — MUST also set its own text color AND re-scope `color: inherit` to its children. Otherwise it inherits `.wrap`'s `light-dark()` and the text flips to the wrong shade for that container's background in one of the two modes.
 
+#### App / UI recreations are *always* locked-mode
+
+When you're rendering a recreation of a real piece of UI — a mock of an app screen, a component instance, an embedded preview of what the user will actually see — **that mockup owns its theme completely. Don't make it adapt to the host.**
+
+It's a screenshot-equivalent. If the real app is a dark cobalt dashboard with cyan accents, the mockup should be dark cobalt + cyan regardless of whether the user has easel in light or dark mode. If the real app is a warm cream marketing page, the mockup stays warm cream. The host toggle changes the *surrounding explanation*, not the embedded app preview.
+
+Two reasons:
+1. **Visual fidelity.** A mockup of the app in dark mode looks wrong when paper-light leaks into it. The user is trying to evaluate the implementation, not a translated version of it.
+2. **It removes a class of bugs.** App previews have lots of nested elements (buttons, chips, table cells, modal overlays) — getting every layer to adapt correctly via `light-dark()` is fragile. Locking the whole island is simpler and more faithful.
+
+How to do it: paint the mockup's outer container with the app's actual `background` and `color`, and re-scope `color: inherit` to every descendant so the host's adaptive text doesn't leak in:
+
+```html
+<style>
+  .wrap {
+    /* host-adaptive surrounding prose */
+    color: light-dark(#111, #e5e7eb);
+  }
+  .wrap *, .wrap h1, .wrap h2, .wrap p, .wrap li, .wrap span,
+  .wrap div, .wrap b, .wrap em { color: inherit; }
+
+  /* The app mock — LOCKED to the real app's colors, ignores host mode */
+  .app-mock {
+    background: #0a0e1a;        /* the app's actual canvas */
+    color: #e5edff;             /* the app's actual ink */
+    border-radius: 12px;
+    padding: 32px;
+  }
+  .app-mock * { color: inherit; }    /* re-scope so .wrap's light-dark() can't leak in */
+  .app-mock .btn-primary {
+    background: #3b82f6;
+    color: #fff;
+  }
+  .app-mock .card {
+    background: #131933;
+    border: 1px solid #1f2647;
+  }
+</style>
+<div class="wrap">
+  <h2>Here's the new payments modal</h2>
+  <p>Locked dark, just like the app.</p>
+
+  <div class="app-mock">
+    <!-- self-contained app preview; doesn't care about host theme -->
+  </div>
+</div>
+```
+
+Same principle for light-themed apps: lock to the app's cream/white surface, lock the ink, lock every accent. The host toggle moves the prose around the mock; the mock stays put.
+
 ```css
 .terminal {
   background: #0f172a;  /* locked dark, ignores host mode */
