@@ -8,6 +8,11 @@ import { ensureHttpServer, readLock } from "./server-manager.js";
 import { resolveClaudeSessionId } from "./session-id.js";
 import { HOOK_DIR, DATA_ROOT } from "./paths.js";
 import { registerSession } from "./session-store.js";
+import {
+  type ClientName,
+  listClients,
+  setupClient,
+} from "./client-setup.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = resolve(__dirname, "..");
@@ -24,7 +29,10 @@ Usage:
   easel config preset paper       set preset to paper | aurora | slate
   easel config theme dark         set theme to light | dark
   easel config preset aurora theme light   set both at once
-  easel setup           install SessionStart hook + register MCP in ~/.claude/settings.json
+  easel setup                    install Claude Code hook + register MCP in ~/.claude/settings.json
+  easel setup --client cursor    register the MCP in Cursor's config
+  easel setup --client claude-desktop    register the MCP in Claude Desktop's config
+  easel setup --client windsurf  register the MCP in Windsurf's config
   easel update          git pull + npm install + build + setup (re-runs setup to apply new conventions)
   easel restart         kill the running HTTP server and respawn it (picks up new builds/paths)
   easel server          run the HTTP server in the foreground (debug)
@@ -362,9 +370,35 @@ async function main() {
     case "url":
       await cmdUrl();
       return;
-    case "setup":
+    case "setup": {
+      const clientIdx = rest.indexOf("--client");
+      if (clientIdx !== -1) {
+        const name = rest[clientIdx + 1];
+        if (!name) {
+          console.error(
+            `[easel] --client requires a name. Available: ${listClients().join(", ")}`,
+          );
+          process.exitCode = 1;
+          return;
+        }
+        if (!listClients().includes(name as ClientName)) {
+          console.error(
+            `[easel] unknown client "${name}". Available: ${listClients().join(", ")}`,
+          );
+          process.exitCode = 1;
+          return;
+        }
+        try {
+          setupClient(name as ClientName);
+        } catch (err) {
+          console.error(`[easel] setup --client ${name} failed:`, (err as Error).message);
+          process.exitCode = 1;
+        }
+        return;
+      }
       cmdSetup();
       return;
+    }
     case "server":
       await cmdServer();
       return;
