@@ -2,6 +2,12 @@
 
 All notable changes to easel. This project adheres to [Semantic Versioning](https://semver.org/).
 
+## 0.2.3 — 2026-05-22
+
+### Fixed
+- **Every push was being delivered twice.** The auto-run guard in `dist/mcp.js` had a sloppy fallback (`endsWith("/dist/mcp.js")`) that matched even when the file was imported, not just when it was invoked directly. Result: when the CLI's no-TTY path dynamically imported `mcp.js`, the guard fired AND the CLI explicitly called `main()`, so two MCP servers ran in the same process attached to the same stdin. Every tool call was processed twice. Guard now uses strict equality only.
+- **Sessions index — trash icon overlapped the count/timestamp on short rows.** The hover-revealed delete button was absolutely positioned and collided with the right-column text whenever the row was tight. Promoted to its own grid column so it sits cleanly to the right of the count/when stack regardless of row height.
+
 ## 0.2.2 — 2026-05-22
 
 ### Fixed

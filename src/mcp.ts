@@ -276,11 +276,13 @@ export async function main() {
   await server.connect(transport);
 }
 
-// Auto-run when invoked directly (e.g. `node dist/mcp.js`), not when imported.
-const invokedDirectly =
-  import.meta.url === `file://${process.argv[1]}` ||
-  import.meta.url.endsWith("/dist/mcp.js");
-if (invokedDirectly) {
+// Auto-run only when invoked directly (e.g. `node dist/mcp.js`), not when
+// imported (e.g. by the CLI's no-arg / `mcp` subcommand path). The strict
+// equality is what guarantees this — anything fuzzier (like an endsWith
+// check) matches on import too and ends up running main() twice, which the
+// stdio transport then connects to the same stdin → every message
+// processed twice → every push duplicated. Don't add fallbacks here.
+if (import.meta.url === `file://${process.argv[1]}`) {
   main().catch((err) => {
     console.error("[easel mcp] fatal:", err);
     process.exit(1);

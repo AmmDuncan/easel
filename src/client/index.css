@@ -40,9 +40,9 @@
 .session-row {
   position: relative;
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: 1fr auto auto;
   gap: 18px;
-  align-items: start;
+  align-items: center;
   padding: 20px 22px;
   background: var(--ds-surface);
   border: 1px solid var(--ds-line);
@@ -55,14 +55,11 @@
 }
 
 .session-del {
-  position: absolute;
-  top: 14px;
-  right: 14px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
+  width: 28px;
+  height: 28px;
   background: transparent;
   border: 0;
   border-radius: 6px;
@@ -70,8 +67,9 @@
   cursor: pointer;
   opacity: 0;
   transition: opacity 120ms ease, background 120ms ease, color 120ms ease;
+  align-self: center;
 }
-.session-row:hover .session-del { opacity: 0.6; }
+.session-row:hover .session-del { opacity: 0.55; }
 .session-del:hover {
   background: var(--ds-surface-soft);
   color: var(--ds-danger);
@@ -178,7 +176,6 @@
   align-items: flex-end;
   gap: 6px;
   white-space: nowrap;
-  padding-right: 34px;
 }
 
 .session-pushcount {
