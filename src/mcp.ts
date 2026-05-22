@@ -39,14 +39,51 @@ function hookHasFiredForThisPpid(): boolean {
 }
 
 // One-shot guard: only auto-open once per MCP-child lifetime. If the user
-// closes the tab afterwards, subsequent pushes won't re-open it.
+// closes the tab afterwards, subsequent pushes won't re-open it — the user
+// closing the tab is treated as an explicit dismissal we should respect.
 let autoOpenAttempted = false;
 
-function maybeAutoOpenTab(url: string): void {
-  if (autoOpenAttempted) return;
+type AutoOpenResult =
+  | { kind: "noop" } // already attempted, or a tab is already showing this session
+  | { kind: "opened" } // we just opened a fresh tab
+  | { kind: "other-session" }; // easel tab(s) exist but on a different session — defer to user
+
+/**
+ * Decide whether to auto-open the session URL on first push.
+ *
+ * - `sessionTabs > 0`: a tab is already showing THIS session → no-op.
+ * - `otherTabs > 0`: easel is open, but on a different session. Don't surprise
+ *   the user with another window — return "other-session" so the caller can
+ *   tell the agent to ask whether to use the topbar switcher or open a new tab.
+ * - both 0 + no hook-managed tab: auto-open one tab.
+ *
+ * One-shot per MCP child lifetime. Closing the tab counts as dismissal;
+ * subsequent pushes won't re-open.
+ */
+function autoOpenIfNeeded(
+  url: string,
+  sessionTabs: number,
+  otherTabs: number,
+): AutoOpenResult {
+  if (autoOpenAttempted) return { kind: "noop" };
+
+  if (sessionTabs > 0) {
+    autoOpenAttempted = true;
+    return { kind: "noop" };
+  }
+  if (otherTabs > 0) {
+    // Easel is alive in another session — don't open a new window without asking.
+    autoOpenAttempted = true;
+    return { kind: "other-session" };
+  }
+  if (hookHasFiredForThisPpid()) {
+    // Claude Code's SessionStart hook handled it (or tried to).
+    autoOpenAttempted = true;
+    return { kind: "noop" };
+  }
   autoOpenAttempted = true;
-  if (hookHasFiredForThisPpid()) return; // Claude Code already opened it
   openUrlInBrowser(url);
+  return { kind: "opened" };
 }
 
 const inputSchema = {
@@ -97,6 +134,7 @@ async function pushToServer(args: {
     slide_id: string;
     index: number;
     sessionTabs: number;
+    otherTabs: number;
   };
 }
 
@@ -224,13 +262,12 @@ export async function main() {
     const sessionId = resolveClaudeSessionId();
     const { port } = await ensureHttpServer();
 
-    // Non-Claude-Code clients have no SessionStart hook to open the tab —
-    // we do it ourselves on the first tool call instead.
-    maybeAutoOpenTab(`http://localhost:${port}/s/${sessionId}`);
-
     if (req.params.name === TOOL_OPEN) {
       const url = `http://localhost:${port}/s/${sessionId}`;
       openUrlInBrowser(url);
+      // Explicit open also counts as "we've opened it" — if the user closes
+      // this tab later, a subsequent push shouldn't auto-reopen.
+      autoOpenAttempted = true;
       return {
         content: [
           {
@@ -307,10 +344,23 @@ export async function main() {
       port,
     });
 
-    const tabHint =
-      result.sessionTabs === 0
-        ? " · NO TAB OPEN for this session — ask the user if you should open one (call `open`)"
-        : "";
+    const url = `http://localhost:${port}/s/${sessionId}`;
+    const openResult = autoOpenIfNeeded(
+      url,
+      result.sessionTabs,
+      result.otherTabs,
+    );
+
+    let tabHint = "";
+    if (openResult.kind === "opened") {
+      tabHint = " · opened a tab for this session";
+    } else if (openResult.kind === "other-session") {
+      tabHint =
+        " · easel is open in another tab on a different session — ASK the user whether to switch via the topbar 'switch ▾' dropdown to this session, or call `open` to launch a new tab/window for it";
+    } else if (result.sessionTabs === 0) {
+      tabHint =
+        " · no tab open for this session — user previously closed it; call `open` to force a new one if needed";
+    }
     return {
       content: [
         {

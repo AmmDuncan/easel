@@ -2,6 +2,17 @@
 
 All notable changes to easel. This project adheres to [Semantic Versioning](https://semver.org/).
 
+## 0.2.10 — 2026-05-22
+
+### Changed
+- **Auto-open moved from "first tool call" to "first push", and is now aware of which sessions are currently being viewed.** The previous behaviour fired on the very first tool call (often `label` or `config`) and used a binary "have we attempted ever?" guard, which meant agents calling `label` before any push would burn the attempt without opening, and parent orchestrators that never push would still trigger a tab. New decision tree:
+  - `sessionTabs > 0` (this session is being viewed in ≥1 tab) → silent push, no auto-open.
+  - `otherTabs > 0` (easel is being viewed but on a different session) → no auto-open; the push response now hints to the agent to ask the user whether to switch to this session via the topbar `switch ▾` dropdown or call `open` for a new window. Avoids surprising users who deliberately switched their existing easel tab to look at another session.
+  - both `0` and no hook-managed tab → auto-open one tab.
+- Still one-shot per MCP child lifetime — if the user closes the tab after the first auto-open, subsequent pushes don't re-open; the response hints they can call `open` to force one.
+- Explicit `open` calls also mark the attempt as taken, so an `open` followed by a manual close is respected the same way.
+- Server's `/api/push` response now returns `otherTabs` alongside `sessionTabs`.
+
 ## 0.2.9 — 2026-05-22
 
 ### Added

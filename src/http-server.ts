@@ -204,8 +204,13 @@ export function startHttpServer(): void {
     }
 
     let sessionTabs = 0;
+    let otherTabs = 0;
     for (const c of clients.values()) {
-      if (c.sessionId === sessionId) sessionTabs++;
+      if (c.sessionId === sessionId) {
+        sessionTabs++;
+      } else {
+        otherTabs++;
+      }
     }
 
     res.json({
@@ -213,6 +218,7 @@ export function startHttpServer(): void {
       slide_id: push.id,
       index: push.index,
       sessionTabs,
+      otherTabs,
     });
   });
 
