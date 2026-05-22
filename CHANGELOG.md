@@ -2,6 +2,15 @@
 
 All notable changes to easel. This project adheres to [Semantic Versioning](https://semver.org/).
 
+## 0.2.9 — 2026-05-22
+
+### Added
+- **Per-push download menu with PNG and PDF.** The download icon on each push card now opens a small popover anchored under the icon, offering PNG (existing flow) or PDF. PDF mode reuses the same `html-to-image` rasterise we already run for PNG, then embeds the resulting bitmap into a `jsPDF` document sized to the canvas dimensions — one continuous page, no pagination, regardless of card height. jsPDF loads from the same jsDelivr CDN we already use for `html-to-image`.
+- **Real loading state on the download icon.** Replaces the previous subtle pulse — during render the icon swaps to a spinning ring and the button is click-locked until the export finishes (PNG anchor download or jsPDF save). Errors from the iframe-side rasterise now propagate to the parent via a new `easel:image-error` message and surface as an alert so silent hangs are visible.
+
+### Fixed
+- **Switcher delete button no longer overlaps the push count / timestamp.** The trash icon was absolute-positioned at `right: 36px` and sat on top of `.count` on hover. Moved into the flex flow as a sibling after `.count`, with `visibility: hidden` reserving its 22px slot so the count text stays clear at all times.
+
 ## 0.2.8 — 2026-05-22
 
 ### Docs

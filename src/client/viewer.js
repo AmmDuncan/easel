@@ -144,21 +144,48 @@
       }
       return;
     }
+    if (data.type === "easel:image-error") {
+      console.error("[easel] iframe export error", data);
+      const iframeEl = cardsEl.querySelector(
+        'iframe[data-push-id="' + cssEscape(data.pushId) + '"]',
+      );
+      if (iframeEl && iframeEl.closest(".push")) {
+        const ex = iframeEl.closest(".push").querySelector(".push-export");
+        if (ex) delete ex.dataset.loading;
+      }
+      alert("Export failed (" + (data.format || "?") + "): " + (data.message || "unknown"));
+      return;
+    }
     if (data.type === "easel:image-ready") {
-      // Iframe rasterised itself; trigger a download in the parent.
+      const format = data.format === "pdf" ? "pdf" : "png";
+      const clearLoading = () => {
+        const iframeEl = cardsEl.querySelector(
+          'iframe[data-push-id="' + cssEscape(data.pushId) + '"]',
+        );
+        if (iframeEl && iframeEl.closest(".push")) {
+          const ex = iframeEl.closest(".push").querySelector(".push-export");
+          if (ex) delete ex.dataset.loading;
+        }
+      };
+
+      if (format === "pdf") {
+        downloadAsPdf(data.dataUrl, data.filename || "push.pdf")
+          .catch((err) => {
+            console.error("[easel] pdf export failed", err);
+            alert("PDF export failed: " + (err && err.message ? err.message : err));
+          })
+          .finally(clearLoading);
+        return;
+      }
+
+      // PNG — direct anchor download.
       const a = document.createElement("a");
       a.href = data.dataUrl;
       a.download = data.filename || "push.png";
       document.body.appendChild(a);
       a.click();
       a.remove();
-      const btn = cardsEl.querySelector(
-        'iframe[data-push-id="' + cssEscape(data.pushId) + '"]',
-      );
-      if (btn && btn.closest(".push")) {
-        const ex = btn.closest(".push").querySelector(".push-export");
-        if (ex) delete ex.dataset.loading;
-      }
+      clearLoading();
       return;
     }
   });
@@ -167,6 +194,62 @@
     if (window.CSS && CSS.escape) return CSS.escape(s);
     return String(s).replace(/[^a-zA-Z0-9_-]/g, "\\$&");
   }
+
+  /**
+   * Embed a PNG dataURL into a single-page PDF sized to the image's pixel
+   * dimensions, producing a continuous (no page-breaks) document, then save.
+   */
+  function downloadAsPdf(dataUrl, filename) {
+    return new Promise((resolve, reject) => {
+      const jspdfNs = window.jspdf;
+      if (!jspdfNs || !jspdfNs.jsPDF) {
+        reject(new Error("jsPDF not loaded"));
+        return;
+      }
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const w = img.naturalWidth || img.width;
+          const h = img.naturalHeight || img.height;
+          const pdf = new jspdfNs.jsPDF({
+            unit: "px",
+            format: [w, h],
+            orientation: w > h ? "landscape" : "portrait",
+            hotfixes: ["px_scaling"],
+          });
+          pdf.addImage(dataUrl, "PNG", 0, 0, w, h);
+          pdf.save(filename);
+          resolve();
+        } catch (err) {
+          reject(err);
+        }
+      };
+      img.onerror = () => reject(new Error("image decode failed"));
+      img.src = dataUrl;
+    });
+  }
+
+  // Dismiss any open push-export menu on outside click / Escape.
+  document.addEventListener("click", (e) => {
+    if (e.target.closest && e.target.closest(".push-export-wrap")) return;
+    document.querySelectorAll(".push-export-menu").forEach((m) => {
+      if (!m.hidden) {
+        m.hidden = true;
+        const sib = m.previousElementSibling;
+        if (sib) sib.setAttribute("aria-expanded", "false");
+      }
+    });
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    document.querySelectorAll(".push-export-menu").forEach((m) => {
+      if (!m.hidden) {
+        m.hidden = true;
+        const sib = m.previousElementSibling;
+        if (sib) sib.setAttribute("aria-expanded", "false");
+      }
+    });
+  });
 
   /* ============================================================
      Theming
@@ -363,21 +446,75 @@
     time.textContent = formatTime(push.createdAt);
     meta.appendChild(time);
 
+    const exportWrap = document.createElement("div");
+    exportWrap.className = "push-export-wrap";
+
     const exportBtn = document.createElement("button");
     exportBtn.className = "push-export";
     exportBtn.type = "button";
-    exportBtn.title = "Save as PNG";
-    exportBtn.setAttribute("aria-label", "Save push as PNG");
+    exportBtn.title = "Download";
+    exportBtn.setAttribute("aria-label", "Download this push");
+    exportBtn.setAttribute("aria-haspopup", "menu");
+    exportBtn.setAttribute("aria-expanded", "false");
     exportBtn.innerHTML =
-      '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>';
-    exportBtn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      e.preventDefault();
-      const safeTitle = (push.title || "push-" + push.index)
+      '<svg class="push-export-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>' +
+      '<svg class="push-export-spinner" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9" stroke-opacity="0.25"/><path d="M21 12a9 9 0 0 0-9-9"/></svg>';
+
+    const exportMenu = document.createElement("div");
+    exportMenu.className = "push-export-menu";
+    exportMenu.setAttribute("role", "menu");
+    exportMenu.hidden = true;
+    exportMenu.innerHTML =
+      '<button type="button" role="menuitem" data-format="png">PNG</button>' +
+      '<button type="button" role="menuitem" data-format="pdf">PDF</button>';
+
+    const safeTitle = () =>
+      (push.title || "push-" + push.index)
         .toLowerCase()
         .replace(/[^a-z0-9-]+/g, "-")
         .replace(/^-+|-+$/g, "")
         .slice(0, 60) || "push";
+
+    function closeExportMenu() {
+      if (exportMenu.hidden) return;
+      exportMenu.hidden = true;
+      exportBtn.setAttribute("aria-expanded", "false");
+    }
+
+    function openExportMenu() {
+      // Close any other open export menus first.
+      cardsEl.querySelectorAll(".push-export-menu").forEach((m) => {
+        if (m !== exportMenu) {
+          m.hidden = true;
+          const sib = m.previousElementSibling;
+          if (sib) sib.setAttribute("aria-expanded", "false");
+        }
+      });
+      exportMenu.hidden = false;
+      exportBtn.setAttribute("aria-expanded", "true");
+    }
+
+    exportBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      if (exportMenu.hidden) {
+        openExportMenu();
+      } else {
+        closeExportMenu();
+      }
+    });
+
+    exportMenu.addEventListener("click", (e) => {
+      const btn = e.target.closest("button[data-format]");
+      if (!btn) return;
+      e.stopPropagation();
+      e.preventDefault();
+      const format = btn.dataset.format === "pdf" ? "pdf" : "png";
+      closeExportMenu();
+      requestExport(format);
+    });
+
+    function requestExport(format) {
       exportBtn.dataset.loading = "true";
 
       // Match the export bg to what the user sees inside this card:
@@ -387,6 +524,7 @@
       const isFlat = currentDensity() === "flat";
       const bgVar = isFlat ? "--ds-bg" : "--ds-bg-elev";
       const bgColor = rootStyle.getPropertyValue(bgVar).trim() || "#ffffff";
+      const filename = safeTitle() + (format === "pdf" ? ".pdf" : ".png");
 
       try {
         iframe.contentWindow &&
@@ -394,7 +532,8 @@
             {
               type: "easel:image",
               pushId: push.id,
-              filename: safeTitle + ".png",
+              filename,
+              format,
               bgColor,
             },
             "*",
@@ -403,8 +542,11 @@
         delete exportBtn.dataset.loading;
         console.error("[easel] export failed", err);
       }
-    });
-    meta.appendChild(exportBtn);
+    }
+
+    exportWrap.appendChild(exportBtn);
+    exportWrap.appendChild(exportMenu);
+    meta.appendChild(exportWrap);
 
     const del = document.createElement("button");
     del.className = "push-del";
@@ -676,6 +818,7 @@ ${body}
     if (e.data.type === "easel:image") {
       var pushId = e.data.pushId;
       var filename = e.data.filename || "push.png";
+      var format = e.data.format === "pdf" ? "pdf" : "png";
       var bgColor =
         e.data.bgColor ||
         getComputedStyle(document.documentElement).getPropertyValue("--ds-bg-elev").trim() ||
@@ -701,9 +844,10 @@ ${body}
           width: width,
           height: height,
         }).then(function(dataUrl){
-          parent.postMessage({ type: "easel:image-ready", pushId: pushId, dataUrl: dataUrl, filename: filename }, "*");
+          parent.postMessage({ type: "easel:image-ready", pushId: pushId, dataUrl: dataUrl, filename: filename, format: format }, "*");
         }).catch(function(err){
           console.error("[easel] export failed", err);
+          parent.postMessage({ type: "easel:image-error", pushId: pushId, format: format, message: (err && err.message) ? err.message : String(err) }, "*");
         });
       }
       if (document.fonts && document.fonts.ready) {
@@ -723,7 +867,7 @@ ${body}
     const configScript =
       "<script src='https://cdn.jsdelivr.net/npm/html-to-image@1.11.13/dist/html-to-image.js'></script><script>(function(){function a(c){if(!c)return;if(c.theme==='light'||c.theme==='dark'){document.documentElement.setAttribute('data-theme',c.theme);window.__claudeDisplayTheme=c.theme}if(c.preset==='paper'||c.preset==='aurora'||c.preset==='slate'){document.documentElement.setAttribute('data-preset',c.preset);window.__claudeDisplayPreset=c.preset}if(c.density==='carded'||c.density==='flat'){document.documentElement.setAttribute('data-density',c.density);window.__claudeDisplayDensity=c.density}}a(" +
       JSON.stringify({ theme, preset, density }) +
-      ");window.addEventListener('message',function(e){if(!e||!e.data)return;if(e.data.type==='easel:config')a(e.data);if(e.data.type==='easel:theme')a({theme:e.data.theme});if(e.data.type==='easel:print'){try{window.print()}catch(_){}}if(e.data.type==='easel:image'){var pid=e.data.pushId;var fn=e.data.filename||'push.png';var bg=e.data.bgColor||'#ffffff';if(!window.htmlToImage)return;window.htmlToImage.toPng(document.body,{backgroundColor:bg,pixelRatio:4,cacheBust:true}).then(function(u){parent.postMessage({type:'easel:image-ready',pushId:pid,dataUrl:u,filename:fn},'*')}).catch(function(err){console.error(err)})}})})();</script>";
+      ");window.addEventListener('message',function(e){if(!e||!e.data)return;if(e.data.type==='easel:config')a(e.data);if(e.data.type==='easel:theme')a({theme:e.data.theme});if(e.data.type==='easel:print'){try{window.print()}catch(_){}}if(e.data.type==='easel:image'){var pid=e.data.pushId;var fn=e.data.filename||'push.png';var fmt=e.data.format==='pdf'?'pdf':'png';var bg=e.data.bgColor||'#ffffff';if(!window.htmlToImage)return;window.htmlToImage.toPng(document.body,{backgroundColor:bg,pixelRatio:4,cacheBust:true}).then(function(u){parent.postMessage({type:'easel:image-ready',pushId:pid,dataUrl:u,filename:fn,format:fmt},'*')}).catch(function(err){console.error(err);parent.postMessage({type:'easel:image-error',pushId:pid,format:fmt,message:(err&&err.message)?err.message:String(err)},'*')})}})})();</script>";
     const measureScript = "<script>" + selfMeasureScript(pushId) + "</script>";
     const combined = configScript + measureScript;
     if (/<\/body>/i.test(html)) return html.replace(/<\/body>/i, combined + "</body>");
