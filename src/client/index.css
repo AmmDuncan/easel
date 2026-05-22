@@ -76,17 +76,11 @@
   opacity: 1 !important;
 }
 
-.switcher-item {
-  position: relative;
-}
 .switcher-del {
-  position: absolute;
-  top: 50%;
-  right: 36px;
-  transform: translateY(-50%);
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
   width: 22px;
   height: 22px;
   background: transparent;
@@ -94,10 +88,14 @@
   border-radius: 6px;
   color: var(--ds-muted);
   cursor: pointer;
+  visibility: hidden;
   opacity: 0;
   transition: opacity 120ms ease, background 120ms ease, color 120ms ease;
 }
-.switcher-item:hover .switcher-del { opacity: 0.65; }
+.switcher-item:hover .switcher-del {
+  visibility: visible;
+  opacity: 0.65;
+}
 .switcher-del:hover {
   background: var(--ds-surface-soft);
   color: var(--ds-danger);

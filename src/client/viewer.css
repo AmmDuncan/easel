@@ -588,15 +588,65 @@ body {
 .push-export[data-loading] {
   opacity: 1 !important;
   color: var(--ds-accent);
-  animation: easel-pulse 1.2s ease-in-out infinite;
+  pointer-events: none;
 }
-@keyframes easel-pulse {
-  0%, 100% { opacity: 0.55; }
-  50% { opacity: 1; }
+.push-export .push-export-spinner {
+  display: none;
+}
+.push-export[data-loading] .push-export-icon {
+  display: none;
+}
+.push-export[data-loading] .push-export-spinner {
+  display: block;
+  animation: easel-spin 0.7s linear infinite;
+}
+@keyframes easel-spin {
+  to { transform: rotate(360deg); }
 }
 .push-del svg,
 .push-export svg {
   display: block;
+}
+
+.push-export-wrap {
+  position: relative;
+  display: inline-flex;
+}
+.push-export-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  min-width: 96px;
+  padding: 4px;
+  background: var(--ds-bg-elev);
+  border: 1px solid var(--ds-border, rgba(0, 0, 0, 0.12));
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+}
+.push-export-menu[hidden] {
+  display: none;
+}
+.push-export-menu button {
+  appearance: none;
+  display: block;
+  width: 100%;
+  padding: 6px 10px;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  color: var(--ds-ink);
+  cursor: pointer;
+}
+.push-export-menu button:hover,
+.push-export-menu button:focus-visible {
+  background: var(--ds-surface-soft);
+  outline: none;
 }
 
 .push-body {
