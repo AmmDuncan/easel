@@ -15,7 +15,7 @@ A live browser tab for every AI coding session. Agents push HTML — explanation
 └────────────────────────────────────────────┘    └────────────────────────────────────┘
 ```
 
-Works with **Claude Code**, **Cursor**, **Claude Desktop**, **Windsurf**, and any other MCP-speaking client.
+Works with **Claude Code**, **Cursor**, **Claude Desktop**, **Windsurf**, **Codex**, and any other MCP-speaking client.
 
 ## Why
 
@@ -33,7 +33,7 @@ npx -y @ammduncan/easel setup
 
 That registers the MCP at user scope, installs the `using-easel` skill so the agent knows when to push, and adds the `SessionStart` hooks that resolve session IDs and auto-open the tab. Restart Claude Code and you're done.
 
-### Cursor / Claude Desktop / Windsurf
+### Cursor / Claude Desktop / Windsurf / Codex
 
 One command per client:
 
@@ -41,9 +41,19 @@ One command per client:
 npx -y @ammduncan/easel setup --client cursor
 npx -y @ammduncan/easel setup --client claude-desktop
 npx -y @ammduncan/easel setup --client windsurf
+npx -y @ammduncan/easel setup --client codex
 ```
 
-Each writes the MCP entry to the client's config file (`~/.cursor/mcp.json`, `~/Library/Application Support/Claude/claude_desktop_config.json`, or `~/.codeium/windsurf/mcp_config.json`). Restart the client to load it.
+Each writes the MCP entry to the client's config file:
+
+| Client | Config file |
+|---|---|
+| Cursor | `~/.cursor/mcp.json` |
+| Claude Desktop | `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) |
+| Windsurf | `~/.codeium/windsurf/mcp_config.json` |
+| Codex | `~/.codex/config.toml` — plus copies the `using-easel` skill into `~/.codex/skills/` |
+
+Restart the client to load the MCP server.
 
 ### Any other MCP client
 
@@ -122,7 +132,7 @@ easel open                     ensure server is running, open this session's tab
 easel url                      print this session's URL
 easel config                   print / set { preset, theme, density }
 easel setup                    Claude Code: hooks + MCP + skill
-easel setup --client <name>    register the MCP in another client (cursor, claude-desktop, windsurf)
+easel setup --client <name>    register the MCP in another client (cursor, claude-desktop, windsurf, codex)
 easel restart                  kill + respawn the HTTP server (handy after a build)
 easel update                   git pull + build + setup (clone installs only)
 easel server                   run the HTTP server in the foreground (debug)
@@ -140,7 +150,7 @@ src/
   session-store.ts    disk persistence + retention sweep
   session-id.ts       5-tier resolver (env / hook file / transcript scan / synthetic PPID)
   config-store.ts     preset / theme / density persistence
-  client-setup.ts     per-client config writers (cursor, claude-desktop, windsurf)
+  client-setup.ts     per-client config writers (cursor, claude-desktop, windsurf, codex)
   paths.ts            shared constants + legacy-dir migration
   cli.ts              `easel open|url|setup|config|server|restart|update|version`
   client/

@@ -2,6 +2,11 @@
 
 All notable changes to easel. This project adheres to [Semantic Versioning](https://semver.org/).
 
+## 0.2.8 — 2026-05-22
+
+### Docs
+- README now documents Codex as a supported client (added in 0.2.5 but missed in the doc pass). "Works with" list, install commands, config-path table, CLI help text, and file map all updated.
+
 ## 0.2.7 — 2026-05-22
 
 ### Fixed
