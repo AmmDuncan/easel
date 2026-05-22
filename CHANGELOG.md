@@ -2,6 +2,14 @@
 
 All notable changes to easel. This project adheres to [Semantic Versioning](https://semver.org/).
 
+## 0.2.5 — 2026-05-22
+
+### Added
+- **Codex client support: `easel setup --client codex`.** Writes the MCP entry into `~/.codex/config.toml` under `[mcp_servers.easel]` and copies the `using-easel` skill into `~/.codex/skills/using-easel/SKILL.md` so Codex agents have the full style guide in addition to the tool description. Line-based TOML upsert preserves other sections and comments.
+
+### Fixed
+- **`easel setup --help` no longer silently runs the destructive Claude Code setup.** Previously, the `--help` flag fell through the `--client` check and reached `cmdSetup()`, which writes to `~/.claude/settings.json`. Now a dedicated help branch fires before any side effects. Includes a manual-install JSON snippet for clients beyond the four officially supported ones.
+
 ## 0.2.4 — 2026-05-22
 
 ### Fixed

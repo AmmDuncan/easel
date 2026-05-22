@@ -29,10 +29,11 @@ Usage:
   easel config preset paper       set preset to paper | aurora | slate
   easel config theme dark         set theme to light | dark
   easel config preset aurora theme light   set both at once
-  easel setup                    install Claude Code hook + register MCP in ~/.claude/settings.json
-  easel setup --client cursor    register the MCP in Cursor's config
-  easel setup --client claude-desktop    register the MCP in Claude Desktop's config
-  easel setup --client windsurf  register the MCP in Windsurf's config
+  easel setup                              install Claude Code hook + register MCP in ~/.claude/settings.json
+  easel setup --client cursor              register MCP in ~/.cursor/mcp.json
+  easel setup --client claude-desktop      register MCP in ~/Library/Application Support/Claude/claude_desktop_config.json
+  easel setup --client windsurf            register MCP in ~/.codeium/windsurf/mcp_config.json
+  easel setup --client codex               register MCP in ~/.codex/config.toml + copy skill to ~/.codex/skills/
   easel update          git pull + npm install + build + setup (re-runs setup to apply new conventions)
   easel mcp             run the stdio MCP server in the foreground (used by clients)
   easel restart         kill the running HTTP server and respawn it (picks up new builds/paths)
@@ -372,6 +373,26 @@ async function main() {
       await cmdUrl();
       return;
     case "setup": {
+      // Catch --help BEFORE doing anything destructive. The default
+      // cmdSetup() writes to ~/.claude/settings.json, so an unguarded
+      // `easel setup --help` would silently reconfigure Claude Code.
+      if (rest.includes("--help") || rest.includes("-h") || rest[0] === "help") {
+        console.log(
+          [
+            "easel setup — install easel into one of the supported MCP clients.",
+            "",
+            "Usage:",
+            "  easel setup                    Claude Code (default): MCP + SessionStart hook + skill",
+            "  easel setup --client <name>    register MCP in another client",
+            "",
+            `Available clients: ${listClients().join(", ")}`,
+            "",
+            "Manual install (any other MCP client): drop this into the client's MCP config —",
+            '  { "mcpServers": { "easel": { "command": "npx", "args": ["-y", "@ammduncan/easel"] } } }',
+          ].join("\n"),
+        );
+        return;
+      }
       const clientIdx = rest.indexOf("--client");
       if (clientIdx !== -1) {
         const name = rest[clientIdx + 1];
