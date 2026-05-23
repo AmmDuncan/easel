@@ -718,12 +718,16 @@ body > .wrap > h1, body > .wrap > h2, body > .wrap > h3, body > .wrap > h4 {
 body > *:first-child { margin-top: 0 !important; }
 body > *:last-child { margin-bottom: 0 !important; }
 /* Full-bleed escape hatch for embedded mockups mid-presentation. Wrap a
-   section in <div class="full-bleed"> and it spans the full card width,
-   breaking out of the body padding + 1400px prose max-width, while the prose
-   around it stays in the comfortable reading column. Inside the iframe, 100vw
-   === the card's width; left:50% + translateX(-50%) re-centres on the card. */
+   section in <div class="full-bleed"> and it breaks out of the body padding +
+   prose max-width to span the card, while the prose around it stays in the
+   reading column. Inside the iframe, 100vw === the card's width; left:50% +
+   translateX(-50%) re-centres on the card.
+   Capped at 1440px: on a wide monitor the card itself can be ~2000px, but a
+   real desktop screen tops out around 1440 — letting a mockup stretch past
+   that looks unnaturally wide. So full-bleed fills the card up to 1440 and
+   then centres, rather than growing without limit. */
 .full-bleed {
-  width: 100vw;
+  width: min(100vw, 1440px);
   position: relative;
   left: 50%;
   transform: translateX(-50%);
