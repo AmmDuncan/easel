@@ -2,6 +2,14 @@
 
 All notable changes to easel. This project adheres to [Semantic Versioning](https://semver.org/).
 
+## 0.2.27 — 2026-05-23
+
+### Fixed
+- **Stopped steering agents into clipped mockups — `min-height`, never fixed `height`.** The mockup-height guidance recommended a fixed `height: 760px` for full-screen mocks, which is the exact footgun that crops content: a fixed `height` + the `overflow: hidden` that frames carry guillotines anything taller than the guessed value (buttons sliced through text, lists cut mid-item). This was self-inconsistent — the wrapper's own `.window.desktop` already uses `min-height: 900px`, not `height`. Changed the full-screen advice to `min-height` throughout (a floor that still lets content grow), and reproduce a source element's height as a `min-height` too.
+
+### Docs
+- **New "Never clip content" rule, the vertical twin of "build mockups fluid".** Never pair a fixed `height` with `overflow: hidden` on any content container (cards, panels, device/browser/phone frames, stages, slideovers, toasts) — containers size to content via `min-height`; `overflow: hidden` is for genuine cosmetic crops only (rounded-corner image masks, decorative bleed). Decorative frames must grow with their content. Also added a `.window`-specific caveat: it carries `overflow: hidden` to clip its rounded corners, so a fixed `height` on `.window` or an inner stage clips invisibly — let it grow via `min-height`. Skill + inline `push` tool description.
+
 ## 0.2.26 — 2026-05-23
 
 ### Changed

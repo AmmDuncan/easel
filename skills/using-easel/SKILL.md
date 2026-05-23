@@ -194,13 +194,14 @@ A mockup's height should match what it actually represents — don't fake it tal
 
 **Mocking a component** (a card, modal, row, toolbar, button, an embedded section): size it to its **content**. Do NOT slap `min-height: 560px` / `height: 100vh` on a component to make it "feel desktop-y" — that injects dead whitespace and floats the content unnaturally. If the real component is 320 px tall, the mock is 320 px tall.
 
-**Mocking a full desktop screen / page** (the whole viewport — a login screen, a dashboard, a settings page): give it **realistic desktop viewport proportions**, because the surrounding space *is* part of how that screen looks. A login form genuinely sits in a ~720–800 px-tall viewport with the panel centred — cropping that down to just the form's content height misrepresents it as much as over-padding a component does. Use a fixed frame (e.g. `height: 760px` or a 16:10 box) and lay the content out inside it the way the real screen does (centred form, top nav, sidebar full-height, etc.).
+**Mocking a full desktop screen / page** (the whole viewport — a login screen, a dashboard, a settings page): give it **realistic desktop viewport proportions**, because the surrounding space *is* part of how that screen looks. A login form genuinely sits in a ~720–800 px-tall viewport with the panel centred — cropping that down to just the form's content height misrepresents it as much as over-padding a component does. Use **`min-height`** for the floor (e.g. `min-height: 760px` or a 16:10 box) — **never a fixed `height`**, which clips anything taller — and lay the content out inside it the way the real screen does (centred form, top nav, sidebar full-height, etc.). This mirrors the wrapper's own `.window.desktop`, which is `min-height: 900px`, not `height`.
 
-So the rule is **faithful height, not minimal height**:
+So the rule is **faithful height, not minimal height** — but always expressed as `min-height`, never a fixed `height`:
 - Component → content height (no padding to a fake screen size).
-- Full screen → real viewport proportions (don't crop to content).
-- Either way, if the source element has a specific height/min-height, copy that exact value (per the sizing rule above).
+- Full screen → real viewport proportions via `min-height` (don't crop to content, but don't cap it with a fixed `height` either).
+- Either way, if the source element has a specific height, reproduce it as a `min-height` (a floor that still lets content grow) — per the sizing rule above.
 - Vertical-centring inside a tall box is correct *only* when you're mocking a full screen whose real layout centres its content — not as a way to fill a component you've over-sized.
+- **Never `height: <px>` + `overflow: hidden` on a content container** — that's the guillotine. See the never-clip rule under Built-in helpers.
 
 The test: cropped the same way, would your mock look like a screenshot of the real thing? Empty bands the real screen doesn't have = over-padded. A desktop screen squashed to a short strip = under-sized.
 
@@ -315,6 +316,17 @@ Wrap a mockup in `.window` to give it a macOS window frame — a title bar with 
 - Add the **`desktop`** class for a full desktop-screen canvas — `min-height: 900px`, the standard 1440×900 (16:10) design canvas — so a screen mockup looks like a real window with viewport breathing room. **Omit `desktop`** for a dialog or small component so the chrome sizes to its content (don't pad a small thing to screen height).
 
 **Build the mockup fluid, not fixed-width.** Lay the inside out with flex / `%` / `fr` widths, not hardcoded `width: 1440px` columns. The content column caps at a desktop-realistic width, but when the viewer's window is narrower (a "squeezed" screen) a fluid mockup simply **reflows to fit** — no horizontal scroll, nothing clipped, and PNG/PDF export still captures the whole thing. A fixed-pixel-width mockup gets cut off or needs an awkward horizontal scrollbar when squeezed; a fluid one never does. The 1440 is a *max*, not a target.
+
+**`.window` sets `overflow: hidden`** (to clip its own rounded corners) and grows via `min-height`, never a fixed height. So **never put a fixed `height` on `.window` itself, or on an inner "stage" element** — content past that height gets silently guillotined, and because the overflow is on the frame the crop is invisible until you export or scroll. Let it grow.
+
+### Never clip content — `min-height`, never fixed `height`
+
+The width rule above has a vertical twin, and it's the more common footgun: **never pair a fixed `height` with `overflow: hidden` on any container that holds content** — cards, panels, device/browser/phone frames, stages, slideovers, toasts. That combination guillotines anything taller than the height you guessed: buttons slice through text, bullet lists cut off mid-item. Agents reach for a round number (`height: 260px`) to "frame" a mock and lop the bottom off, often unprovoked.
+
+- **Containers size to their content.** Use `min-height` if you need a floor — never a fixed `height` — on anything wrapping real content.
+- **`overflow: hidden` is allowed ONLY for genuine cosmetic crops** where clipping *is* the intent: rounded-corner image masks, a decorative bleed. Never on a content region.
+- **Decorative frames** (browser chrome, phone bezel, device frame) must grow with their content — give the frame `min-height` and let it expand, or don't constrain height at all.
+- **The mental test:** render the tallest card in your head. If any text or button could exceed the container, the container is wrong. When unsure, leave height unset. A mockup exists to show the design *fully* — uniform-looking rectangles are never worth clipped content; let frames be different heights.
 
 ### Semantic chips
 
