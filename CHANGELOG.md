@@ -2,6 +2,12 @@
 
 All notable changes to easel. This project adheres to [Semantic Versioning](https://semver.org/).
 
+## 0.2.21 — 2026-05-23
+
+### Fixed
+- **Stray backticks in a CSS comment blanked every card.** The 0.2.20 prose-cap comment contained `` `.wrap` `` / `` `.full-bleed` `` in backticks. That comment lives inside `buildDefaultWrapper`'s JS template literal, so the backticks prematurely closed the template string → the function threw `… .wrap is not a function` on every render → hydrate failed and no cards showed (the push count still read 5). Removed the backticks from the comment.
+- **Build now syntax-checks the client JS.** `viewer.js` / `index.js` are plain browser JS copied as-is (never run through `tsc`), so this class of bug shipped undetected. `scripts/copy-client.mjs` now runs `node --check` on each after copying and fails the build on a syntax error — this exact bug would have been caught at build time.
+
 ## 0.2.20 — 2026-05-23
 
 ### Fixed

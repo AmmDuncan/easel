@@ -694,10 +694,10 @@ body {
 }
 /* Constrain prose to a comfortable reading length, but let visual blocks
    (cards, grids, tables, mockups) use the full card width. Match prose both
-   as direct body children AND one level deep through a `.wrap` container —
-   the skill recommends wrapping content in <div class="wrap">, and without
-   the `.wrap >` branch the cap silently misses and prose stretches full width.
-   `.full-bleed` still escapes via viewport units regardless of nesting. */
+   as direct body children AND one level deep through a .wrap container —
+   the skill recommends wrapping content in div.wrap, and without the
+   .wrap branch the cap silently misses and prose stretches full width.
+   .full-bleed still escapes via viewport units regardless of nesting. */
 body > p, body > .deck, body > .lede, body > ul, body > ol, body > blockquote,
 body > h1, body > h2, body > h3, body > h4,
 body > .wrap > p, body > .wrap > .deck, body > .wrap > .lede,
