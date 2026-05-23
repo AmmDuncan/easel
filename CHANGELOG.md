@@ -2,6 +2,11 @@
 
 All notable changes to easel. This project adheres to [Semantic Versioning](https://semver.org/).
 
+## 0.2.25 — 2026-05-23
+
+### Docs
+- **Documented the `.window` primitive and the "build mockups fluid" rule.** Added the `.window` / `.window.desktop` chrome to the skill's helpers section (it shipped in 0.2.24 with CSS but wasn't written up), and a guidance rule: lay desktop mockups out with flex/`%`/`fr` widths, not hardcoded `width: 1440px` columns. 1440 is a *max*, not a target — a fluid mockup reflows to fit when the viewer's window is narrowed, so there's no horizontal scroll, nothing clipped, and PNG/PDF exports stay complete. (Answers "should desktop mockups scroll horizontally when squeezed?" — no; build fluid so they reflow.) Also corrected the now-stale `.full-bleed` description to match 0.2.24 (fills the content column from the shared left edge, doesn't bleed to the card's physical edge). Skill + inline `push` tool description.
+
 ## 0.2.24 — 2026-05-23
 
 ### Added

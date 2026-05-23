@@ -293,11 +293,28 @@ Most mockups appear *inside* an explanation push — prose intro, embedded UI mo
 <p>The left panel uses the existing brand assets…</p>
 ```
 
-`.full-bleed` is injected into every presentation push. It breaks the wrapped element out of the body padding + 1400px prose cap to span the full card width, then everything outside it stays in the reading column. This is the right tool when a mockup is one section of a longer push.
+`.full-bleed` is injected into every presentation push. Prose is left-aligned and capped at ~880px; `.full-bleed` fills the **content column's full width from the same left edge** — wider than the prose, sharing one left margin down the card. It does *not* bleed to the card's physical edge: the body padding stays as a gutter, so neither the mockup nor the text ever touches the card border.
 
 Two cases, two tools:
 - **Whole push is a mockup / app recreation** → `kind: "mockup"` (or `"app"`) on the push. Strips the entire presentation frame; content owns the canvas.
 - **Mockup embedded in an explanation** → leave the push as-is and wrap the mockup section in `<div class="full-bleed">`.
+
+### Window chrome for UI mockups
+
+Wrap a mockup in `.window` to give it a macOS window frame — a title bar with the three traffic-light dots and a centred title:
+
+```html
+<div class="full-bleed">
+  <div class="window desktop" data-title="DVLA Self Service — Login">
+    <!-- mockup content fills the window body, below the 40px title bar -->
+  </div>
+</div>
+```
+
+- `data-title` sets the centred title text (omit for a blank bar).
+- Add the **`desktop`** class for a full desktop-screen canvas — `min-height: 900px`, the standard 1440×900 (16:10) design canvas — so a screen mockup looks like a real window with viewport breathing room. **Omit `desktop`** for a dialog or small component so the chrome sizes to its content (don't pad a small thing to screen height).
+
+**Build the mockup fluid, not fixed-width.** Lay the inside out with flex / `%` / `fr` widths, not hardcoded `width: 1440px` columns. The content column caps at a desktop-realistic width, but when the viewer's window is narrower (a "squeezed" screen) a fluid mockup simply **reflows to fit** — no horizontal scroll, nothing clipped, and PNG/PDF export still captures the whole thing. A fixed-pixel-width mockup gets cut off or needs an awkward horizontal scrollbar when squeezed; a fluid one never does. The 1440 is a *max*, not a target.
 
 ### Semantic chips
 
