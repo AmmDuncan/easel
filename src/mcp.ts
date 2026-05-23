@@ -354,7 +354,7 @@ export async function main() {
       tabHint = " · opened a tab for this session";
     } else if (openResult.kind === "other-session") {
       tabHint =
-        " · easel is open in another tab on a different session — ASK the user whether to switch via the topbar 'switch ▾' dropdown to this session, or call `open` to launch a new tab/window for it";
+        " · easel is open in another tab, but on a DIFFERENT session — so this push isn't visible yet. ASK THE USER how to surface it, and if your client has an interactive question/prompt tool (e.g. AskUserQuestion), USE IT to offer the choice as clickable options rather than burying it in prose: (a) switch the open tab to this session via the topbar 'switch ▾' dropdown, or (b) have you call the `open` tool to launch a fresh tab. Do not auto-open or pick for them.";
     } else if (result.sessionTabs === 0) {
       tabHint =
         " · no tab open for this session — user previously closed it; call `open` to force a new one if needed";

@@ -2,6 +2,11 @@
 
 All notable changes to easel. This project adheres to [Semantic Versioning](https://semver.org/).
 
+## 0.2.26 — 2026-05-23
+
+### Changed
+- **The "open on another session" push hint now nudges agents to use their interactive question tool.** When a push lands but easel is showing a *different* session, the hint returned to the agent previously just said "ASK the user…", which agents (including Claude Code) tended to render as a passive one-line note. It now explicitly says: if your client has an interactive question/prompt tool (e.g. `AskUserQuestion`), use it to offer the choice as clickable options — (a) switch the open tab via the topbar dropdown, or (b) call `open` for a fresh tab — rather than burying it in prose. Stays client-agnostic (text-only clients still read a clear instruction; capable clients self-upgrade to a structured prompt) — no UI is forced at the MCP layer.
+
 ## 0.2.25 — 2026-05-23
 
 ### Docs
