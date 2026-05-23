@@ -700,6 +700,18 @@ body > h1, body > h2, body > h3, body > h4 {
 }
 body > *:first-child { margin-top: 0 !important; }
 body > *:last-child { margin-bottom: 0 !important; }
+/* Full-bleed escape hatch for embedded mockups mid-presentation. Wrap a
+   section in <div class="full-bleed"> and it spans the full card width,
+   breaking out of the body padding + 1400px prose max-width, while the prose
+   around it stays in the comfortable reading column. Inside the iframe, 100vw
+   === the card's width; left:50% + translateX(-50%) re-centres on the card. */
+.full-bleed {
+  width: 100vw;
+  position: relative;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 100vw;
+}
 .wrap { display: block; }
 .kicker {
   display: block;

@@ -176,6 +176,7 @@ export async function main() {
           "═══ LAYOUT ═══\n" +
           "• Stack desktop mockups VERTICALLY with labels ('Now', 'Proposed') — don't squeeze them side-by-side. The iframe is ~900px wide; two desktop screens at half-width crush columns, wrap headings to 3 lines, and turn tables unreadable.\n" +
           "• Side-by-side is fine only for narrow mobile mockups, small cards, or short text columns that genuinely fit in half-width.\n" +
+          "• Mockup embedded mid-explanation? Prose has a ~880px reading-width cap, but a mockup section should fill the full card. Wrap JUST the mockup in <div class=\"full-bleed\">…</div> — it breaks out of the body padding + prose cap to span the full card width, while surrounding prose stays in the reading column. (If the WHOLE push is a UI recreation, use kind:'mockup'/'app' instead — that strips the entire frame.)\n" +
           "• One accent color, 3–4 instances max per card. Status colors (red/amber/green) only when state genuinely maps to status.\n\n" +
           "═══ WHEN TO PUSH ═══\n" +
           "A response that would otherwise contain: >2 paragraphs of explanation, any UI mockup, a diagram, a code diff, a ≥3-option comparison, or a multi-step progress view. Do NOT ask permission — push proactively. After pushing, reply in chat with ONE LINE: 'pushed to easel ↗ — #<index>'. Don't restate the card's content.\n\n" +

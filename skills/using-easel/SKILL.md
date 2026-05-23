@@ -265,6 +265,24 @@ Good shapes:
 
 ## Built-in helpers
 
+### Full-bleed mockups mid-presentation
+
+Most mockups appear *inside* an explanation push — prose intro, embedded UI mockup, more prose. The prose should stay in the comfortable reading column, but the mockup should fill the full card width. Wrap just the mockup section in `.full-bleed`:
+
+```html
+<p>Here's the proposed auth screen:</p>
+<div class="full-bleed">
+  <!-- desktop mockup — spans the full card width, escaping the prose max-width -->
+</div>
+<p>The left panel uses the existing brand assets…</p>
+```
+
+`.full-bleed` is injected into every presentation push. It breaks the wrapped element out of the body padding + 1400px prose cap to span the full card width, then everything outside it stays in the reading column. This is the right tool when a mockup is one section of a longer push.
+
+Two cases, two tools:
+- **Whole push is a mockup / app recreation** → `kind: "mockup"` (or `"app"`) on the push. Strips the entire presentation frame; content owns the canvas.
+- **Mockup embedded in an explanation** → leave the push as-is and wrap the mockup section in `<div class="full-bleed">`.
+
 ### Semantic chips
 
 ```html

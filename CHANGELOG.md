@@ -2,6 +2,11 @@
 
 All notable changes to easel. This project adheres to [Semantic Versioning](https://semver.org/).
 
+## 0.2.19 — 2026-05-23
+
+### Added
+- **`.full-bleed` utility class for mockups embedded mid-presentation.** The common case: a presentation push with prose intro → embedded UI mockup → more prose. Prose should stay in the ~880px reading column, but the mockup should fill the full card width. `kind: "mockup"` can't help (it strips the frame from the whole push, prose included). Now wrapping just the mockup section in `<div class="full-bleed">` breaks it out of the body padding + 1400px prose cap to span the full card width (`width: 100vw; left: 50%; transform: translateX(-50%)` — inside the iframe 100vw === card width), while everything outside the wrapper stays in the reading column. Documented in the skill and the inline `push` tool description. Two cases, two tools: whole-push recreation → `kind: "mockup"`/`"app"`; embedded mockup → `.full-bleed` wrapper.
+
 ## 0.2.18 — 2026-05-23
 
 ### Reverted
