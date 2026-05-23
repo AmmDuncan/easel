@@ -2,6 +2,11 @@
 
 All notable changes to easel. This project adheres to [Semantic Versioning](https://semver.org/).
 
+## 0.2.23 — 2026-05-23
+
+### Changed
+- **`.full-bleed` now caps at 1440px and centres.** On a wide monitor the card itself can be ~2000px, and a full-bleed mockup was stretching to fill all of it — but a real desktop screen tops out around 1440px, so the mockup looked unnaturally wide. `.full-bleed` is now `width: min(100vw, 1440px)` (still centred via `left:50%` + `translateX(-50%)`): it fills the card up to 1440 then centres with gutters. On cards narrower than 1440 it still fills edge-to-edge. Browser-verified at a 1949px viewport (1542px card → mockup capped at 1440, centred).
+
 ## 0.2.22 — 2026-05-23
 
 ### Changed
