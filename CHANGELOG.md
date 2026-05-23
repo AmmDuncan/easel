@@ -2,6 +2,15 @@
 
 All notable changes to easel. This project adheres to [Semantic Versioning](https://semver.org/).
 
+## 0.2.22 — 2026-05-23
+
+### Changed
+- **Prose reading column now centres in the card.** The capped 880px prose sat flush-left, leaving a large empty right gutter next to any `.full-bleed` block. Added `margin-left/right: auto` so the reading column centres — balanced whether or not a full-bleed sibling has widened the body, and full-bleed blocks now break out symmetrically around it.
+
+### Docs
+- **Mockup height guidance rewritten to "match the source's real frame", both directions.** The first draft of this rule ("always size to content, never pad to desktop height") was too absolute — a full desktop *screen* genuinely floats its content in a ~720–800px viewport, and cropping that to content height misrepresents it as much as over-padding a small component does. New guidance distinguishes: component → content height (don't pad to fake desktop size); full screen/page → realistic viewport proportions (don't crop to content). Either way, copy the source's exact height if it has one. Updated skill + inline `push` tool description.
+- Reinforced "hug the source" for app recreations in the inline tool description (pull exact colors/spacing/sizing/radii/fonts; say so if you can't reach the actuals rather than passing off an approximation as accurate).
+
 ## 0.2.21 — 2026-05-23
 
 ### Fixed

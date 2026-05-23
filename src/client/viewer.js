@@ -704,6 +704,16 @@ body > .wrap > p, body > .wrap > .deck, body > .wrap > .lede,
 body > .wrap > ul, body > .wrap > ol, body > .wrap > blockquote,
 body > .wrap > h1, body > .wrap > h2, body > .wrap > h3, body > .wrap > h4 {
   max-width: 880px;
+  /* Centre the reading column in the card so it stays balanced whether or not
+     a .full-bleed sibling has widened the body. Without auto margins the
+     capped prose sits flush-left with a large empty right gutter next to any
+     full-bleed block. !important is required because authors routinely set an
+     inline margin shorthand like 0 0 16px on prose — that sets the left/right
+     margins to 0 and would otherwise win over the stylesheet, leaving that one
+     element flush-left while its siblings centre (inconsistent column edge).
+     We only force the horizontal margins; inline top/bottom spacing is kept. */
+  margin-left: auto !important;
+  margin-right: auto !important;
 }
 body > *:first-child { margin-top: 0 !important; }
 body > *:last-child { margin-bottom: 0 !important; }

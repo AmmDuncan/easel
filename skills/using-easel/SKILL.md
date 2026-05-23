@@ -188,6 +188,22 @@ When the mockup references a real thing — a real app, a real component, a real
 
 **If you can't reach the actuals**, say so explicitly in the chat reply (e.g. *"Couldn't find the project's theme file — colors and sizing in this mock are estimates"*) and skip the mock if it would mislead. A recreation labelled "approximation" is fine; one passed off as accurate is a trap.
 
+#### Match the source's real frame — height included, in both directions
+
+A mockup's height should match what it actually represents — don't fake it taller *or* shorter than the real thing. There are two distinct cases, and the failure mode is using the wrong one:
+
+**Mocking a component** (a card, modal, row, toolbar, button, an embedded section): size it to its **content**. Do NOT slap `min-height: 560px` / `height: 100vh` on a component to make it "feel desktop-y" — that injects dead whitespace and floats the content unnaturally. If the real component is 320 px tall, the mock is 320 px tall.
+
+**Mocking a full desktop screen / page** (the whole viewport — a login screen, a dashboard, a settings page): give it **realistic desktop viewport proportions**, because the surrounding space *is* part of how that screen looks. A login form genuinely sits in a ~720–800 px-tall viewport with the panel centred — cropping that down to just the form's content height misrepresents it as much as over-padding a component does. Use a fixed frame (e.g. `height: 760px` or a 16:10 box) and lay the content out inside it the way the real screen does (centred form, top nav, sidebar full-height, etc.).
+
+So the rule is **faithful height, not minimal height**:
+- Component → content height (no padding to a fake screen size).
+- Full screen → real viewport proportions (don't crop to content).
+- Either way, if the source element has a specific height/min-height, copy that exact value (per the sizing rule above).
+- Vertical-centring inside a tall box is correct *only* when you're mocking a full screen whose real layout centres its content — not as a way to fill a component you've over-sized.
+
+The test: cropped the same way, would your mock look like a screenshot of the real thing? Empty bands the real screen doesn't have = over-padded. A desktop screen squashed to a short strip = under-sized.
+
 ```css
 /* Locked-dark container (terminal, dark code block, dark callout). */
 .terminal {
