@@ -426,6 +426,11 @@
     const card = document.createElement("article");
     card.className = "push";
     if (opts && opts.fresh) card.classList.add("fresh");
+    // App-fidelity pushes (mockup / app) break out of the feed column to
+    // near-full viewport width so desktop screens render at real proportions.
+    if (push.kind === "mockup" || push.kind === "app") {
+      card.classList.add("push--full-bleed");
+    }
     card.id = "push-" + push.id;
 
     const meta = document.createElement("div");

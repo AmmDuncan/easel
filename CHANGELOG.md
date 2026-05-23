@@ -2,6 +2,11 @@
 
 All notable changes to easel. This project adheres to [Semantic Versioning](https://semver.org/).
 
+## 0.2.17 — 2026-05-23
+
+### Added
+- **`kind: "mockup"` / `"app"` pushes now break out to near-full viewport width.** Two width bounds applied to every push: (1) the wrapper's presentation frame (`max-width: 1400px` + body padding + 880px prose cap), removed by app-fidelity mode since 0.2.13; (2) the feed reading column (`min(94vw, 1600px)` ≈ ~1540px usable), which still squeezed desktop UI recreations. Now app-fidelity cards get `.push--full-bleed` — `width: min(98vw, 1920px)` centred on the viewport — so desktop screens render at real desktop proportions instead of being pinched into the reading column. Presentation pushes stay in the column as before.
+
 ## 0.2.16 — 2026-05-23
 
 ### Changed

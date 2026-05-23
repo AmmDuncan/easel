@@ -501,6 +501,18 @@ body {
   animation: pop-in 360ms cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 
+/* App-fidelity pushes (kind: mockup / app) break out of the feed column to
+   near-full viewport width, so desktop UI recreations render at real desktop
+   proportions instead of being squeezed to the ~1540px reading column.
+   margin-left:50% moves the left edge to the column's centre line (which is
+   the viewport centre, since .feed is margin:0 auto), then translateX(-50%)
+   pulls back by half the element's own width → viewport-centred full bleed. */
+.push--full-bleed {
+  width: min(98vw, 1920px);
+  margin-left: 50%;
+  transform: translateX(-50%);
+}
+
 @keyframes pop-in {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: none; }
