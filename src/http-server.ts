@@ -75,6 +75,16 @@ export function startHttpServer(): void {
     express.static(CLIENT_DIR, {
       fallthrough: false,
       maxAge: "0",
+      etag: true,
+      lastModified: true,
+      // Force the browser to revalidate the client JS/CSS on every load (via
+      // ETag) instead of serving a stale cached copy. Without this a plain
+      // reload after an easel update keeps the old viewer.js — the user has to
+      // hard-reload (⌘⇧R) to pick up new styles, which has bitten us. `no-cache`
+      // means "cached copy is fine ONLY after revalidating it's unchanged".
+      setHeaders: (res) => {
+        res.setHeader("Cache-Control", "no-cache");
+      },
     }),
   );
 

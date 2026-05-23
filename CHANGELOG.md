@@ -2,6 +2,15 @@
 
 All notable changes to easel. This project adheres to [Semantic Versioning](https://semver.org/).
 
+## 0.2.24 — 2026-05-23
+
+### Added
+- **`.window` primitive — skeuomorphic macOS window chrome for mockups.** `<div class="window" data-title="App name">…</div>` draws a 40px title bar with the three traffic-light dots (red/yellow/green) and a centred title from `data-title`; content sits below. Add the `desktop` class (`class="window desktop"`) for the 1440×900 (16:10) standard design canvas via `min-height: 900px` — so a full desktop-screen mockup looks like a real window with viewport breathing room, while a dialog/component in the same chrome (no `desktop`) stays content-sized. Pairs with `.full-bleed` to fill the content column.
+
+### Changed
+- **Reading column is now left-aligned with a shared left edge, instead of per-element centred.** 0.2.22 centred each prose element independently, which produced a ragged left edge when elements had different `max-width`s (e.g. a deck capped narrower than the heading). Reverted to left-aligned prose; `.full-bleed` now fills the content column from the *same* left edge (dropped the viewport-breakout/centring) — so prose and mockups share one left margin down the card, and neither touches the card edge (the body padding stays as a gutter).
+- **Client JS/CSS now sent with `Cache-Control: no-cache`** so a normal reload revalidates and picks up updates, instead of serving a stale cached `viewer.js` that required a hard reload (⌘⇧R). Takes effect after the MCP server restarts.
+
 ## 0.2.23 — 2026-05-23
 
 ### Changed

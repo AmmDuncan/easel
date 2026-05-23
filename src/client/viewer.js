@@ -692,46 +692,84 @@ body {
 @media (min-width: 2000px) {
   body { max-width: 1600px; }
 }
-/* Constrain prose to a comfortable reading length, but let visual blocks
-   (cards, grids, tables, mockups) use the full card width. Match prose both
-   as direct body children AND one level deep through a .wrap container —
-   the skill recommends wrapping content in div.wrap, and without the
-   .wrap branch the cap silently misses and prose stretches full width.
-   .full-bleed still escapes via viewport units regardless of nesting. */
+/* Constrain prose to a comfortable reading length and LEFT-ALIGN it to the
+   content column's left edge. Visual blocks (cards, grids, mockups, .full-bleed)
+   fill the wider content column from the SAME left edge — so prose and mockups
+   share one left margin down the card. Match prose both as direct body children
+   AND one level deep through a .wrap container (the skill recommends wrapping
+   content in div.wrap; without the .wrap branch the cap silently misses). */
 body > p, body > .deck, body > .lede, body > ul, body > ol, body > blockquote,
 body > h1, body > h2, body > h3, body > h4,
 body > .wrap > p, body > .wrap > .deck, body > .wrap > .lede,
 body > .wrap > ul, body > .wrap > ol, body > .wrap > blockquote,
 body > .wrap > h1, body > .wrap > h2, body > .wrap > h3, body > .wrap > h4 {
   max-width: 880px;
-  /* Centre the reading column in the card so it stays balanced whether or not
-     a .full-bleed sibling has widened the body. Without auto margins the
-     capped prose sits flush-left with a large empty right gutter next to any
-     full-bleed block. !important is required because authors routinely set an
-     inline margin shorthand like 0 0 16px on prose — that sets the left/right
-     margins to 0 and would otherwise win over the stylesheet, leaving that one
-     element flush-left while its siblings centre (inconsistent column edge).
-     We only force the horizontal margins; inline top/bottom spacing is kept. */
-  margin-left: auto !important;
-  margin-right: auto !important;
 }
 body > *:first-child { margin-top: 0 !important; }
 body > *:last-child { margin-bottom: 0 !important; }
-/* Full-bleed escape hatch for embedded mockups mid-presentation. Wrap a
-   section in <div class="full-bleed"> and it breaks out of the body padding +
-   prose max-width to span the card, while the prose around it stays in the
-   reading column. Inside the iframe, 100vw === the card's width; left:50% +
-   translateX(-50%) re-centres on the card.
-   Capped at 1440px: on a wide monitor the card itself can be ~2000px, but a
-   real desktop screen tops out around 1440 — letting a mockup stretch past
-   that looks unnaturally wide. So full-bleed fills the card up to 1440 and
-   then centres, rather than growing without limit. */
+/* Wide-content escape for embedded mockups mid-presentation. Wrap a section in
+   <div class="full-bleed"> and it fills the content column's full width —
+   wider than the 880px prose cap — while sharing the prose's LEFT edge. It does
+   NOT break out to the card's physical edge: the body's horizontal padding
+   stays as a gutter, so neither the mockup nor the surrounding text ever touches
+   the card border. (The name is historical — it's "full content width", not
+   "bleed to the card edge".) Capped at 100% of the content column, which the
+   body's max-width already limits to desktop-realistic proportions. */
 .full-bleed {
-  width: min(100vw, 1440px);
+  width: 100%;
+  max-width: 100% !important;
+  margin-left: 0;
+  margin-right: 0;
+}
+/* Skeuomorphic macOS-style window chrome for UI mockups. Usage:
+     <div class="window" data-title="App name"> …mockup content… </div>
+   Draws a 40px title bar with the three traffic-light dots (red/yellow/green)
+   and an optional centred title from data-title. Content sits below the bar.
+   Add the desktop class for a full desktop-screen canvas — min-height 900px,
+   i.e. the 1440x900 (16:10) standard design canvas — so a screen mockup looks
+   like a real window with viewport breathing room rather than a short strip.
+   Omit desktop for dialogs / small components so they stay content-sized. */
+.window {
   position: relative;
-  left: 50%;
-  transform: translateX(-50%);
-  max-width: 100vw;
+  padding-top: 40px;
+  border-radius: 12px;
+  border: 1px solid light-dark(#e2e2e2, #2a2a2a);
+  box-shadow: 0 14px 48px rgba(0, 0, 0, 0.16);
+  overflow: hidden;
+  background: light-dark(#ffffff, #161616);
+}
+.window::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 40px;
+  background-color: light-dark(#f1f1f1, #1f1f1f);
+  border-bottom: 1px solid light-dark(#e2e2e2, #2a2a2a);
+  background-image:
+    radial-gradient(circle at 19px 20px, #ff5f57 6px, transparent 6.5px),
+    radial-gradient(circle at 39px 20px, #febc2e 6px, transparent 6.5px),
+    radial-gradient(circle at 59px 20px, #28c840 6px, transparent 6.5px);
+  background-repeat: no-repeat;
+}
+.window::after {
+  content: attr(data-title);
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 500;
+  color: light-dark(#6b6b6b, #9b9b9b);
+  pointer-events: none;
+}
+.window.desktop {
+  min-height: 900px;
 }
 .wrap { display: block; }
 .kicker {
