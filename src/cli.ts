@@ -144,7 +144,8 @@ function cmdSetup() {
   let sessionStart = (hooks.SessionStart as unknown[]) ?? [];
 
   // Drop legacy entries from prior versions (the old bash hook, paths under the
-  // claude-display name) before re-adding the current Node-based hook.
+  // claude-display name) AND the prior autoOpenBlock (which opened a tab at
+  // SessionStart — replaced by MCP-side auto-open on first push as of 0.2.14).
   const isLegacy = (block: unknown): boolean => {
     const inner = (block as { hooks?: unknown[]; command?: unknown })?.hooks ?? [block];
     if (!Array.isArray(inner)) return false;
@@ -154,7 +155,10 @@ function cmdSetup() {
       return (
         cmd.includes("claude-display-session-id.sh") ||
         cmd.includes("easel-session-id.sh") ||
-        cmd.includes("bin/claude-display ")
+        cmd.includes("bin/claude-display ") ||
+        // Prior `easel open --quiet` SessionStart hook — superseded by
+        // MCP-side first-push auto-open.
+        (cmd.includes("easel") && cmd.includes("open --quiet"))
       );
     });
   };
@@ -162,9 +166,6 @@ function cmdSetup() {
 
   const idCaptureBlock = {
     hooks: [{ type: "command", command: `node ${hookScript}` }],
-  };
-  const autoOpenBlock = {
-    hooks: [{ type: "command", command: `${cliEntry} open --quiet` }],
   };
 
   const containsBlockMatching = (substr: string) =>
@@ -181,9 +182,6 @@ function cmdSetup() {
 
   if (!containsBlockMatching("easel-session-id.mjs")) {
     sessionStart.push(idCaptureBlock);
-  }
-  if (!containsBlockMatching("easel") || !containsBlockMatching("open --quiet")) {
-    sessionStart.push(autoOpenBlock);
   }
   hooks.SessionStart = sessionStart;
   settings.hooks = hooks;

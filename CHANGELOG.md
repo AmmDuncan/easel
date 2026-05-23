@@ -2,6 +2,14 @@
 
 All notable changes to easel. This project adheres to [Semantic Versioning](https://semver.org/).
 
+## 0.2.14 — 2026-05-23
+
+### Changed
+- **First-push auto-open is now actually the only trigger.** 0.2.10 moved the MCP-side auto-open from "first tool call" to "first push when no tab is alive". But Claude Code launches were still opening a tab because `easel setup` also installed a `SessionStart` hook that ran `easel open --quiet`. Two changes:
+  - `easel setup` no longer installs the `easel open --quiet` SessionStart block, and actively strips any pre-existing one from `~/.claude/settings.json`. The `idCaptureBlock` (which writes the per-PPID session-id file) stays — it's needed for PPID → session correlation and has no UI side effect.
+  - `mcp.ts` `autoOpenIfNeeded` drops the `hookHasFiredForThisPpid()` short-circuit. That check was a proxy for "the hook already opened a tab"; now that the hook doesn't open tabs, `sessionTabs > 0` is the truthful signal.
+- After upgrading, run `easel update` once so setup re-runs and cleans your existing `~/.claude/settings.json`.
+
 ## 0.2.13 — 2026-05-23
 
 ### Added

@@ -6,11 +6,8 @@ import {
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import { spawn } from "node:child_process";
-import { existsSync } from "node:fs";
-import { join } from "node:path";
 import { ensureHttpServer } from "./server-manager.js";
 import { resolveClaudeSessionId } from "./session-id.js";
-import { HOOK_DIR } from "./paths.js";
 
 function openUrlInBrowser(url: string): void {
   const platform = process.platform;
@@ -29,15 +26,6 @@ const TOOL_OPEN = "open";
 const TOOL_CONFIG = "config";
 const TOOL_LABEL = "label";
 
-/**
- * True if a SessionStart hook (e.g. Claude Code's) has already written a
- * session-id file for this MCP child's PPID. Tells us a hook-aware client is
- * managing tab lifecycle, so the MCP server should NOT also auto-open.
- */
-function hookHasFiredForThisPpid(): boolean {
-  return existsSync(join(HOOK_DIR, `cc-session-${process.ppid}.txt`));
-}
-
 // One-shot guard: only auto-open once per MCP-child lifetime. If the user
 // closes the tab afterwards, subsequent pushes won't re-open it — the user
 // closing the tab is treated as an explicit dismissal we should respect.
@@ -55,10 +43,16 @@ type AutoOpenResult =
  * - `otherTabs > 0`: easel is open, but on a different session. Don't surprise
  *   the user with another window — return "other-session" so the caller can
  *   tell the agent to ask whether to use the topbar switcher or open a new tab.
- * - both 0 + no hook-managed tab: auto-open one tab.
+ * - both 0: auto-open one tab.
  *
  * One-shot per MCP child lifetime. Closing the tab counts as dismissal;
  * subsequent pushes won't re-open.
+ *
+ * Note: until 0.2.13, this also short-circuited when the Claude Code
+ * SessionStart hook had fired (`hookHasFiredForThisPpid`), because the hook
+ * itself opened a tab. As of 0.2.14 `easel setup` no longer installs that
+ * hook, so the MCP-side decision is reactive to actual tab presence only —
+ * `sessionTabs` is the truthful signal.
  */
 function autoOpenIfNeeded(
   url: string,
@@ -75,11 +69,6 @@ function autoOpenIfNeeded(
     // Easel is alive in another session — don't open a new window without asking.
     autoOpenAttempted = true;
     return { kind: "other-session" };
-  }
-  if (hookHasFiredForThisPpid()) {
-    // Claude Code's SessionStart hook handled it (or tried to).
-    autoOpenAttempted = true;
-    return { kind: "noop" };
   }
   autoOpenAttempted = true;
   openUrlInBrowser(url);
