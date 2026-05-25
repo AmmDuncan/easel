@@ -149,12 +149,17 @@ export async function main() {
           "  .wrap { color: light-dark(#111, #e8e8e8); padding: 56px 48px; font-family: -apple-system, 'Inter', system-ui, sans-serif; max-width: 820px; }\n" +
           "  .wrap *, .wrap h1, .wrap h2, .wrap h3, .wrap p, .wrap li, .wrap span { color: inherit; }\n" +
           "  .card { background: light-dark(#fff, #161616); border: 1px solid light-dark(#e0d9c3, #2a2a2a); border-radius: 12px; padding: 24px; }\n\n" +
-          "═══ COPY-PASTE STARTER (LOCKED-MODE container — terminal, code block, brand hero) ═══\n" +
-          "If a container has a FIXED background (not `light-dark()`), you MUST set its own text color AND re-scope `color: inherit` to its children. Otherwise the children inherit `light-dark(...)` from `.wrap` and the text flips to the wrong shade in one mode (e.g. dark text on a locked-dark terminal in light host mode → invisible). This is the #1 thing that goes wrong on terminals and code blocks.\n" +
-          "  .terminal { background: #0f172a; color: #e6edf3; border-radius: 12px; padding: 20px 24px; font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 13.5px; line-height: 1.7; }\n" +
-          "  .terminal *, .terminal span, .terminal pre { color: inherit; }\n" +
-          "  .terminal .muted { color: #94a3b8; }\n" +
-          "  .terminal .accent { color: #6ee7b7; }\n" +
+          "═══ CODE / TERMINAL BLOCKS — USE THE BUILT-IN PRIMITIVE, DON'T HAND-ROLL ═══\n" +
+          "The #1 recurring bug is a hand-rolled dark code container: you set `background:#0f172a` on a custom div but leave base text inheriting `.wrap`'s `light-dark(#111,…)`, which resolves to near-black in light host mode and VANISHES against the dark panel (only the explicitly-coloured syntax spans survive). Don't hand-roll it. The wrapper ships a baked-in, always-safe primitive:\n" +
+          "  <div class=\"code\"> … </div>   (alias: class=\"terminal\")\n" +
+          "It locks BOTH background (#0f172a) and ink (#e6edf3), re-scopes `color:inherit` to every child, and provides verified github-dark syntax token classes you can drop onto spans — NO per-token tuning needed:\n" +
+          "  .kw (keywords #ff7b72) · .string (#a5d6ff) · .fn (function #d2a8ff) · .prop (identifiers #79c0ff) · .num (#ffa657) · .comment (#8b949e) · .muted (#94a3b8) · .accent (#6ee7b7)\n" +
+          "  e.g. <div class=\"code\"><span class=\"kw\">gcloud</span> services enable run.googleapis.com</div>\n" +
+          "Plain <pre>/<code> are also already safe (bg+ink token pair). Only reach for a fully custom container when .code/.terminal genuinely don't fit — and then obey the locked-mode rule below.\n\n" +
+          "═══ COPY-PASTE STARTER (any OTHER LOCKED-MODE container — brand hero, custom panel) ═══\n" +
+          "If a container has a FIXED background (not `light-dark()`), you MUST set its own text color AND re-scope `color: inherit` to its children. Otherwise the children inherit `light-dark(...)` from `.wrap` and the text flips to the wrong shade in one mode (e.g. dark text on a locked-dark panel in light host mode → invisible).\n" +
+          "  .hero { background: #0f172a; color: #e6edf3; border-radius: 12px; padding: 20px 24px; }\n" +
+          "  .hero * { color: inherit; }\n" +
           "• Same pairing applies in the OPPOSITE direction — locked-LIGHT containers (e.g. a white card on the host canvas). A `.card { background: #fff }` with no `color:` inherits `.wrap`'s light-dark() text, which in dark host mode resolves to a light cream/gray → invisible titles on a white card. Commit text too AND re-scope inherit on children. This bites just as often as the dark case.\n" +
           "  .card { background: #ffffff; color: #111111; border: 1px solid #e5e5e5; border-radius: 12px; padding: 24px 32px; }\n" +
           "  .card * { color: inherit; }\n" +

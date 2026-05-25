@@ -205,8 +205,10 @@ So the rule is **faithful height, not minimal height** — but always expressed 
 
 The test: cropped the same way, would your mock look like a screenshot of the real thing? Empty bands the real screen doesn't have = over-padded. A desktop screen squashed to a short strip = under-sized.
 
+**For code / terminal blocks, don't hand-roll — use the built-in `.code` / `.terminal` primitive** (see Built-in helpers below). It already locks bg + ink, re-scopes `color: inherit` to children, and ships the verified github-dark token palette. The hand-rolled patterns below are the fallback for *other* locked containers (brand heroes, custom dark callouts) where no primitive fits.
+
 ```css
-/* Locked-dark container (terminal, dark code block, dark callout). */
+/* Locked-dark container (custom dark callout, brand hero). */
 .terminal {
   background: #0f172a;  /* locked dark, ignores host mode */
   color: #e6edf3;       /* MUST set text too */
@@ -327,6 +329,20 @@ The width rule above has a vertical twin, and it's the more common footgun: **ne
 - **`overflow: hidden` is allowed ONLY for genuine cosmetic crops** where clipping *is* the intent: rounded-corner image masks, a decorative bleed. Never on a content region.
 - **Decorative frames** (browser chrome, phone bezel, device frame) must grow with their content — give the frame `min-height` and let it expand, or don't constrain height at all.
 - **The mental test:** render the tallest card in your head. If any text or button could exceed the container, the container is wrong. When unsure, leave height unset. A mockup exists to show the design *fully* — uniform-looking rectangles are never worth clipped content; let frames be different heights.
+
+### Code & terminal blocks
+
+Reach for the built-in **`.code`** (alias **`.terminal`**) class instead of hand-rolling a dark code container — that hand-roll is the single most recurring failure (custom `background:#0f172a` div + base text inheriting `.wrap`'s `light-dark(#111,…)` → invisible in light host mode). The primitive locks bg + ink, re-scopes `color: inherit` to children, and ships the verified github-dark token palette so syntax highlighting reads against `#0f172a` with no per-token tuning:
+
+```html
+<div class="code">
+  <span class="kw">gcloud</span> services enable run.googleapis.com
+  <span class="comment"># dvla artifact registry</span>
+  <span class="prop">--location=</span><span class="string">europe-west1</span>
+</div>
+```
+
+Token classes: `.kw` (keywords) · `.string` · `.fn` (functions) · `.prop` (identifiers/properties) · `.num` · `.comment` · `.muted` · `.accent`. Plain `<pre>`/`<code>` are already safe too (bg + ink token pair). Only hand-roll a custom dark container when neither fits — and then obey the locked-mode pairing rule above.
 
 ### Semantic chips
 

@@ -837,6 +837,35 @@ pre {
   margin: 16px 0 24px;
 }
 pre code { background: transparent; padding: 0; color: inherit; font-size: inherit; }
+/* Locked-dark code / terminal primitive. Reach for this instead of hand-rolling
+   a dark code container — the recurring failure is a custom dark <div> that sets
+   its own background but lets base text inherit .wrap's light-dark() ink, which
+   resolves to near-black in light host mode and vanishes against the dark panel.
+   This class locks BOTH background and ink, and re-scopes color:inherit to every
+   child so the host theme can never leak in. Ships the verified github-dark token
+   palette so syntax highlighting reads against #0f172a without per-token tuning.
+   Usage: <div class="code"><span class="kw">gcloud</span> services enable …</div>
+   .terminal is an alias; add .terminal for a prompt feel (same colors). */
+.code, .terminal {
+  background: #0f172a;
+  color: #e6edf3;
+  border-radius: 12px;
+  padding: 18px 22px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 13.5px;
+  line-height: 1.7;
+  overflow: auto;
+  margin: 16px 0 24px;
+}
+.code *, .terminal * { color: inherit; }
+.code .kw,      .terminal .kw      { color: #ff7b72; }  /* keywords, control flow */
+.code .string,  .terminal .string  { color: #a5d6ff; }  /* strings, attr values */
+.code .fn,      .terminal .fn      { color: #d2a8ff; }  /* function names */
+.code .prop,    .terminal .prop    { color: #79c0ff; }  /* identifiers, properties */
+.code .num,     .terminal .num     { color: #ffa657; }  /* numbers, constants */
+.code .comment, .terminal .comment { color: #8b949e; }  /* comments */
+.code .muted,   .terminal .muted   { color: #94a3b8; }  /* dim / secondary */
+.code .accent,  .terminal .accent  { color: #6ee7b7; }  /* highlight / success */
 blockquote {
   border-left: 3px solid var(--ds-accent);
   margin: 18px 0;
@@ -883,7 +912,8 @@ img { max-width: 100%; height: auto; border-radius: 10px; }
   body { padding: 24px !important; max-width: none !important; }
   body > p, body > .deck, body > .lede, body > ul, body > ol, body > blockquote,
   body > h1, body > h2, body > h3, body > h4 { max-width: none !important; }
-  pre, code { background: #f4f3ed !important; color: #111 !important; border: 1px solid #ddd; }
+  pre, code, .code, .terminal { background: #f4f3ed !important; color: #111 !important; border: 1px solid #ddd; }
+  .code *, .terminal * { color: #111 !important; }
   .card, .panel { background: #fff !important; border: 1px solid #ddd !important; box-shadow: none !important; }
   a { color: #111 !important; text-decoration: underline; border-bottom: 0 !important; }
 }

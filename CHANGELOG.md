@@ -2,6 +2,14 @@
 
 All notable changes to easel. This project adheres to [Semantic Versioning](https://semver.org/).
 
+## 0.2.28 — 2026-05-25
+
+### Added
+- **Built-in `.code` / `.terminal` code-block primitive — kills the invisible-code-block bug at the source.** The single most recurring failure was a hand-rolled dark code container: an agent sets `background:#0f172a` on a custom div but leaves base text inheriting `.wrap`'s `light-dark(#111,…)`, which resolves to near-black in light host mode and vanishes against the dark panel (only the explicitly-coloured syntax spans survive). The guidance to lock bg+ink as a pair was correct but purely advisory — it relied on the agent remembering it every push. Now the wrapper ships a baked-in primitive: `<div class="code">` (alias `.terminal`) locks both background and ink, re-scopes `color: inherit` to every child, and provides the verified github-dark token classes (`.kw .string .fn .prop .num .comment .muted .accent`) so syntax highlighting reads against `#0f172a` with no per-token tuning. Same lever as the existing `.window` chrome — a safe primitive agents reach for instead of hand-rolling. Prints on white paper with dark text like `pre`/`code`.
+
+### Docs
+- **Steered the `push` tool description and skill toward the new primitive.** The locked-mode section now leads with "use the built-in `.code`/`.terminal`, don't hand-roll", demoting the hand-rolled CSS to a fallback for other locked containers (brand heroes, custom callouts). Added a "Code & terminal blocks" entry to the skill's Built-in helpers. Plain `<pre>`/`<code>` remain safe (bg+ink token pair) as before.
+
 ## 0.2.27 — 2026-05-23
 
 ### Fixed
