@@ -728,16 +728,26 @@ body > *:last-child { margin-bottom: 0 !important; }
    Add the desktop class for a full desktop-screen canvas — min-height 900px,
    i.e. the 1440x900 (16:10) standard design canvas — so a screen mockup looks
    like a real window with viewport breathing room rather than a short strip.
-   Omit desktop for dialogs / small components so they stay content-sized. */
+   Omit desktop for dialogs / small components so they stay content-sized.
+
+   A mockup renders an app's own UI, so it owns a STABLE surface that does NOT
+   flip with the host theme — otherwise a light dashboard mockup renders on a dark
+   window in a dark-mode viewer and every subtle gray label washes out (same
+   surface-vs-ink mismatch the .code primitive locks against). Default is a light
+   canvas with pinned dark ink and color:inherit re-scoped to every child so the
+   host's light-dark() ink can never leak in. Add the dark class
+   (class="window dark") for a genuinely dark-UI mockup. */
 .window {
   position: relative;
   padding-top: 40px;
   border-radius: 12px;
-  border: 1px solid light-dark(#e2e2e2, #2a2a2a);
+  border: 1px solid #e2e2e2;
   box-shadow: 0 14px 48px rgba(0, 0, 0, 0.16);
   overflow: hidden;
-  background: light-dark(#ffffff, #161616);
+  background: #ffffff;
+  color: #1a1a1a;
 }
+.window * { color: inherit; }
 .window::before {
   content: "";
   position: absolute;
@@ -745,8 +755,8 @@ body > *:last-child { margin-bottom: 0 !important; }
   left: 0;
   right: 0;
   height: 40px;
-  background-color: light-dark(#f1f1f1, #1f1f1f);
-  border-bottom: 1px solid light-dark(#e2e2e2, #2a2a2a);
+  background-color: #f1f1f1;
+  border-bottom: 1px solid #e2e2e2;
   background-image:
     radial-gradient(circle at 19px 20px, #ff5f57 6px, transparent 6.5px),
     radial-gradient(circle at 39px 20px, #febc2e 6px, transparent 6.5px),
@@ -765,9 +775,20 @@ body > *:last-child { margin-bottom: 0 !important; }
   justify-content: center;
   font-size: 13px;
   font-weight: 500;
-  color: light-dark(#6b6b6b, #9b9b9b);
+  color: #6b6b6b;
   pointer-events: none;
 }
+.window.dark {
+  border-color: #2a2a2a;
+  background: #161616;
+  color: #e6edf3;
+  box-shadow: 0 14px 48px rgba(0, 0, 0, 0.4);
+}
+.window.dark::before {
+  background-color: #1f1f1f;
+  border-bottom-color: #2a2a2a;
+}
+.window.dark::after { color: #9b9b9b; }
 .window.desktop {
   min-height: 900px;
 }
@@ -914,6 +935,11 @@ img { max-width: 100%; height: auto; border-radius: 10px; }
   body > h1, body > h2, body > h3, body > h4 { max-width: none !important; }
   pre, code, .code, .terminal { background: #f4f3ed !important; color: #111 !important; border: 1px solid #ddd; }
   .code *, .terminal * { color: #111 !important; }
+  /* Force the dark window variant light for print — browsers drop background
+     colors by default, which would leave its light ink invisible on white paper
+     (same reason .code/.terminal are forced light above). */
+  .window.dark { background: #ffffff !important; color: #111 !important; }
+  .window.dark * { color: #111 !important; }
   .card, .panel { background: #fff !important; border: 1px solid #ddd !important; box-shadow: none !important; }
   a { color: #111 !important; text-decoration: underline; border-bottom: 0 !important; }
 }
