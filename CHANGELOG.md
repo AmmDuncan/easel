@@ -2,6 +2,11 @@
 
 All notable changes to easel. This project adheres to [Semantic Versioning](https://semver.org/).
 
+## 0.2.29 — 2026-05-25
+
+### Fixed
+- **`.window` mockups no longer wash out in a dark-mode viewer — pin a stable surface like `.code`/`.terminal` already do.** `.window` set `background: light-dark(#ffffff, #161616)`, so its surface *flipped* with the host theme, and it never pinned text color or re-scoped `color: inherit` to children. In a dark-mode viewer the window resolved to a dark `#161616` panel, and a light-dashboard mockup's subtle gray-on-white labels (pills, captions, KPI sublabels) vanished against it — only explicitly-coloured figures survived. This is the identical surface-vs-ink mismatch the 0.2.28 `.code`/`.terminal` primitive locks against; it was fixed for code blocks but the `.window` chrome was never given the same treatment, and its theme-flipping background made it worse (the same mockup rendered differently per viewer). A mockup renders an app's own UI and should look the same to everyone, so `.window` is now a **stable light canvas**: white bg, pinned `#1a1a1a` ink, `color: inherit` re-scoped to every child. Added an opt-in **`.window.dark`** variant (locked dark surface + light ink + dark chrome + stronger shadow) for genuinely dark-UI mockups, and a `@media print` override so a dark mockup prints legibly (browsers drop background colors by default, which would otherwise strand its light ink on white paper). Skill + `push` tool description updated to document the stable surface and `.window.dark`.
+
 ## 0.2.28 — 2026-05-25
 
 ### Added
