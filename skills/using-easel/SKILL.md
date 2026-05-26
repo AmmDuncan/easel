@@ -49,6 +49,20 @@ Don't poll. Just react to the hint when it appears.
 
 Pushed cards are **presentations**, not UI dashboards. Read each rule and apply it; the wrapper gives you good defaults but they only carry so far.
 
+### 0. Fidelity bar — ship high-fidelity by default
+
+Every push should look like a **screenshot of shipped software or a finished design** — polished and production-grade — not a rough sketch, wireframe, or grey-box placeholder. Quality is the default; you don't need to be asked for it. Only drop to low-fidelity when the user **explicitly** says rough / lo-fi / wireframe / sketch / quick-and-dirty is fine, or asks for a napkin-level thumbnail. When unsure, go high-fidelity.
+
+Concretely, high-fidelity means:
+
+- **Real content, never placeholders.** Plausible names, realistic numbers/dates/currency, actual copy — no "Lorem ipsum", "Label", "Item 1 / Item 2", "Title goes here", or "…".
+- **Complete, not stubbed.** Fill every region you draw — no empty cells, half-built tables, or "etc." rows. A nav with 8 items shows 8.
+- **Exact values when recreating real UI.** Pull true colors, spacing, radii, type, and layout from the component / theme / Figma / DevTools (see [Use the actual values](#use-the-actual-values-not-approximations)). A close-but-wrong mock misleads more than none.
+- **Visual craft.** Deliberate hierarchy, aligned grids, a consistent spacing scale, real iconography (inline SVG — not emoji standing in for icons), and the states that matter (empty / hover / active). Avoid the generic-AI look: one purple gradient, evenly-sized boxes, everything centered.
+- **Tangible over abstract** (see [Visualizations](#5-visualizations--tangible-over-abstract)) — the mock should read as the actual thing, not labeled rectangles.
+
+If you genuinely can't clear the bar (missing real values, ambiguous source), say so in one line in chat and push your best honest attempt — don't pass a rough draft off as final, and don't silently ship a grey-box.
+
 ### 1. Typography
 
 - **Page lede**: 40–52 px, weight 500, letter-spacing ≈ -0.025em

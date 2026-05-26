@@ -50,6 +50,23 @@ const primitives = [
 </div>`,
   },
   {
+    // Regression: app-fidelity (kind:"mockup") push that paints its own ink via
+    // light-dark() on a bare .wrap — NO .window chrome. The preset tokens are
+    // omitted in app-fidelity mode, so without a color-scheme→data-theme binding
+    // in the structural CSS, light-dark() follows the OS scheme and the ink
+    // washes out whenever the OS disagrees with the easel toggle. Must stay
+    // theme-flip-stable (readable in BOTH light and dark host).
+    name: "mockup-lightdark-ink",
+    kind: "mockup",
+    html: `
+<div class="wrap" style="padding:40px;font-family:Inter,system-ui,sans-serif;color:light-dark(#10251b,#eef6f0)">
+  <style>:root{color-scheme:light dark}.wrap *{color:inherit}</style>
+  <div style="font-size:30px;font-weight:600;letter-spacing:-.02em">Self-service proposal</div>
+  <p style="font-size:17px;line-height:1.55">Body copy painted with light-dark() ink on a bare wrap. It must track the easel light/dark toggle, not the OS scheme.</p>
+  <p style="font-size:15px;opacity:.75">Secondary line that should also stay readable in both host themes.</p>
+</div>`,
+  },
+  {
     name: "window-desktop",
     kind: "mockup",
     html: `

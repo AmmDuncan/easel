@@ -18,7 +18,11 @@ export type ResolveOpts = {
  *   3. Hook file at ~/.easel/hook/cc-session-<ppid>.txt (Claude Code's
  *      SessionStart hook writes this; pitstop-style PPID bridging)
  *   4. Most-recently-modified transcript under ~/.claude/projects/<cwd>/
- *      (Claude Code transcript scan)
+ *      (Claude Code transcript scan) — ONLY when a positive Claude Code env
+ *      signal is present. Other MCP clients (opencode, Cursor, Windsurf, …)
+ *      can share a cwd that already holds CC transcripts; without this guard
+ *      they'd latch onto whichever unrelated transcript was touched last and
+ *      the resolved session would drift on every tool call.
  *   5. Synthetic id derived from this MCP child's PPID — gives every other
  *      MCP client (Cursor, Windsurf, Claude Desktop, etc.) a stable session
  *      per chat without requiring any hook. The MCP child IS the session.
@@ -46,22 +50,30 @@ export function resolveClaudeSessionId(opts: ResolveOpts = {}): string {
     /* fall through */
   }
 
-  try {
-    const encoded = cwd.replace(/\//g, "-");
-    const dir = join(home, ".claude", "projects", encoded);
-    let bestId: string | undefined;
-    let bestMtime = 0;
-    for (const f of readdirSync(dir)) {
-      if (!f.endsWith(".jsonl")) continue;
-      const m = statSync(join(dir, f)).mtimeMs;
-      if (m > bestMtime) {
-        bestMtime = m;
-        bestId = f.slice(0, -".jsonl".length);
+  // Tier 4 (transcript scan) is Claude-Code-specific: only trust it when we
+  // have positive evidence we're actually running inside Claude Code. For any
+  // other MCP client the scan would pick an unrelated, actively-changing CC
+  // transcript in the same cwd and the session id would drift per call — so
+  // skip straight to the stable per-process synthetic id (tier 5).
+  const isClaudeCode = Boolean(env.CLAUDECODE || env.CLAUDE_CODE_ENTRYPOINT);
+  if (isClaudeCode) {
+    try {
+      const encoded = cwd.replace(/\//g, "-");
+      const dir = join(home, ".claude", "projects", encoded);
+      let bestId: string | undefined;
+      let bestMtime = 0;
+      for (const f of readdirSync(dir)) {
+        if (!f.endsWith(".jsonl")) continue;
+        const m = statSync(join(dir, f)).mtimeMs;
+        if (m > bestMtime) {
+          bestMtime = m;
+          bestId = f.slice(0, -".jsonl".length);
+        }
       }
+      if (bestId) return bestId;
+    } catch {
+      /* fall through */
     }
-    if (bestId) return bestId;
-  } catch {
-    /* fall through */
   }
 
   return syntheticSessionIdFromPpid(ppid);
