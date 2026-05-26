@@ -2,6 +2,11 @@
 
 All notable changes to easel. This project adheres to [Semantic Versioning](https://semver.org/).
 
+## 0.3.3 — 2026-05-26
+
+### Fixed
+- **PNG and PDF export no longer hang when the easel tab isn't the visible foreground tab.** Export rasterised via `html-to-image`'s `toPng`/`toJpeg`, which resolve through the library's internal `createImage()` — and that waits on `requestAnimationFrame`. Chrome freezes rAF in hidden/background tabs, so the rasterize promise never settled: click export, switch back to your terminal, and the button spinner span forever with no error (the viewer had no timeout to recover). Both formats died here because they share the path. The export now stops at `htmlToImage.toSvg()` (no rAF) and rasterises onto a canvas with a plain `Image`, whose `onload` fires even in hidden tabs. Quality is unchanged — the SVG is vector, drawn onto a DPR-4 canvas, so PNG stays lossless and PDF stays JPEG q1.0. The two render paths (`buildDefaultWrapper` and the full-HTML `injectBridge`, which had drifted to capturing `body` vs `documentElement`) now share one `imageExportScript()`. A missing `html-to-image` now posts an error instead of returning silently, and a 30s parent-side watchdog clears the spinner and surfaces a timeout if the iframe never reports back. Covered by `tests/unit/image-export.test.mjs`.
+
 ## 0.3.2 — 2026-05-26
 
 ### Fixed
