@@ -2,6 +2,11 @@
 
 All notable changes to easel. This project adheres to [Semantic Versioning](https://semver.org/).
 
+## 0.4.0 — 2026-05-26
+
+### Added
+- **Remote images are now inlined server-side at push time, so pushes that embed cross-origin images export correctly.** A push that referenced a remote image (e.g. a mobbin.com screenshot in an `app`/`mockup` recreation) rendered fine on screen but **couldn't be exported to PNG/PDF**: the browser blocks cross-origin images from canvas rasterisation (CORS), and drawing one taints the canvas so `toDataURL` throws — export would stall until the 30s watchdog fired (see 0.3.3). The fix moves the fetch to the server: `POST /api/push` now scans incoming HTML for remote `<img src>` and CSS `url(...)` references, fetches each server-side (no CORS limit), and rewrites them to self-contained `data:` URLs before storing the push. Exports then work, and the push survives the original URL later expiring (mobbin's `…/mcp/short/…` links are ephemeral). Fetches run in parallel, each bounded by an 8s timeout with an 8MB size cap and an image-content-type check; a URL that can't be inlined (timeout, non-image, too large, network error) is left untouched — it still displays, just won't appear in an export — so a dead link degrades gracefully instead of failing the push. Opt out with `EASEL_INLINE_IMAGES=0`. Covered by `tests/unit/inline-images.test.mjs`.
+
 ## 0.3.3 — 2026-05-26
 
 ### Fixed

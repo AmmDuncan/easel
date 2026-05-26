@@ -17,6 +17,7 @@ import {
 import { readConfig, writeConfig } from "./config-store.js";
 import { clearLockIfMine, writeLock } from "./server-manager.js";
 import { resolvePort } from "./paths.js";
+import { inlineRemoteImages } from "./inline-images.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const CLIENT_DIR = resolve(__dirname, "client");
@@ -195,7 +196,7 @@ export function startHttpServer(): void {
     res.json({ ok });
   });
 
-  app.post("/api/push", (req: Request, res: Response) => {
+  app.post("/api/push", async (req: Request, res: Response) => {
     const { sessionId, html, title, kind } = req.body ?? {};
     if (typeof sessionId !== "string" || !sessionId.trim()) {
       res.status(400).json({ error: "sessionId required" });
@@ -205,7 +206,27 @@ export function startHttpServer(): void {
       res.status(400).json({ error: "html required" });
       return;
     }
-    const push = appendPush(sessionId, { html, title, kind });
+
+    // Inline remote images server-side so the stored push is self-contained
+    // and exportable (cross-origin images are CORS-blocked from client-side
+    // rasterisation). Best-effort: on any failure we store the original html.
+    let storedHtml = html;
+    if (process.env.EASEL_INLINE_IMAGES !== "0") {
+      try {
+        const result = await inlineRemoteImages(html);
+        storedHtml = result.html;
+        if (result.failed.length > 0) {
+          console.warn(
+            `[easel] ${result.failed.length} remote image(s) left un-inlined (won't export): ` +
+              result.failed.map((f) => `${f.url} — ${f.reason}`).join("; "),
+          );
+        }
+      } catch (err) {
+        console.warn("[easel] image inlining failed; storing original html:", err);
+      }
+    }
+
+    const push = appendPush(sessionId, { html: storedHtml, title, kind });
     touchSession(sessionId);
     broadcast(sessionId, "push", push);
 
