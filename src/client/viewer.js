@@ -7,6 +7,27 @@
   const cardsEl = document.getElementById("cards");
   const emptyEl = document.getElementById("empty-state");
   const countEl = document.getElementById("push-count");
+
+  // Per-push export watchdog timers. If the iframe never posts back
+  // image-ready / image-error (e.g. a render stall), the watchdog clears the
+  // button spinner and surfaces an error instead of spinning forever.
+  const EXPORT_TIMEOUT_MS = 30000;
+  const exportWatchdogs = new Map();
+  function clearExportSpinner(pushId) {
+    const iframeEl = cardsEl.querySelector(
+      'iframe[data-push-id="' + cssEscape(pushId) + '"]',
+    );
+    const push = iframeEl && iframeEl.closest(".push");
+    const ex = push && push.querySelector(".push-export");
+    if (ex) delete ex.dataset.loading;
+  }
+  function clearExportWatchdog(pushId) {
+    const t = exportWatchdogs.get(pushId);
+    if (t) {
+      clearTimeout(t);
+      exportWatchdogs.delete(pushId);
+    }
+  }
   const prunedEl = document.getElementById("pruned-marker");
   const liveDotEl = document.getElementById("live-dot");
   const liveLabelEl = document.getElementById("live-label");
@@ -276,27 +297,15 @@
     }
     if (data.type === "easel:image-error") {
       console.error("[easel] iframe export error", data);
-      const iframeEl = cardsEl.querySelector(
-        'iframe[data-push-id="' + cssEscape(data.pushId) + '"]',
-      );
-      if (iframeEl && iframeEl.closest(".push")) {
-        const ex = iframeEl.closest(".push").querySelector(".push-export");
-        if (ex) delete ex.dataset.loading;
-      }
+      clearExportWatchdog(data.pushId);
+      clearExportSpinner(data.pushId);
       alert("Export failed (" + (data.format || "?") + "): " + (data.message || "unknown"));
       return;
     }
     if (data.type === "easel:image-ready") {
       const format = data.format === "pdf" ? "pdf" : "png";
-      const clearLoading = () => {
-        const iframeEl = cardsEl.querySelector(
-          'iframe[data-push-id="' + cssEscape(data.pushId) + '"]',
-        );
-        if (iframeEl && iframeEl.closest(".push")) {
-          const ex = iframeEl.closest(".push").querySelector(".push-export");
-          if (ex) delete ex.dataset.loading;
-        }
-      };
+      clearExportWatchdog(data.pushId);
+      const clearLoading = () => clearExportSpinner(data.pushId);
 
       if (format === "pdf") {
         downloadAsPdf(data.dataUrl, data.filename || "push.pdf")
@@ -654,6 +663,20 @@
     function requestExport(format) {
       exportBtn.dataset.loading = "true";
 
+      clearExportWatchdog(push.id);
+      exportWatchdogs.set(
+        push.id,
+        setTimeout(() => {
+          exportWatchdogs.delete(push.id);
+          clearExportSpinner(push.id);
+          alert(
+            "Export timed out after " +
+              EXPORT_TIMEOUT_MS / 1000 +
+              "s. Try again with the easel tab in the foreground.",
+          );
+        }, EXPORT_TIMEOUT_MS),
+      );
+
       // Match the export bg to what the user sees inside this card:
       //   carded → card's elevated surface (--ds-bg-elev)
       //   flat   → page canvas (--ds-bg) since the iframe body is transparent
@@ -676,6 +699,7 @@
             "*",
           );
       } catch (err) {
+        clearExportWatchdog(push.id);
         delete exportBtn.dataset.loading;
         console.error("[easel] export failed", err);
       }
@@ -766,6 +790,49 @@
       "(function(){var ID=" +
       JSON.stringify(pushId) +
       ";function measure(){var b=document.body,h=document.documentElement;if(!b)return 0;return Math.max(b.getBoundingClientRect().bottom,b.scrollHeight,h.scrollHeight)}function send(){try{parent.postMessage({type:'easel:size',pushId:ID,height:measure()},'*')}catch(e){}}send();window.addEventListener('load',send);window.addEventListener('resize',send);if(document.fonts&&document.fonts.ready){document.fonts.ready.then(send).catch(function(){})}if(window.ResizeObserver){var ro=new ResizeObserver(send);if(document.body)ro.observe(document.body);ro.observe(document.documentElement)}var mo=new MutationObserver(send);mo.observe(document.documentElement,{subtree:true,childList:true,characterData:true,attributes:true});setTimeout(send,250);setTimeout(send,800);setTimeout(send,1600)})();"
+    );
+  }
+
+  /**
+   * In-iframe message listener that turns the rendered push into a PNG/JPEG
+   * dataURL on `easel:image` and posts back `easel:image-ready` / `-error`.
+   *
+   * Deliberately stops at htmlToImage.toSvg() and does the canvas rasterisation
+   * by hand. toPng/toJpeg/toCanvas resolve via the library's internal
+   * createImage(), which waits on requestAnimationFrame — and Chrome freezes
+   * rAF in hidden/background tabs, so the export hung forever whenever the
+   * easel tab wasn't the visible one. toSvg has no rAF, and a plain Image's
+   * onload fires even in hidden tabs, so this path works regardless of tab
+   * visibility. Quality is unchanged: the SVG is vector, drawn onto a
+   * PIXEL_RATIO-scaled canvas → still crisp at DPR 4.
+   *
+   * Shared verbatim by buildDefaultWrapper and injectBridge so the two render
+   * paths can't drift.
+   */
+  function imageExportScript() {
+    return (
+      "(function(){var PR=4;" +
+      "function fail(id,fmt,err){console.error('[easel] export failed',err);" +
+      "parent.postMessage({type:'easel:image-error',pushId:id,format:fmt,message:(err&&err.message)?err.message:String(err)},'*')}" +
+      "function rasterize(svgUrl,w,h,bg,fmt){return new Promise(function(resolve,reject){" +
+      "var img=new Image();" +
+      "img.onload=function(){try{var c=document.createElement('canvas');" +
+      "c.width=Math.max(1,Math.round(w*PR));c.height=Math.max(1,Math.round(h*PR));" +
+      "var x=c.getContext('2d');x.fillStyle=bg;x.fillRect(0,0,c.width,c.height);" +
+      "x.drawImage(img,0,0,c.width,c.height);" +
+      "resolve(fmt==='pdf'?c.toDataURL('image/jpeg',1.0):c.toDataURL('image/png'))}catch(e){reject(e)}};" +
+      "img.onerror=function(){reject(new Error('SVG snapshot failed to load'))};img.src=svgUrl})}" +
+      "function run(d){var id=d.pushId;var fn=d.filename||'push.png';var fmt=d.format==='pdf'?'pdf':'png';" +
+      "var bg=d.bgColor||getComputedStyle(document.documentElement).getPropertyValue('--ds-bg-elev').trim()||'#ffffff';" +
+      "function render(){if(!window.htmlToImage){fail(id,fmt,new Error('html-to-image not loaded'));return}" +
+      "var w=document.documentElement.clientWidth;" +
+      "var h=Math.max(document.documentElement.scrollHeight,document.body?document.body.scrollHeight:0);" +
+      "window.htmlToImage.toSvg(document.documentElement,{width:w,height:h,cacheBust:true})" +
+      ".then(function(u){return rasterize(u,w,h,bg,fmt)})" +
+      ".then(function(u){parent.postMessage({type:'easel:image-ready',pushId:id,dataUrl:u,filename:fn,format:fmt},'*')})" +
+      ".catch(function(e){fail(id,fmt,e)})}" +
+      "if(document.fonts&&document.fonts.ready){document.fonts.ready.then(render).catch(render)}else{render()}}" +
+      "window.addEventListener('message',function(e){if(e&&e.data&&e.data.type==='easel:image')run(e.data)})})();"
     );
   }
 
@@ -1004,58 +1071,10 @@ ${body}
     if (e.data.type === "easel:print") {
       try { window.print(); } catch(_) {}
     }
-    if (e.data.type === "easel:image") {
-      var pushId = e.data.pushId;
-      var filename = e.data.filename || "push.png";
-      var format = e.data.format === "pdf" ? "pdf" : "png";
-      var bgColor =
-        e.data.bgColor ||
-        getComputedStyle(document.documentElement).getPropertyValue("--ds-bg-elev").trim() ||
-        "#ffffff";
-      function render() {
-        if (!window.htmlToImage) {
-          console.error("[easel] html-to-image not loaded");
-          return;
-        }
-        // Capture the html root at full viewport width so fixed/absolute
-        // positioning resolves the same as on screen. Capturing body alone
-        // honours max-width:auto-margins and breaks fixed elements that
-        // anchor to the viewport (modals at left:50% etc).
-        var width = document.documentElement.clientWidth;
-        var height = Math.max(
-          document.documentElement.scrollHeight,
-          document.body ? document.body.scrollHeight : 0,
-        );
-        // PNG target → lossless PNG @ pixelRatio 4 for crisp standalone files.
-        // PDF target → JPEG @ quality 1.0 + pixelRatio 4. PDFs natively use
-        // DCT compression for embedded JPEGs, so even at max quality the PDF
-        // stays in the ~3-8 MB range for a typical card (vs ~300 MB if we
-        // embedded as PNG — see 0.2.15). 1.0 + DPR 4 keeps text razor-sharp
-        // at any zoom level; tuned down to 0.92 + DPR 2 in 0.2.15 dropped to
-        // ~800 KB but at the cost of visible JPEG artefacts on type.
-        var rasterFn = format === "pdf" ? window.htmlToImage.toJpeg : window.htmlToImage.toPng;
-        var rasterOpts = {
-          backgroundColor: bgColor,
-          pixelRatio: 4,
-          cacheBust: true,
-          width: width,
-          height: height,
-        };
-        if (format === "pdf") rasterOpts.quality = 1.0;
-        rasterFn(document.documentElement, rasterOpts).then(function(dataUrl){
-          parent.postMessage({ type: "easel:image-ready", pushId: pushId, dataUrl: dataUrl, filename: filename, format: format }, "*");
-        }).catch(function(err){
-          console.error("[easel] export failed", err);
-          parent.postMessage({ type: "easel:image-error", pushId: pushId, format: format, message: (err && err.message) ? err.message : String(err) }, "*");
-        });
-      }
-      if (document.fonts && document.fonts.ready) {
-        document.fonts.ready.then(render).catch(render);
-      } else { render(); }
-    }
   });
 })();
 </script>
+<script>${imageExportScript()}</script>
 <script>${selfMeasureScript(pushId)}</script>
 </body>
 </html>`;
@@ -1066,9 +1085,10 @@ ${body}
     const configScript =
       "<script src='https://cdn.jsdelivr.net/npm/html-to-image@1.11.13/dist/html-to-image.js'></script><script>(function(){function a(c){if(!c)return;if(c.theme==='light'||c.theme==='dark'){document.documentElement.setAttribute('data-theme',c.theme);window.__claudeDisplayTheme=c.theme}if(c.preset==='paper'||c.preset==='aurora'||c.preset==='slate'){document.documentElement.setAttribute('data-preset',c.preset);window.__claudeDisplayPreset=c.preset}if(c.density==='carded'||c.density==='flat'){document.documentElement.setAttribute('data-density',c.density);window.__claudeDisplayDensity=c.density}}a(" +
       JSON.stringify({ theme, preset, density }) +
-      ");window.addEventListener('message',function(e){if(!e||!e.data)return;if(e.data.type==='easel:config')a(e.data);if(e.data.type==='easel:theme')a({theme:e.data.theme});if(e.data.type==='easel:print'){try{window.print()}catch(_){}}if(e.data.type==='easel:image'){var pid=e.data.pushId;var fn=e.data.filename||'push.png';var fmt=e.data.format==='pdf'?'pdf':'png';var bg=e.data.bgColor||'#ffffff';if(!window.htmlToImage)return;var rfn=fmt==='pdf'?window.htmlToImage.toJpeg:window.htmlToImage.toPng;var ropts={backgroundColor:bg,pixelRatio:4,cacheBust:true};if(fmt==='pdf')ropts.quality=1.0;rfn(document.body,ropts).then(function(u){parent.postMessage({type:'easel:image-ready',pushId:pid,dataUrl:u,filename:fn,format:fmt},'*')}).catch(function(err){console.error(err);parent.postMessage({type:'easel:image-error',pushId:pid,format:fmt,message:(err&&err.message)?err.message:String(err)},'*')})}})})();</script>";
+      ");window.addEventListener('message',function(e){if(!e||!e.data)return;if(e.data.type==='easel:config')a(e.data);if(e.data.type==='easel:theme')a({theme:e.data.theme});if(e.data.type==='easel:print'){try{window.print()}catch(_){}}})})();</script>";
+    const imageScript = "<script>" + imageExportScript() + "</script>";
     const measureScript = "<script>" + selfMeasureScript(pushId) + "</script>";
-    const combined = configScript + measureScript;
+    const combined = configScript + imageScript + measureScript;
     if (/<\/body>/i.test(html)) return html.replace(/<\/body>/i, combined + "</body>");
     return html + combined;
   }
