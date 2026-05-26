@@ -139,6 +139,15 @@ export async function main() {
         name: TOOL_PUSH,
         description:
           "Push an HTML card to this session's live browser tab. Renders in a sandboxed iframe over a host-controlled canvas that can be LIGHT or DARK depending on the user's OS theme. Treat each card as a presentation slide — generous whitespace, presentation-scale type, tangible visuals. Your HTML MUST adapt to both light and dark modes.\n\n" +
+          "═══ FIDELITY BAR — SHIP HIGH-FIDELITY BY DEFAULT ═══\n" +
+          "Default to polished, production-grade output that looks like a real screenshot of shipped software or a finished design — NOT a rough sketch, wireframe, or grey-box placeholder. This is the default for EVERY push; you do not need to be asked for quality. Only drop to low-fidelity (wireframe, ASCII-ish boxes, lorem-ipsum, unstyled) when the user EXPLICITLY says rough/lo-fi/wireframe/sketch/quick-and-dirty is fine, or asks for a thumbnail/napkin idea. When in doubt, go high-fidelity.\n" +
+          "What high-fidelity means concretely:\n" +
+          "• REAL content, not placeholders. Plausible names, realistic numbers/dates/currency, actual copy — never 'Lorem ipsum', 'Label', 'Item 1 / Item 2', 'Title goes here', or '...'.\n" +
+          "• COMPLETE, not stubbed. Fill every region you draw — no empty cells, half-built tables, or 'etc.' rows. If a screen has 8 nav items, draw 8.\n" +
+          "• EXACT values when recreating real UI — pull true colors, spacing, radii, type, and layout from the component/theme/Figma/DevTools (see the recreation rules below). A close-but-wrong mock misleads more than none.\n" +
+          "• Visual craft: deliberate hierarchy, aligned grids, consistent spacing scale, real iconography (inline SVG, not emoji-as-icon), proper empty/hover/active states where they matter. Avoid the generic-AI look (one purple gradient, evenly-sized boxes, centered everything).\n" +
+          "• Tangible over abstract (see VISUALS): a mock should read as the actual thing, not labeled rectangles.\n" +
+          "If you genuinely can't reach the bar (missing real values, ambiguous source), say so in ONE line in chat and push your best honest attempt — don't pass a rough draft off as final, and don't silently ship a grey-box.\n\n" +
           "═══ ADAPTIVE COLOR (gets wrong most often) ═══\n" +
           "• Do NOT set `background` on `body` or your root wrapper. The host paints the canvas — setting bg fights it and creates a wrong-shade block in the opposite mode.\n" +
           "• Use `light-dark()` for ALL text colors, card backgrounds, borders, and decorative shades. Add `:root { color-scheme: light dark; }` so the function resolves. Hardcoded `color: #475569` goes invisible in dark mode; hardcoded `border: 1px solid #e5e5e5` becomes a hard white line.\n" +

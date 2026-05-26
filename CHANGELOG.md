@@ -2,6 +2,15 @@
 
 All notable changes to easel. This project adheres to [Semantic Versioning](https://semver.org/).
 
+## 0.3.2 — 2026-05-26
+
+### Fixed
+- **App-fidelity (`kind:"mockup"`/`"app"`) text painted with `light-dark()` now tracks the easel light/dark toggle instead of the OS color scheme.** Authors paint mockup ink with `color: light-dark(#dark-ink, #light-ink)`, which resolves off the document's *computed* `color-scheme` — not the `data-theme` attribute. The normal wrapper binds `color-scheme` to `data-theme` via `PRESET_TOKENS_CSS`, so `light-dark()` follows the toggle there. But the app-fidelity branch deliberately omits the preset tokens (the agent owns every pixel) and nothing else bound `color-scheme`, so it stayed at the author's `color-scheme: light dark` and `light-dark()` followed the **OS** preference. The symptom was intermittent and maddening: text was perfectly readable when the viewer's theme happened to match the OS, then washed out (white ink on a light card, or dark ink on a dark card) the moment they disagreed. Added a `:root[data-theme]{color-scheme}` binding to the shared `STRUCTURAL_PRIMITIVES_CSS` so `light-dark()` tracks the easel toggle in *every* wrapper branch. A new visual-regression fixture (`mockup-lightdark-ink`) audited across the theme × OS-scheme matrix reproduces the washout with the binding removed (contrast 1.0) and passes with it in place.
+- **Session-id resolution no longer drifts for non-Claude-Code MCP clients (opencode, Cursor, Windsurf, …).** The resolver's tier-4 fallback scanned `~/.claude/projects/<cwd>/` for the most-recently-modified transcript. That's a Claude-Code-specific signal, but it fired for *any* client — so a non-CC client running in a cwd that also holds Claude Code transcripts latched onto whichever transcript was touched last, and the resolved session id changed on every tool call (observed in opencode: `open()`, `push()`, and `label()` each landing on a different session). The scan is now gated behind a positive Claude Code signal (`CLAUDECODE` / `CLAUDE_CODE_ENTRYPOINT`); other clients fall straight through to the stable per-process synthetic id (tier 5), so `open`/`push`/`label` all resolve to one session for the life of the chat. Covered by a new unit suite (`tests/unit/session-id.test.mjs`, run via `npm test`).
+
+### Docs
+- **`push` tool description and the using-easel skill now lead with a fidelity bar: ship high-fidelity, production-grade output by default.** Aimed at getting quality output from non-Claude models that don't infer it — every push should read like a screenshot of shipped software (real content, complete regions, exact values when recreating UI, real iconography, deliberate hierarchy), not a wireframe or grey-box. Low-fidelity is opt-in: only when the user explicitly says rough/wireframe/sketch is fine.
+
 ## 0.3.1 — 2026-05-26
 
 ### Fixed

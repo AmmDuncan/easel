@@ -120,6 +120,15 @@
      block, so stripping these in fidelity mode left the skill's own guidance
      ("wrap a mockup in .window") producing unstyled output. */
   const STRUCTURAL_PRIMITIVES_CSS = `
+/* Bind the CSS color-scheme to the host theme so any author CSS that uses
+   light-dark() (text ink, surfaces, borders) tracks the easel light/dark
+   TOGGLE rather than the OS preference. The default wrapper already gets this
+   via PRESET_TOKENS_CSS, but app-fidelity (kind:"mockup") pushes omit the
+   preset tokens — without this rule their light-dark() ink follows the OS
+   scheme and washes out whenever the OS disagrees with the easel toggle. */
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"]  { color-scheme: dark; }
+
 /* Skeuomorphic macOS-style window chrome for UI mockups. Usage:
      <div class="window" data-title="App name"> …mockup content… </div>
    Draws a 40px title bar with the three traffic-light dots (red/yellow/green)
