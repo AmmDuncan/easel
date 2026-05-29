@@ -781,6 +781,8 @@
     if (cleaned.startsWith("<![CDATA[") && cleaned.endsWith("]]>")) {
       cleaned = cleaned.slice(9, -3).trim();
     }
+    // Make nested iframes capturable on export (no-op when there are none).
+    cleaned = injectNestedCaptureBridge(cleaned);
     const preset = currentPreset();
     const lower = cleaned.toLowerCase();
     if (lower.startsWith("<!doctype") || lower.startsWith("<html")) {
@@ -796,6 +798,79 @@
       JSON.stringify(pushId) +
       ";function measure(){var b=document.body,h=document.documentElement;if(!b)return 0;return Math.max(b.getBoundingClientRect().bottom,b.scrollHeight,h.scrollHeight)}function send(){try{parent.postMessage({type:'easel:size',pushId:ID,height:measure()},'*')}catch(e){}}send();window.addEventListener('load',send);window.addEventListener('resize',send);if(document.fonts&&document.fonts.ready){document.fonts.ready.then(send).catch(function(){})}if(window.ResizeObserver){var ro=new ResizeObserver(send);if(document.body)ro.observe(document.body);ro.observe(document.documentElement)}var mo=new MutationObserver(send);mo.observe(document.documentElement,{subtree:true,childList:true,characterData:true,attributes:true});setTimeout(send,250);setTimeout(send,800);setTimeout(send,1600)})();"
     );
+  }
+
+  /**
+   * Capture bridge injected into every NESTED iframe's srcdoc at wrap time.
+   *
+   * html-to-image clones the DOM into an SVG <foreignObject>; it cannot reach
+   * inside an <iframe> document (and the outer push iframe is opaque-origin, so
+   * it can't read nested contentDocuments either — verified empirically). So a
+   * push built from nested iframes used to export with every panel blank.
+   *
+   * This listener lives INSIDE each nested iframe: on `easel:capture-nested` it
+   * loads html-to-image (if absent), renders its own visible viewport region to
+   * an SVG dataURL, and posts it back tagged with the request token. The outer
+   * export bridge then composites these onto the final canvas. Inert until asked.
+   */
+  function nestedCaptureScript() {
+    return `(function(){
+if(window.__easelNestedCapture)return;
+window.__easelNestedCapture=1;
+function reply(m){try{parent.postMessage(m,'*')}catch(_){}}
+function load(cb){
+if(window.htmlToImage)return cb();
+var s=document.createElement('script');
+s.src='https://cdn.jsdelivr.net/npm/html-to-image@1.11.13/dist/html-to-image.js';
+s.onload=function(){cb()};
+s.onerror=function(){cb()};
+(document.head||document.documentElement).appendChild(s);
+}
+window.addEventListener('message',function(e){
+var d=e&&e.data;
+if(!d||d.type!=='easel:capture-nested')return;
+var tok=d.token;
+load(function(){
+if(!window.htmlToImage){reply({type:'easel:nested-error',token:tok,message:'html-to-image not loaded'});return}
+var de=document.documentElement;
+var w=de.clientWidth||de.scrollWidth;
+var h=de.clientHeight||de.scrollHeight;
+window.htmlToImage.toSvg(de,{width:w,height:h,cacheBust:true})
+.then(function(u){reply({type:'easel:nested-ready',token:tok,dataUrl:u})})
+.catch(function(err){reply({type:'easel:nested-error',token:tok,message:String(err&&err.message||err)})});
+});
+});
+})();`;
+  }
+
+  /**
+   * Append the nested-capture bridge into each `srcdoc="…"` in the pushed HTML
+   * so nested iframes can be composited on export. Encodes only `&` and `"`
+   * (the attribute delimiter) so it survives regardless of how the author
+   * encoded the rest of the srcdoc; the script is appended after the value's
+   * existing markup (a <script> after </html> still runs). No-ops when there
+   * are no nested iframes, and skips any srcdoc already carrying the bridge.
+   */
+  function injectNestedCaptureBridge(html) {
+    if (!/srcdoc=/i.test(html)) return html;
+    // Full entity-encode (matches the common fully-encoded srcdoc style and
+    // decodes correctly under minimal-encoded ones too) and insert BEFORE the
+    // closing body/html so the listener registers during parse — a trailing
+    // <script> after the document end did not reliably execute in sandboxed
+    // srcdoc iframes.
+    const enc = ("<script>" + nestedCaptureScript() + "</scr" + "ipt>")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#x27;");
+    return html.replace(/srcdoc="([^"]*)"/gi, (m, sd) => {
+      if (sd.indexOf("__easelNestedCapture") !== -1) return m;
+      let at = sd.lastIndexOf("&lt;/body&gt;");
+      if (at === -1) at = sd.lastIndexOf("&lt;/html&gt;");
+      const next = at >= 0 ? sd.slice(0, at) + enc + sd.slice(at) : sd + enc;
+      return 'srcdoc="' + next + '"';
+    });
   }
 
   /**
@@ -816,25 +891,51 @@
    */
   function imageExportScript() {
     return (
-      "(function(){var PR=4;" +
+      "(function(){" +
+      // PIXEL_RATIO 4 for crisp output, but clamp so the biggest canvas side
+      // stays under Chrome's safe ceiling — very tall pushes used to blank/throw.
+      "function ratio(w,h){var MAX=32760;var big=Math.max(w,h);var pr=4;if(big*pr>MAX){pr=Math.max(1,Math.floor(MAX/big*100)/100)}return pr}" +
       "function fail(id,fmt,err){console.error('[easel] export failed',err);" +
       "parent.postMessage({type:'easel:image-error',pushId:id,format:fmt,message:(err&&err.message)?err.message:String(err)},'*')}" +
-      "function rasterize(svgUrl,w,h,bg,fmt){return new Promise(function(resolve,reject){" +
+      // Ask each nested iframe to render itself; resolves to [{iframe,dataUrl}]
+      // (dataUrl null on timeout / no bridge, so that panel stays as-is).
+      "function captureNested(frames){return Promise.all(frames.map(function(f,i){return new Promise(function(resolve){" +
+      "var tok='easelN'+i+'_'+(window.performance&&performance.now?Math.round(performance.now()):i);var done=false;" +
+      "function finish(u){if(done)return;done=true;window.removeEventListener('message',onMsg);clearTimeout(t);resolve({iframe:f,dataUrl:u})}" +
+      "function onMsg(e){var d=e&&e.data;if(!d||d.token!==tok)return;if(d.type==='easel:nested-ready'){finish(d.dataUrl)}else if(d.type==='easel:nested-error'){finish(null)}}" +
+      "window.addEventListener('message',onMsg);var t=setTimeout(function(){finish(null)},9000);" +
+      "try{f.contentWindow.postMessage({type:'easel:capture-nested',token:tok},'*')}catch(e){finish(null)}" +
+      "})}))}" +
+      // Base snapshot → fill bg → draw page → overlay each nested capture at its
+      // on-screen rect (SVG stays crisp when scaled into the frame box).
+      "function rasterize(svgUrl,w,h,pr,bg,shots){return new Promise(function(resolve,reject){" +
       "var img=new Image();" +
       "img.onload=function(){try{var c=document.createElement('canvas');" +
-      "c.width=Math.max(1,Math.round(w*PR));c.height=Math.max(1,Math.round(h*PR));" +
+      "c.width=Math.max(1,Math.round(w*pr));c.height=Math.max(1,Math.round(h*pr));" +
       "var x=c.getContext('2d');x.fillStyle=bg;x.fillRect(0,0,c.width,c.height);" +
       "x.drawImage(img,0,0,c.width,c.height);" +
-      "resolve(fmt==='pdf'?c.toDataURL('image/jpeg',1.0):c.toDataURL('image/png'))}catch(e){reject(e)}};" +
+      "var pend=shots.filter(function(s){return s.dataUrl});if(!pend.length){return resolve(c)}" +
+      "var left=pend.length;" +
+      "pend.forEach(function(s){var r=s.iframe.getBoundingClientRect();var ni=new Image();" +
+      "ni.onload=function(){try{x.drawImage(ni,(r.left+window.scrollX)*pr,(r.top+window.scrollY)*pr,r.width*pr,r.height*pr)}catch(_){}if(--left===0)resolve(c)};" +
+      "ni.onerror=function(){if(--left===0)resolve(c)};ni.src=s.dataUrl})" +
+      "}catch(e){reject(e)}};" +
       "img.onerror=function(){reject(new Error('SVG snapshot failed to load'))};img.src=svgUrl})}" +
       "function run(d){var id=d.pushId;var fn=d.filename||'push.png';var fmt=d.format==='pdf'?'pdf':'png';" +
       "var bg=d.bgColor||getComputedStyle(document.documentElement).getPropertyValue('--ds-bg-elev').trim()||'#ffffff';" +
       "function render(){if(!window.htmlToImage){fail(id,fmt,new Error('html-to-image not loaded'));return}" +
+      "var frames=Array.prototype.slice.call(document.querySelectorAll('iframe'));" +
+      // Force lazy nested iframes to load before capture, else off-screen panels
+      // export blank. Settle briefly so their srcdoc bridge is live, then capture.
+      "frames.forEach(function(f){try{f.loading='eager'}catch(_){}});" +
       "var w=document.documentElement.clientWidth;" +
       "var h=Math.max(document.documentElement.scrollHeight,document.body?document.body.scrollHeight:0);" +
-      "window.htmlToImage.toSvg(document.documentElement,{width:w,height:h,cacheBust:true})" +
-      ".then(function(u){return rasterize(u,w,h,bg,fmt)})" +
-      ".then(function(u){parent.postMessage({type:'easel:image-ready',pushId:id,dataUrl:u,filename:fn,format:fmt},'*')})" +
+      "var pr=ratio(w,h);" +
+      "new Promise(function(res){setTimeout(res,frames.length?700:0)}).then(function(){return captureNested(frames)}).then(function(shots){" +
+      "return window.htmlToImage.toSvg(document.documentElement,{width:w,height:h,cacheBust:true})" +
+      ".then(function(u){return rasterize(u,w,h,pr,bg,shots)})})" +
+      ".then(function(c){var u=fmt==='pdf'?c.toDataURL('image/jpeg',1.0):c.toDataURL('image/png');" +
+      "parent.postMessage({type:'easel:image-ready',pushId:id,dataUrl:u,filename:fn,format:fmt},'*')})" +
       ".catch(function(e){fail(id,fmt,e)})}" +
       "if(document.fonts&&document.fonts.ready){document.fonts.ready.then(render).catch(render)}else{render()}}" +
       "window.addEventListener('message',function(e){if(e&&e.data&&e.data.type==='easel:image')run(e.data)})})();"
