@@ -2,6 +2,16 @@
 
 All notable changes to easel. This project adheres to [Semantic Versioning](https://semver.org/).
 
+## 0.5.1 — 2026-05-31
+
+### Changed
+- **Sharpened the `using-easel` skill's `kind:"mockup"` decision rule and added a no-`100vh`-rail height rule** — both targeting recurring app-fidelity authoring bugs. The decision section now leads with the real question — *"is the WHOLE push one full-bleed app screen, or is it prose + embedded specimen(s)?"* — and spells out that a review card / spec sheet / lookbook page (eyebrow + heading + prose + labelled specimen images) is a **presentation**, so `kind` should be left **off**: the prose then lands in the ~56ch reading measure with comfortable side padding, while specimens go in `.full-bleed` and fill the wider content column. Tagging such a card `kind:"mockup"` strips the prose-width cap *and* the body padding, so paragraphs run to the card edge — a bug observed repeatedly in marketing-kit/lookbook cards whose wrapper hand-set only `padding:8px 4px`. A failure-mode callout now documents it, plus the reminder that prose only gets the cap as a direct `body` child or inside `div.wrap`. The new height rule: within a full-screen mockup, never pin an inner rail/sidebar to `100vh`/`min-height:100vh` while the main column is shorter — the rail paints past the content and the self-measured frame inherits the dead band; flex-stretch the shell (`display:flex; align-items:stretch`, no height on the rail) so the rail can only ever be as tall as the tallest column. Docs-only; no runtime change.
+
+## 0.5.0 — 2026-05-29
+
+### Fixed
+- **Exports of pushes built from nested `<iframe srcdoc>` panels (e.g. lookbook specimen grids) are no longer blank.** `html-to-image` can't reach into nested iframes, and the outer push iframe is opaque-origin, so a push composed of nested-iframe panels exported with every panel empty. A capture bridge is now injected into each nested `srcdoc` at wrap time; on export the parent asks each nested frame to render itself (`toSvg`) and composites the results onto the canvas at each frame's measured rect. Lazy nested frames are eagerly loaded before capture, and the export watchdog was extended (30s → 2min) so large multi-panel PNG/PDF renders don't time out.
+
 ## 0.4.2 — 2026-05-28
 
 ### Added
