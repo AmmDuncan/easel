@@ -2,6 +2,14 @@
 
 All notable changes to easel. This project adheres to [Semantic Versioning](https://semver.org/).
 
+## 0.6.0 — 2026-06-03
+
+### Fixed
+- **A `100vh` (or `vh`/`dvh`/`svh`) root no longer silently collapses to a stub.** `vh` resolves against the push iframe — which has no intrinsic viewport — so the idiomatic full-screen app shell (`height: 100vh` on the root) measured against the iframe's ~150px default and cropped mid-content; two different local render-window sizes produced pixel-identical collapsed cards, proving the author's intended viewport never reached easel. The self-measure bridge now reports, alongside the existing floored `height`, a **non-floored `content` height** (walks body-child bottoms instead of the viewport-floored `documentElement.scrollHeight`) and the iframe's own **`vp`**. A parent-side phase machine (`applyMeasuredSize`) leaves normal cards untouched — they size to their content exactly as before, keeping the 150px historical floor — but when content **exactly fills** the viewport (the viewport-lock signature) it probes at a distinct viewport (720px) and, if content tracks it, **pins the card to the 900px desktop canvas** (matching `.window.desktop`) instead of letting it collapse. Stale mid-probe measurements are ignored, and a content that *coincidentally* equals the initial viewport is correctly released to its real height rather than mistaken for `100vh`. Covered by `tests/unit/height-autoguard.test.mjs` (shape) and `tests/unit/height-autoguard-behaviour.test.mjs` (drives the real shipped function through full measurement feedback loops).
+
+### Changed
+- **`push` tool description + `using-easel` skill: documented card sizing and mockup-granularity.** Two additions. (1) A **card-height rule**: card height = your content's intrinsic height; there's no `height` knob and you don't need one (the px you write *is* the height), but avoid `100vh` on the root — it's the one unit that doesn't mean what you think inside the iframe; for a full screen use `min-height: 900px` (or the source's real height) explicitly. (2) A **split-by-role rule** for mockups: the mere presence of a mockup isn't a reason to split it onto its own card — keep it inline (`.full-bleed`, optionally `.window`) when it illustrates the prose's point, but give it its own push (one per screen, `kind:"app"`) when the screen is the primary artifact, when comparing 2+ full screens, or when the user will export/share it standalone. Own-push buys real per-card app fidelity (`kind` is per-push), a faithful frame height, and a clean standalone export.
+
 ## 0.5.1 — 2026-05-31
 
 ### Changed

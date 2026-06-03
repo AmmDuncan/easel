@@ -319,6 +319,18 @@ Two cases, two tools. **The deciding question is NOT "does this push contain a m
 - **Whole push is a single mockup / app recreation** (a dashboard, a screen — nothing but the UI, edge to edge) → `kind: "mockup"` (or `"app"`) on the push. Strips the *presentation* frame (preset tokens, semantic chips, prose-width caps, body bg/color, the Inter webfont) so the content owns the canvas — but **keeps the structural primitives** (`.window`/`.window.dark`, `.code`/`.terminal`) and a neutral system-sans default font, so `.window` and friends still render in a mockup. To match the real app's typeface, **inject its webfont right in the pushed HTML** — a `<link rel="stylesheet" href="…">` or an `@font-face` block loads fine in the sandbox — then set `font-family` on the content; that wins over the sans default. Because app-fidelity strips the body padding too, a full-bleed app screen must **supply its own page padding** (e.g. a `.page { padding: 48px 40px }` wrapper) or it runs to the card edge.
 - **Prose + embedded mockup(s)** (the common case — intro text, then specimen(s), maybe more text) → leave `kind` **off** so the presentation frame stays on, and wrap each specimen in `<div class="full-bleed">`. You get the best of both: prose lands in the ~56ch reading measure with comfortable side padding, while the specimens fill the full content column (up to 1400px) — **wider** than the prose, never narrower. Tagging this `kind:"mockup"` is the bug: app-fidelity strips the prose-width cap **and** the side padding, so your paragraphs run to the card edge unless you hand-pad — which you will forget.
 
+#### When a mockup should own its push — split by role, not by presence
+
+Having a mockup in the response is *not* itself a reason to split it onto its own card. The trigger is the mockup's **role**:
+
+- **Keep it inline** (prose push, `.full-bleed`, optionally `.window`) when the mockup **illustrates the point the prose is making** — a fragment (one row, a button, a chip) or a screen the surrounding text is actively walking through. The reader needs prose → visual → prose continuity; splitting fractures one thought into a pile of cards.
+- **Give it its own push** (one card per screen, `kind:"app"`) when:
+  - the **screen is the primary artifact** and the prose is just a caption / lead-in;
+  - you're **comparing 2+ full screens** — each its own card, so they stack cleanly and export independently;
+  - the user will **export or share the screen standalone** — a clean PNG with no prose bleeding above and below.
+
+A mockup gets things on its own push it *can't* get inline: real per-card **app fidelity** (`kind` is per-push, so an inline mockup can never be `kind:"app"`), a **faithful frame height**, and a **clean standalone export**. It's the same full-bleed-vs-`kind:"mockup"` judgment you already make — one level up, at the push boundary.
+
 > **Failure mode (seen in the wild, more than once):** a marketing-kit / lookbook review card — eyebrow, H1, two prose lines, then labelled atom specimens — tagged `kind:"mockup"`. App-fidelity stripped the padding; the author's wrapper had only `padding: 8px 4px`; the prose kissed the card edges. **Fix: drop the `kind`, wrap specimens in `.full-bleed`.** And remember: prose only gets the ~56ch cap when it's a **direct `body` child or inside `div.wrap`** — nest it in a bare `<div>` and the cap silently misses.
 
 ### Window chrome for UI mockups
@@ -350,6 +362,17 @@ The width rule above has a vertical twin, and it's the more common footgun: **ne
 - **`overflow: hidden` is allowed ONLY for genuine cosmetic crops** where clipping *is* the intent: rounded-corner image masks, a decorative bleed. Never on a content region.
 - **Decorative frames** (browser chrome, phone bezel, device frame) must grow with their content — give the frame `min-height` and let it expand, or don't constrain height at all.
 - **The mental test:** render the tallest card in your head. If any text or button could exceed the container, the container is wrong. When unsure, leave height unset. A mockup exists to show the design *fully* — uniform-looking rectangles are never worth clipped content; let frames be different heights.
+
+### Card height = your content's intrinsic height — never `100vh` on the root
+
+Easel sizes each card to the **rendered height of your HTML**. Give your root real content, or a `min-height` / `height` in **px**, and the card is exactly that tall. There's no `height` knob on `push` and you don't need one — the px you write *is* the height.
+
+The one trap: **`100vh` (or `vh` / `dvh` / `svh`) on the root.** It's the idiomatic way to write a full-screen app shell, but inside easel `vh` resolves against the **push iframe**, which has no real viewport of its own — so a `100vh` root has no meaningful height and would otherwise **collapse to a stub**. Easel auto-detects a viewport-filling root and falls back to the **900px desktop canvas** (the same height as `.window.desktop`), so it no longer silently crops — but don't lean on that guess:
+
+- **Full desktop screen** → set `min-height: 900px` (or the source's real height) explicitly. Same advice as the sizing section above.
+- **Component** → size to content; don't reach for `100vh` at all.
+
+`px`/`min-height` in, predictable card out. `vh` is the only unit that doesn't mean what you think here.
 
 ### Code & terminal blocks
 

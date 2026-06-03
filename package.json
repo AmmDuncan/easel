@@ -1,6 +1,6 @@
 {
   "name": "@ammduncan/easel",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "description": "A live browser tab for every Claude Code (and MCP) session. The push MCP tool appends HTML cards to a scrolling feed you keep open in split-screen.",
   "type": "module",
   "license": "MIT",

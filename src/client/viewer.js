@@ -274,7 +274,87 @@
      Self-measure message bridge — iframes post their measured body
      height; we apply it. Reliable across font loads, image loads,
      and dynamic content (the iframe knows when its DOM mutates).
+
+     100vh auto-guard: a root sized with viewport units (100vh/dvh/svh)
+     resolves `vh` against THIS iframe, which has no intrinsic viewport,
+     so it would otherwise collapse to the iframe's default ~150px. The
+     bridge reports a non-floored `content` height plus the iframe's own
+     `vp`; when content exactly fills vp (the viewport-lock signature) we
+     probe at a distinct viewport and, if content tracks it, pin the card
+     to the desktop canvas instead of letting it collapse. Normal cards
+     never enter the probe — they size to the measured `height` exactly
+     as before, so this is zero-change for non-viewport-relative content.
      ============================================================ */
+
+  const EASEL_DESKTOP_CANVAS = 900; // matches .window.desktop min-height
+  const EASEL_PROBE_PX = 720; // distinct probe viewport for vh-lock detection
+  const EASEL_MIN_CARD_PX = 150; // historical floor (the iframe's default height)
+  const iframeSizeState = new Map(); // pushId → { phase }
+
+  function setIframeHeight(iframe, px) {
+    iframe.style.height = Math.max(0, Math.ceil(px)) + "px";
+  }
+
+  // Card height = the iframe's NON-floored content height (never the viewport-
+  // floored documentElement.scrollHeight, which would re-inflate short content
+  // to whatever viewport we last set — fatal once the probe bumps it to 720).
+  function trackedHeight(content) {
+    return Math.max(EASEL_MIN_CARD_PX, content);
+  }
+
+  function applyMeasuredSize(iframe, data) {
+    const content = typeof data.content === "number" ? data.content : data.height;
+    const vp = typeof data.vp === "number" ? data.vp : null;
+
+    // Legacy bridge / no viewport signal: size to the measured height, as before.
+    if (vp === null) {
+      setIframeHeight(iframe, data.height);
+      return;
+    }
+
+    let st = iframeSizeState.get(data.pushId);
+    if (!st) {
+      st = { phase: "initial" };
+      iframeSizeState.set(data.pushId, st);
+    }
+
+    if (st.phase === "pinned") {
+      // Viewport-locked root pinned to the desktop canvas; still grow if real
+      // overflow content exceeds it.
+      setIframeHeight(iframe, Math.max(EASEL_DESKTOP_CANVAS, content));
+      return;
+    }
+    if (st.phase === "tracking") {
+      setIframeHeight(iframe, trackedHeight(content));
+      return;
+    }
+    if (st.phase === "probing") {
+      // Trust only measurements taken AT the probe viewport — ignore stale
+      // pre-resize messages still carrying the old (initial) viewport.
+      if (Math.abs(vp - EASEL_PROBE_PX) > 4) return;
+      if (content >= EASEL_PROBE_PX - 2) {
+        // Content grew to fill the probe viewport → viewport-relative root.
+        st.phase = "pinned";
+        setIframeHeight(iframe, Math.max(EASEL_DESKTOP_CANVAS, content));
+      } else {
+        // Content stayed at its intrinsic height → not viewport-locked.
+        st.phase = "tracking";
+        setIframeHeight(iframe, trackedHeight(content));
+      }
+      return;
+    }
+    // st.phase === "initial"
+    if (vp > 0 && Math.abs(content - vp) <= 2) {
+      // Content exactly fills the iframe's natural viewport — ambiguous: a
+      // collapsed viewport-relative (100vh) root, OR content that just happens
+      // to equal this height. Probe at a distinct viewport to disambiguate.
+      st.phase = "probing";
+      setIframeHeight(iframe, EASEL_PROBE_PX);
+    } else {
+      st.phase = "tracking";
+      setIframeHeight(iframe, trackedHeight(content));
+    }
+  }
 
   window.addEventListener("message", (e) => {
     const data = e && e.data;
@@ -285,7 +365,7 @@
         'iframe[data-push-id="' + cssEscape(data.pushId) + '"]',
       );
       if (!iframe) return;
-      iframe.style.height = Math.max(0, Math.ceil(data.height)) + "px";
+      applyMeasuredSize(iframe, data);
       return;
     }
     if (data.type === "easel:click") {
@@ -796,7 +876,7 @@
     return (
       "(function(){var ID=" +
       JSON.stringify(pushId) +
-      ";function measure(){var b=document.body,h=document.documentElement;if(!b)return 0;return Math.max(b.getBoundingClientRect().bottom,b.scrollHeight,h.scrollHeight)}function send(){try{parent.postMessage({type:'easel:size',pushId:ID,height:measure()},'*')}catch(e){}}send();window.addEventListener('load',send);window.addEventListener('resize',send);if(document.fonts&&document.fonts.ready){document.fonts.ready.then(send).catch(function(){})}if(window.ResizeObserver){var ro=new ResizeObserver(send);if(document.body)ro.observe(document.body);ro.observe(document.documentElement)}var mo=new MutationObserver(send);mo.observe(document.documentElement,{subtree:true,childList:true,characterData:true,attributes:true});setTimeout(send,250);setTimeout(send,800);setTimeout(send,1600)})();"
+      ";function measure(){var b=document.body,h=document.documentElement;if(!b)return 0;return Math.max(b.getBoundingClientRect().bottom,b.scrollHeight,h.scrollHeight)}function content(){var b=document.body;if(!b)return 0;var m=Math.max(b.getBoundingClientRect().bottom,b.scrollHeight);var k=b.children;for(var i=0;i<k.length;i++){var bo=k[i].getBoundingClientRect().bottom;if(bo>m){m=bo}}return m}function vp(){return document.documentElement.clientHeight||0}function send(){try{parent.postMessage({type:'easel:size',pushId:ID,height:measure(),content:content(),vp:vp()},'*')}catch(e){}}send();window.addEventListener('load',send);window.addEventListener('resize',send);if(document.fonts&&document.fonts.ready){document.fonts.ready.then(send).catch(function(){})}if(window.ResizeObserver){var ro=new ResizeObserver(send);if(document.body)ro.observe(document.body);ro.observe(document.documentElement)}var mo=new MutationObserver(send);mo.observe(document.documentElement,{subtree:true,childList:true,characterData:true,attributes:true});setTimeout(send,250);setTimeout(send,800);setTimeout(send,1600)})();"
     );
   }
 
@@ -1290,6 +1370,7 @@ ${body}
       obs.disconnect();
       cardObservers.delete(pushId);
     }
+    iframeSizeState.delete(pushId);
     unreadIds.delete(pushId);
     totalPushes = Math.max(0, totalPushes - 1);
     setPushCount(totalPushes);
