@@ -2,6 +2,11 @@
 
 All notable changes to easel. This project adheres to [Semantic Versioning](https://semver.org/).
 
+## 0.6.1 — 2026-06-04
+
+### Changed
+- **The "different session" push hint now requires the surface-the-tab question to be asked ALONE.** When a push lands while easel is open on another session, the tool result tells the agent to ask the user whether to (a) switch the open tab or (b) open a fresh one. Agents were bundling that question into a multi-question prompt alongside follow-ups that assumed the user had already *seen* the pushed content — which they hadn't, since the tab wasn't surfaced yet. The hint now spells it out: ask this one question first, by itself; once the tab is visible, ask the rest. Prompt-text only; no runtime change.
+
 ## 0.6.0 — 2026-06-03
 
 ### Fixed
