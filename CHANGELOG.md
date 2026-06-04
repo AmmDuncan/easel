@@ -2,6 +2,12 @@
 
 All notable changes to easel. This project adheres to [Semantic Versioning](https://semver.org/).
 
+## 0.6.2 — 2026-06-04
+
+### Fixed
+- **`setup` now actually puts `easel` on PATH, making the documented bare CLI commands truthful.** The README's CLI section documents `easel open / update / restart / …`, but neither install path ever exposed the binary: `npx -y @ammduncan/easel setup` runs once from the ephemeral npx cache and leaves nothing behind, and clone installs' `bin/easel setup` never linked. Setup now closes the gap per install flavor: clone installs get `npm link` (skipped when `easel` already resolves); npx-cache runs get a real `npm install -g` pinned to their own version, then **delegate setup to the global copy** so the MCP/hook registrations point at paths that survive npx cache pruning (the cache-pruning drift left one machine's MCP pinned to a stale 0.5.1 cache while 0.6.x shipped). Failures degrade to a printed hint — setup never hard-fails on the PATH step.
+- **`easel update` now works for npm installs.** It previously assumed a git checkout (`git pull` flavor, "clone installs only") and just failed elsewhere. Without a `.git` dir it now runs `npm install -g @ammduncan/easel@latest` and re-runs setup from the new copy.
+
 ## 0.6.1 — 2026-06-04
 
 ### Changed

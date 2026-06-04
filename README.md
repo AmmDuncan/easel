@@ -31,7 +31,7 @@ Requires Node 20+.
 npx -y @ammduncan/easel setup
 ```
 
-That registers the MCP at user scope, installs the `using-easel` skill so the agent knows when to push, and adds the `SessionStart` hooks that resolve session IDs and auto-open the tab. Restart Claude Code and you're done.
+That registers the MCP at user scope, installs the `using-easel` skill so the agent knows when to push, adds the `SessionStart` hooks that resolve session IDs and auto-open the tab, and installs the package globally so the bare `easel` command works from any shell. Restart Claude Code and you're done.
 
 ### Cursor / Claude Desktop / Windsurf / Codex
 
@@ -80,6 +80,8 @@ cd ~/work/tools/easel
 npm install && npm run build
 bin/easel setup
 ```
+
+Setup runs `npm link`, so bare `easel` works from any shell afterwards.
 
 ## Tools the agent gets
 
@@ -134,7 +136,7 @@ easel config                   print / set { preset, theme, density }
 easel setup                    Claude Code: hooks + MCP + skill
 easel setup --client <name>    register the MCP in another client (cursor, claude-desktop, windsurf, codex)
 easel restart                  kill + respawn the HTTP server (handy after a build)
-easel update                   git pull + build + setup (clone installs only)
+easel update                   clone installs: git pull + build + setup · npm installs: npm install -g @latest + setup
 easel server                   run the HTTP server in the foreground (debug)
 easel version
 ```

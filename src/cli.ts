@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { spawn, spawnSync } from "node:child_process";
 import { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync, existsSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { homedir } from "node:os";
 import { ensureHttpServer, readLock } from "./server-manager.js";
@@ -16,6 +16,7 @@ import {
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = resolve(__dirname, "..");
+const NPM_PKG = "@ammduncan/easel";
 
 function help() {
   console.log(`easel — live browser feed for Claude Code for Claude Code sessions
@@ -34,7 +35,7 @@ Usage:
   easel setup --client claude-desktop      register MCP in ~/Library/Application Support/Claude/claude_desktop_config.json
   easel setup --client windsurf            register MCP in ~/.codeium/windsurf/mcp_config.json
   easel setup --client codex               register MCP in ~/.codex/config.toml + copy skill to ~/.codex/skills/
-  easel update          git pull + npm install + build + setup (re-runs setup to apply new conventions)
+  easel update          clone installs: git pull + build + setup · npm installs: npm install -g @latest + setup
   easel mcp             run the stdio MCP server in the foreground (used by clients)
   easel restart         kill the running HTTP server and respawn it (picks up new builds/paths)
   easel server          run the HTTP server in the foreground (debug)
@@ -110,7 +111,105 @@ function openInBrowser(url: string) {
   }
 }
 
+function binResolvesOnPath(): boolean {
+  const cmd = process.platform === "win32" ? "where" : "which";
+  try {
+    const r = spawnSync(cmd, ["easel"], { encoding: "utf-8" });
+    return r.status === 0 && r.stdout.trim().length > 0;
+  } catch {
+    return false;
+  }
+}
+
+function pkgVersion(): string {
+  try {
+    const pkg = JSON.parse(
+      readFileSync(join(PROJECT_ROOT, "package.json"), "utf-8"),
+    ) as { version?: string };
+    return pkg.version ?? "latest";
+  } catch {
+    return "latest";
+  }
+}
+
+function globalPkgDir(): string | null {
+  try {
+    const r = spawnSync("npm", ["root", "-g"], { encoding: "utf-8" });
+    if (r.status !== 0) return null;
+    const dir = join(r.stdout.trim(), NPM_PKG);
+    return existsSync(dir) ? dir : null;
+  } catch {
+    return null;
+  }
+}
+
+// Re-runs setup from the globally installed copy so its registrations point at
+// the global paths. Returns false if there is no global copy to delegate to.
+function rerunSetupFromGlobal(): boolean {
+  const dir = globalPkgDir();
+  if (!dir) {
+    return false;
+  }
+  const r = spawnSync("node", [join(dir, "dist", "cli.js"), "setup"], {
+    stdio: "inherit",
+    env: { ...process.env, EASEL_SETUP_CHILD: "1" },
+  });
+  return r.status === 0;
+}
+
+// Make bare `easel` work after setup, as the README documents. Clone installs
+// get `npm link`. npx-cache installs get a real global install — the cache is
+// pruned unpredictably — and setup is then re-run from the global copy so the
+// MCP/hook registrations point at paths that survive pruning.
+// Returns true when setup was fully delegated to the global copy.
+function ensureBinOnPath(): boolean {
+  const inNpxCache = PROJECT_ROOT.split(sep).includes("_npx");
+  if (!inNpxCache) {
+    if (binResolvesOnPath()) {
+      return false;
+    }
+    const r = spawnSync("npm", ["link", "--silent", "--no-audit", "--no-fund"], {
+      cwd: PROJECT_ROOT,
+      stdio: "ignore",
+    });
+    if (r.status === 0) {
+      console.log("  - linked `easel` into the global bin (npm link)");
+    } else {
+      console.warn(
+        `  - couldn't put \`easel\` on PATH — run \`npm link\` in ${PROJECT_ROOT}`,
+      );
+    }
+    return false;
+  }
+
+  const version = pkgVersion();
+  console.log(
+    `[easel] installing ${NPM_PKG}@${version} globally so \`easel\` is on PATH…`,
+  );
+  const installed = spawnSync(
+    "npm",
+    ["install", "-g", "--silent", "--no-audit", "--no-fund", `${NPM_PKG}@${version}`],
+    { stdio: "inherit" },
+  );
+  if (installed.status !== 0 || !rerunSetupFromGlobal()) {
+    console.warn(
+      `  - global install failed — \`easel\` won't be on PATH; run \`npm install -g ${NPM_PKG}\` manually`,
+    );
+    return false;
+  }
+  return true;
+}
+
 function cmdSetup() {
+  // Put `easel` on PATH first — for npx-cache runs this delegates the whole
+  // setup to a freshly installed global copy (so registered paths outlive the
+  // cache), in which case there's nothing left to do here.
+  if (!process.env.EASEL_SETUP_CHILD) {
+    if (ensureBinOnPath()) {
+      return;
+    }
+  }
+
   mkdirSync(HOOK_DIR, { recursive: true });
 
   const settingsPath = join(homedir(), ".claude", "settings.json");
@@ -295,6 +394,26 @@ function cmdUpdate(): void {
   console.log("[easel] checking for updates…");
   const run = (cmd: string, args: string[]) =>
     spawnSync(cmd, args, { stdio: "inherit", cwd: PROJECT_ROOT });
+
+  // npm/global installs have no git checkout — update from the registry and
+  // re-run setup from the new copy so registrations track the new paths.
+  if (!existsSync(join(PROJECT_ROOT, ".git"))) {
+    const installed = run("npm", [
+      "install",
+      "-g",
+      "--no-audit",
+      "--no-fund",
+      `${NPM_PKG}@latest`,
+    ]);
+    if (installed.status !== 0) {
+      console.error("[easel] npm install -g failed");
+      process.exitCode = 1;
+      return;
+    }
+    rerunSetupFromGlobal();
+    console.log("[easel] updated. Restart Claude Code to pick up tool/skill changes.");
+    return;
+  }
 
   let r = run("git", ["fetch", "--quiet", "origin", "main"]);
   if (r.status !== 0) {
