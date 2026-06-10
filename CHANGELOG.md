@@ -2,6 +2,11 @@
 
 All notable changes to easel. This project adheres to [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+### Added
+- **`EASEL_SUPPRESS_SESSION=1` env var suppresses switcher-session registration.** When set on a `claude` (or any client) invocation, easel still loads as an MCP but every tool (`push`/`label`/`open`/`config`) short-circuits to a no-op — the MCP never contacts the HTTP server and the session never appears in the switcher. The SessionStart hook also skips its convention reminder so the agent isn't nagged to label a session that can't register. Built for automated/headless consumers that run easel-registered Claude on a tight cadence (e.g. the ammiels-bot dispatcher tick fired every ~60s by launchd), which otherwise pile up churny "Bot watcher tick" entries in the switcher. Deliberately MCP-local: it leaves the Slack connector and every other MCP/account connector fully intact, unlike `claude --strict-mcp-config`, which also strips the claude.ai account connectors.
+
 ## 0.6.2 — 2026-06-04
 
 ### Fixed

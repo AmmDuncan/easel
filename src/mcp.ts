@@ -26,6 +26,15 @@ const TOOL_OPEN = "open";
 const TOOL_CONFIG = "config";
 const TOOL_LABEL = "label";
 
+// When EASEL_SUPPRESS_SESSION=1 (set by automated/headless consumers like the
+// ammiels-bot dispatcher tick), easel loads normally but registers NO switcher
+// session — every tool short-circuits to a no-op, so the MCP never contacts the
+// HTTP server and the session never appears in the switcher. This keeps churny
+// background sessions out of the switcher WITHOUT disabling the MCP or any OTHER
+// connector. (Contrast `claude --strict-mcp-config`, which also strips the
+// claude.ai account connectors — Slack etc. — and so can't be used for this.)
+const SUPPRESS_SESSION = process.env.EASEL_SUPPRESS_SESSION === "1";
+
 // One-shot guard: only auto-open once per MCP-child lifetime. If the user
 // closes the tab afterwards, subsequent pushes won't re-open it — the user
 // closing the tab is treated as an explicit dismissal we should respect.
@@ -275,6 +284,17 @@ export async function main() {
   }));
 
   server.setRequestHandler(CallToolRequestSchema, async (req) => {
+    if (SUPPRESS_SESSION) {
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: "easel: session suppressed (EASEL_SUPPRESS_SESSION=1) — no switcher entry created; easel tools are no-ops in this session.",
+          },
+        ],
+      };
+    }
+
     const sessionId = resolveClaudeSessionId();
     const { port } = await ensureHttpServer();
 

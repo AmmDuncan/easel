@@ -58,6 +58,14 @@ if (sessionId) {
   writeFileSync(join(hookDir, `cc-session-${process.ppid}.txt`), `${sessionId}\n`);
 }
 
+// Suppressed sessions (e.g. the ammiels-bot dispatcher tick set
+// EASEL_SUPPRESS_SESSION=1) get NO convention reminder: the MCP no-ops every
+// tool, so nagging the agent to label/push would only waste a tool call. Exit
+// before emitting additionalContext.
+if (process.env.EASEL_SUPPRESS_SESSION === "1") {
+  process.exit(0);
+}
+
 // --- staleness check (cached, every 24h) ------------------------------------
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const INSTALL_DIR = resolve(__dirname, "..");
