@@ -1,0 +1,169 @@
+/* ===========================================================================
+   easel-base.css — presentation-scale starter for easel pushes.
+
+   HOW TO USE: inline this whole block inside a <style> at the top of a push,
+   then compose with the classes below. Wrap everything in <div class="wrap">.
+
+   Built ON the easel wrapper's injected --ds-* tokens (which adapt to the
+   user's preset + light/dark mode). Every token has a literal light-dark()
+   fallback, so this file ALSO renders correctly as a standalone .html (e.g.
+   when you render-and-look locally before pushing). Inside easel the wrapper's
+   tokens win and the card inherits the user's chosen accent for free.
+
+   This is the SCAFFOLD. The full rulebook lives in SKILL.md (fidelity bar,
+   type/whitespace/color, locked-mode, .window/.code/.chip primitives,
+   full-bleed, kind:"mockup"). Read EASEL-GUIDE.md for the 5 composition rules
+   this scaffold encodes.
+   =========================================================================== */
+
+:root { color-scheme: light dark; }
+
+/* ---- canvas: set text, NOT background (the host owns the canvas) ---------- */
+.wrap {
+  font-family: 'Inter', -apple-system, system-ui, sans-serif;
+  color: var(--ds-ink, light-dark(#1a1a1a, #e9e9ea));
+  line-height: 1.55;
+  padding: 8px 4px 40px;
+}
+/* Push the wrapper's text colour into every child so the frame default never
+   leaks. ZERO-specificity (:where) on purpose: it still neutralises UA element
+   colours (links/buttons) and adopts .wrap's ink for plain text, but is beaten
+   by ANY authored container colour — so a hand-rolled dark callout/tooltip
+   (`.tip{background:#111;color:#eee}`) keeps its own ink instead of inheriting
+   .wrap's light-dark() and going invisible on its own dark background. The old
+   element-qualified form (`.wrap div`, (0,1,1)) outranked single-class
+   container colours and was the recurring dark-on-dark bug. */
+:where(.wrap) :where(*) { color: inherit; }
+.wrap svg { display: block; }
+
+/* ---- type scale — presentation, NEVER below 14px (SKILL §1) --------------- */
+.kicker, .eyebrow {
+  font-size: 14px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: .14em; color: var(--ds-accent, light-dark(#15803d, #4ade80));
+}
+.lede  { font-size: 46px; font-weight: 500; letter-spacing: -.025em; line-height: 1.08; margin: 18px 0 0; }
+.title { font-size: 32px; font-weight: 500; letter-spacing: -.02em;  line-height: 1.15; margin: 0; }
+.deck  { font-size: 21px; line-height: 1.5; margin: 18px 0 0; max-width: 36ch;
+         color: var(--ds-ink-soft, light-dark(#5f5f63, #a0a0a6)); }
+.h2    { font-size: 22px; font-weight: 600; margin: 0; }
+.body  { font-size: 19px; }
+.muted { color: var(--ds-muted, light-dark(#6b6b6b, #9a9a9a)); }
+
+/* ---- inline mono chip — codes, identifiers, statuses, tokens -------------- */
+.mono {
+  font-family: ui-monospace, 'Roboto Mono Variable', monospace; font-size: 14px;
+  padding: 2px 8px; border-radius: 6px;
+  background: var(--ds-surface-soft, light-dark(#f3f4f6, #1f2329));
+  color: var(--ds-accent, light-dark(#15803d, #6ee7a8)) !important;
+  border: 1px solid var(--ds-line-soft, light-dark(#e3e5e8, #2c3038));
+}
+
+/* ---- card / node (card + leading icon badge + heading) -------------------- */
+.card {
+  background: var(--ds-surface, light-dark(#ffffff, #15171c));
+  border: 1px solid var(--ds-line, light-dark(#e7e7ea, #2a2d34));
+  border-radius: 14px; padding: 24px 26px;
+  box-shadow: var(--ds-shadow-md, 0 1px 2px light-dark(rgba(0,0,0,.05), rgba(0,0,0,.3)));
+}
+.card * { color: inherit; }            /* locked-surface pairing: surface set → keep text from leaking */
+
+.node { display: flex; gap: 18px; align-items: flex-start; }
+.node .badge {
+  flex: none; width: 46px; height: 46px; border-radius: 12px;
+  display: grid; place-items: center;
+  background: var(--ds-accent-soft, light-dark(#f0f7f2, #16241c));
+  color: var(--ds-accent, light-dark(#15803d, #4ade80));
+}
+.node .badge svg { width: 24px; height: 24px; }
+.node .h2 + p, .node .h2 ~ p { font-size: 18px; margin: 6px 0 0;
+  color: var(--ds-ink-soft, light-dark(#56565a, #9b9ba1)); }
+
+/* ===========================================================================
+   PRIMITIVE 1 — spine + lanes (sequence vs. parallel siblings)
+   RULE: a sequence of steps stacks VERTICALLY (.spine + .connector).
+         parallel siblings go in a GRID (.lanes) sized so each fits — never a
+         4-up row of paragraphs, never an all-vertical stack of siblings.
+   =========================================================================== */
+.spine { display: flex; flex-direction: column; gap: 14px; }
+.connector {
+  width: 2px; height: 26px; margin-left: 31px;
+  background: var(--ds-line, light-dark(#d9d9dd, #34373d));
+}
+.connector.short { height: 16px; }
+
+/* auto-fit: tiles flow to as many columns as fit at >=260px, then reflow down */
+.lanes { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+.lane {
+  background: var(--ds-surface, light-dark(#ffffff, #15171c));
+  border: 1px solid var(--ds-line, light-dark(#e7e7ea, #2a2d34));
+  border-radius: 12px; padding: 18px 20px;
+}
+.lane * { color: inherit; }
+.lane .top { display: flex; align-items: center; gap: 12px; }
+.lane .nm  { font-size: 19px; font-weight: 600; }
+.lane .ds  { font-size: 16px; line-height: 1.5; margin: 12px 0 0;
+             color: var(--ds-ink-soft, light-dark(#56565a, #9b9ba1)); }
+
+/* icon chip — drives off --c (icon colour) + --tint (chip bg) when a tone is set */
+.icchip {
+  flex: none; width: 38px; height: 38px; border-radius: 10px;
+  display: grid; place-items: center;
+  background: var(--tint, var(--ds-surface-soft, light-dark(#f1f5f9, #1c2129)));
+  color: var(--c, var(--ds-accent, light-dark(#15803d, #4ade80)));
+}
+.icchip svg { width: 20px; height: 20px; }
+
+/* semantic tones — apply --c / --tint ONLY when a tile genuinely maps to a
+   status/state (RULE: status colour where state maps to status, else one accent) */
+.t-neutral { --c: light-dark(#64748b, #94a3b8); --tint: light-dark(#f1f5f9, #1c2129); }
+.t-info    { --c: light-dark(#2563eb, #60a5fa); --tint: light-dark(#eef3ff, #12203a); }
+.t-success { --c: light-dark(#15803d, #4ade80); --tint: light-dark(#ecf9f0, #102a1c); }
+.t-warning { --c: light-dark(#b45309, #f59e0b); --tint: light-dark(#fdf4e8, #291d0a); }
+.t-danger  { --c: light-dark(#b91c1c, #f87171); --tint: light-dark(#fdecec, #2a1414); }
+/* NO accent-border / emphasis on one sibling: four parallel exits are equal
+   weight — singling one out with a coloured bar is AP23 slop (status double-
+   encoded, the "accent-bordered tile" AI reflex). Differentiate by icon, not
+   by ranking siblings that aren't ranked. */
+
+/* ===========================================================================
+   PRIMITIVE 2 — callout (tinted, leading icon): guard rails, notes, warnings
+   Default = warning amber. Add .info / .success / .danger to retone.
+   =========================================================================== */
+.callout {
+  display: flex; gap: 16px; align-items: flex-start;
+  border-radius: 14px; padding: 20px 24px;
+  background: var(--co-bg, light-dark(#fdf8ed, #1d180c));
+  border: 1px solid var(--co-bd, light-dark(#f0d9a8, #4a3c1c));
+}
+.callout * { color: inherit; }
+.callout .cico {
+  flex: none; width: 40px; height: 40px; border-radius: 10px;
+  display: grid; place-items: center;
+  background: var(--co-ic-bg, light-dark(#f7ecd0, #2a2110));
+  color: var(--co-ic, light-dark(#b45309, #e0a64a));
+}
+.callout .cico svg { width: 22px; height: 22px; }
+.callout .q { font-size: 19px; font-weight: 600;
+  color: var(--ds-ink, light-dark(#1a1a1a, #e9e9ea)); }
+.callout .a { font-size: 17px; margin-top: 6px;
+  color: var(--co-ic, light-dark(#7a6a3a, #cbb87e)); }
+.callout.info    { --co-bg: light-dark(#eef3ff,#0e1a30); --co-bd: light-dark(#cdddfb,#1d3257); --co-ic-bg: light-dark(#dde9ff,#16284a); --co-ic: light-dark(#2563eb,#7fb0ff); }
+.callout.success { --co-bg: light-dark(#ecf9f0,#0c2417); --co-bd: light-dark(#c6e9d3,#1c402c); --co-ic-bg: light-dark(#d6f0e0,#143020); --co-ic: light-dark(#15803d,#74d99a); }
+.callout.danger  { --co-bg: light-dark(#fdecec,#240f0f); --co-bd: light-dark(#f5cccc,#4a1f1f); --co-ic-bg: light-dark(#fadada,#341515); --co-ic: light-dark(#b91c1c,#f59a9a); }
+
+/* ===========================================================================
+   PRIMITIVE 3 — thread / message card (LOCKED DARK)
+   It sets its OWN text colour on every node (the .wrap inherit-guard outranks
+   a descendant universal, so locked-bg containers must commit their own ink).
+   For app/UI mockups use the wrapper's .window / .window.dark instead.
+   =========================================================================== */
+.thread {
+  background: #14161b; border: 1px solid #262a31; border-radius: 14px;
+  overflow: hidden; box-shadow: 0 6px 24px rgba(0,0,0,.22);
+}
+.thread .bar { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid #262a31; }
+.thread .dot { width: 11px; height: 11px; border-radius: 50%; }
+.thread .tt  { margin-left: 8px; font-size: 13px; font-family: ui-monospace, monospace; color: #7d828c !important; }
+.thread .body { padding: 16px 20px 20px; }
+.thread .who { font-size: 14px; font-weight: 600; color: #8ab4ff !important; }
+.thread .msg { font-size: 18px; line-height: 1.5; margin: 6px 0 0; color: #e6e9ef !important; }

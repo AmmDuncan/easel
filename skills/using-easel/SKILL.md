@@ -103,9 +103,11 @@ Use CSS `light-dark()` to swap:
     padding: 56px 40px 96px;
     font-family: -apple-system, 'Inter', system-ui, sans-serif;
   }
-  /* Scope inheritance so the wrapper's text color reaches every child */
-  .wrap *, .wrap h1, .wrap h2, .wrap p, .wrap li, .wrap span,
-  .wrap div, .wrap b, .wrap em { color: inherit; }
+  /* Scope inheritance so the wrapper's text color reaches every child.
+     ZERO-specificity (:where) so it neutralises UA link/button colours but is
+     beaten by ANY authored container colour — a hand-rolled dark callout keeps
+     its own ink instead of inheriting .wrap's and vanishing on its dark bg. */
+  :where(.wrap) :where(*) { color: inherit; }
 
   /* Cards float above whatever canvas the tool gives us — also adapt */
   .card {
@@ -124,7 +126,7 @@ Use CSS `light-dark()` to swap:
 <div class="wrap">…</div>
 ```
 
-**Locked-mode containers must lock their own text color too.** Any container that paints a *fixed*, non-adaptive background — a terminal/code block locked to dark, an always-dark callout, a hero filled with a brand color — MUST also set its own text color AND re-scope `color: inherit` to its children. Otherwise it inherits `.wrap`'s `light-dark()` and the text flips to the wrong shade for that container's background in one of the two modes.
+**Locked-mode containers must lock their own text color too.** Any container that paints a *fixed*, non-adaptive background — a terminal/code block locked to dark, an always-dark callout, a hero filled with a brand color — MUST also set its own text color (and re-scope `color: inherit` to its children for nested elements). Otherwise it inherits `.wrap`'s `light-dark()` and the text flips to the wrong shade for that container's background in one of the two modes. (As long as you use the zero-specificity `:where(.wrap) :where(*)` adoption rule above, a single class on the container — `.tip { background:#111; color:#eee }` — is enough; its colour now wins. The old element-qualified form `.wrap div { color: inherit }` was `(0,1,1)` and silently OUTRANKED such a container, flipping its text to the canvas ink — black-on-black — which was the recurring "dark block, text invisible" bug. No `!important` needed anymore.)
 
 #### App / UI recreations are *always* locked-mode
 
@@ -144,8 +146,7 @@ How to do it: paint the mockup's outer container with the app's actual `backgrou
     /* host-adaptive surrounding prose */
     color: light-dark(#111, #e5e7eb);
   }
-  .wrap *, .wrap h1, .wrap h2, .wrap p, .wrap li, .wrap span,
-  .wrap div, .wrap b, .wrap em { color: inherit; }
+  :where(.wrap) :where(*) { color: inherit; }   /* zero-specificity: locked islands below keep their own ink */
 
   /* The app mock — LOCKED to the real app's colors, ignores host mode */
   .app-mock {
@@ -387,6 +388,8 @@ Reach for the built-in **`.code`** (alias **`.terminal`**) class instead of hand
 ```
 
 Token classes: `.kw` (keywords) · `.string` · `.fn` (functions) · `.prop` (identifiers/properties) · `.num` · `.comment` · `.muted` · `.accent`. Plain `<pre>`/`<code>` are already safe too (bg + ink token pair). Only hand-roll a custom dark container when neither fits — and then obey the locked-mode pairing rule above.
+
+**Reserved names — `code` / `terminal` / `window` are easel primitives.** They paint a locked dark background, so reusing them as your *own* class (`<td class="code">`, `<span class="window">`) inherits that dark fill unintentionally. Two protections: (1) the primitive ink is now locked with `!important`, so a collision renders *readable* dark-on-light instead of invisible dark-on-dark; (2) the viewer logs a console warning when a reserved name lands on an inline/table element. Still — for your own inline code or boxes use a different name (e.g. `mono`, or a plain `<code>` with your styling). The canonical primitive forms are the namespaced **`.easel-code` / `.easel-terminal` / `.easel-window`** (or `[data-easel="code|terminal|window"]`); bare names remain as deprecated aliases.
 
 ### Semantic chips
 
