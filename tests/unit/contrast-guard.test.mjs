@@ -59,13 +59,22 @@ test("contrast guard posts easel:contrast-warn with offender samples", () => {
   assert.match(body, /console\.warn/, "must also log in the iframe DevTools");
 });
 
-test("contrast guard names the .code/.terminal primitive in the warning", () => {
+test("contrast guard names the code primitive (namespaced) in the warning", () => {
   const body = contrastGuardBody();
-  assert.ok(
-    body.includes("class=\\\"code\\\"") || body.includes("class=\"code\""),
-    "warning text must point authors at the .code primitive",
+  assert.match(
+    body,
+    /easel-code/,
+    "warning text must point authors at the namespaced .easel-code primitive",
   );
   assert.match(body, /terminal/);
+});
+
+test("reserved-class guard warns when a primitive name lands on an inline/table element", () => {
+  const body = contrastGuardBody();
+  assert.match(body, /reserved primitive class/, "must emit a reserved-class warning");
+  assert.match(body, /scanReserved/, "reserved scan function must be defined and run");
+  // the inline/table tags that signal an accidental collision
+  assert.match(body, /SPAN:1[\s\S]*TD:1/, "must target inline/table tags");
 });
 
 test("contrast guard is injected into ALL render paths", () => {

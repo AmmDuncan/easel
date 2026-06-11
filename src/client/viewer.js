@@ -167,18 +167,19 @@
    canvas with pinned dark ink and color:inherit re-scoped to every child so the
    host's light-dark() ink can never leak in. Add the dark class
    (class="window dark") for a genuinely dark-UI mockup. */
-.window {
+.window, .easel-window, [data-easel="window"] {
   position: relative;
   padding-top: 40px;
   border-radius: 12px;
   border: 1px solid #e2e2e2;
   box-shadow: 0 14px 48px rgba(0, 0, 0, 0.16);
   overflow: hidden;
-  background: #ffffff;
-  color: #1a1a1a;
+  /* Locked surface + ink, !important so .wrap * { color: inherit } can't flip it. */
+  background: #ffffff !important;
+  color: #1a1a1a !important;
 }
-.window * { color: inherit; }
-.window::before {
+.window *, .easel-window *, [data-easel="window"] * { color: inherit; }
+.window::before, .easel-window::before, [data-easel="window"]::before {
   content: "";
   position: absolute;
   top: 0;
@@ -193,7 +194,7 @@
     radial-gradient(circle at 59px 20px, #28c840 6px, transparent 6.5px);
   background-repeat: no-repeat;
 }
-.window::after {
+.window::after, .easel-window::after, [data-easel="window"]::after {
   content: attr(data-title);
   position: absolute;
   top: 0;
@@ -208,18 +209,18 @@
   color: #6b6b6b;
   pointer-events: none;
 }
-.window.dark {
+.window.dark, .easel-window.dark, [data-easel="window"].dark {
   border-color: #2a2a2a;
-  background: #161616;
-  color: #e6edf3;
+  background: #161616 !important;
+  color: #e6edf3 !important;
   box-shadow: 0 14px 48px rgba(0, 0, 0, 0.4);
 }
-.window.dark::before {
+.window.dark::before, .easel-window.dark::before, [data-easel="window"].dark::before {
   background-color: #1f1f1f;
   border-bottom-color: #2a2a2a;
 }
-.window.dark::after { color: #9b9b9b; }
-.window.desktop {
+.window.dark::after, .easel-window.dark::after, [data-easel="window"].dark::after { color: #9b9b9b; }
+.window.desktop, .easel-window.desktop, [data-easel="window"].desktop {
   min-height: 900px;
 }
 /* Locked-dark code / terminal primitive. Reach for this instead of hand-rolling
@@ -231,9 +232,18 @@
    palette so syntax highlighting reads against #0f172a without per-token tuning.
    Usage: <div class="code"><span class="kw">gcloud</span> services enable …</div>
    .terminal is an alias; add .terminal for a prompt feel (same colors). */
-.code, .terminal {
-  background: #0f172a;
-  color: #e6edf3;
+.code, .terminal, .easel-code, .easel-terminal,
+[data-easel="code"], [data-easel="terminal"] {
+  /* Locked dark surface + ink. Committed with !important so the documented
+     .wrap * { color: inherit } can't flip the ink onto this fixed background —
+     that tie (both (0,1,0); author rule later in source) is the recurring
+     invisible dark-on-dark bug. !important is on the CONTAINER only, not on the
+     descendant rules below, so syntax tokens still win by specificity.
+     Generic names collide with author markup like <td class="code"> — prefer the
+     namespaced .easel-code / [data-easel="code"]; bare code/terminal are kept as
+     deprecated aliases. */
+  background: #0f172a !important;
+  color: #e6edf3 !important;
   border-radius: 12px;
   padding: 18px 22px;
   font-family: ui-monospace, "SF Mono", Menlo, monospace;
@@ -242,25 +252,26 @@
   overflow: auto;
   margin: 16px 0 24px;
 }
-.code *, .terminal * { color: inherit; }
-.code .kw,      .terminal .kw      { color: #ff7b72; }  /* keywords, control flow */
-.code .string,  .terminal .string  { color: #a5d6ff; }  /* strings, attr values */
-.code .fn,      .terminal .fn      { color: #d2a8ff; }  /* function names */
-.code .prop,    .terminal .prop    { color: #79c0ff; }  /* identifiers, properties */
-.code .num,     .terminal .num     { color: #ffa657; }  /* numbers, constants */
-.code .comment, .terminal .comment { color: #8b949e; }  /* comments */
-.code .muted,   .terminal .muted   { color: #94a3b8; }  /* dim / secondary */
-.code .accent,  .terminal .accent  { color: #6ee7b7; }  /* highlight / success */
+:is(.code, .terminal, .easel-code, .easel-terminal, [data-easel="code"], [data-easel="terminal"]) * { color: inherit; }
+:is(.code, .terminal, .easel-code, .easel-terminal) .kw      { color: #ff7b72; }  /* keywords, control flow */
+:is(.code, .terminal, .easel-code, .easel-terminal) .string  { color: #a5d6ff; }  /* strings, attr values */
+:is(.code, .terminal, .easel-code, .easel-terminal) .fn      { color: #d2a8ff; }  /* function names */
+:is(.code, .terminal, .easel-code, .easel-terminal) .prop    { color: #79c0ff; }  /* identifiers, properties */
+:is(.code, .terminal, .easel-code, .easel-terminal) .num     { color: #ffa657; }  /* numbers, constants */
+:is(.code, .terminal, .easel-code, .easel-terminal) .comment { color: #8b949e; }  /* comments */
+:is(.code, .terminal, .easel-code, .easel-terminal) .muted   { color: #94a3b8; }  /* dim / secondary */
+:is(.code, .terminal, .easel-code, .easel-terminal) .accent  { color: #6ee7b7; }  /* highlight / success */
 @media print {
   /* Force the locked-dark primitives light for print — browsers drop background
      colours by default, which would otherwise strand their light ink on white
      paper. Applies in both normal and app-fidelity mode. The !important here
      also (intentionally) overrides the normal branch's non-print-gated pre/code
      theming, so code reads as dark-on-light on paper regardless of host theme. */
-  pre, code, .code, .terminal { background: #f4f3ed !important; color: #111 !important; border: 1px solid #ddd; }
-  .code *, .terminal * { color: #111 !important; }
-  .window.dark { background: #ffffff !important; color: #111 !important; }
-  .window.dark * { color: #111 !important; }
+  pre, code, .code, .terminal, .easel-code, .easel-terminal,
+  [data-easel="code"], [data-easel="terminal"] { background: #f4f3ed !important; color: #111 !important; border: 1px solid #ddd; }
+  :is(.code, .terminal, .easel-code, .easel-terminal, [data-easel="code"], [data-easel="terminal"]) * { color: #111 !important; }
+  .window.dark, .easel-window.dark, [data-easel="window"].dark { background: #ffffff !important; color: #111 !important; }
+  :is(.window, .easel-window, [data-easel="window"]).dark * { color: #111 !important; }
 }
 `;
 
@@ -1051,8 +1062,13 @@ window.htmlToImage.toSvg(de,{width:w,height:h,cacheBust:true})
       "function hasDirectText(el){for(var i=0;i<el.childNodes.length;i++){var n=el.childNodes[i];if(n.nodeType===3&&n.nodeValue.trim().length>0)return true}return false}" +
       "function fmt(c){return'rgb('+Math.round(c.r)+','+Math.round(c.g)+','+Math.round(c.b)+')'}" +
       "function scan(){if(!document.body)return;var offenders=[];var seen=0;var all=document.body.querySelectorAll('*');for(var i=0;i<all.length&&seen<2000;i++){var el=all[i];if(!hasDirectText(el))continue;seen++;var cs=getComputedStyle(el);if(cs.visibility==='hidden'||cs.display==='none')continue;var fg=parseColor(cs.color);if(!fg||fg.a<0.05)continue;var bg=effBg(el);var ratio=contrast(fg,bg);if(ratio<3){offenders.push({tag:el.tagName.toLowerCase(),cls:(el.className&&el.className.toString?el.className.toString():'').slice(0,80),text:(el.textContent||'').trim().slice(0,60),ratio:Math.round(ratio*100)/100,fg:fmt(fg),bg:fmt(bg)})}}" +
-      "if(offenders.length){console.warn('[easel] low-contrast text detected ('+offenders.length+' element(s), threshold 3:1). The #1 cause is a hand-rolled dark code container — use <div class=\"code\"> or <div class=\"terminal\"> instead; they lock background AND ink and re-scope color:inherit to children. Offenders:',offenders.slice(0,10));try{parent.postMessage({type:'easel:contrast-warn',pushId:ID,count:offenders.length,samples:offenders.slice(0,5)},'*')}catch(e){}}}" +
-      "function run(){setTimeout(scan,400)}" +
+      "if(offenders.length){console.warn('[easel] low-contrast text detected ('+offenders.length+' element(s), threshold 3:1). Common causes: (1) a reserved primitive class (code/terminal/window) on your own element inheriting its locked dark fill — see the reserved-class warning below; (2) a hand-rolled dark container — use <div class=\"easel-code\"> instead (locks bg AND ink). Offenders:',offenders.slice(0,10));try{parent.postMessage({type:'easel:contrast-warn',pushId:ID,count:offenders.length,samples:offenders.slice(0,5)},'*')}catch(e){}}}" +
+      // Reserved-class collision guard: the primitive names code/terminal/window paint a
+      // locked dark background, so finding one on an inline/table element (span/td/…) is a
+      // strong signal the author reused a generic name and got an unintended dark block.
+      "function scanReserved(){if(!document.body)return;var R={code:1,terminal:1,window:1};var inl={SPAN:1,TD:1,TH:1,A:1,LI:1,LABEL:1,B:1,I:1,EM:1,STRONG:1,SMALL:1};var bad=[];var all=document.body.querySelectorAll('*');for(var i=0;i<all.length;i++){var el=all[i];if(!inl[el.tagName])continue;var cl=(el.className&&el.className.toString?el.className.toString():'').split(/\\s+/);for(var j=0;j<cl.length;j++){if(R[cl[j]]){bad.push({tag:el.tagName.toLowerCase(),cls:cl[j],text:(el.textContent||'').trim().slice(0,40)});break}}}" +
+      "if(bad.length){console.warn('[easel] reserved primitive class on '+bad.length+' inline/table element(s). code/terminal/window are RESERVED easel primitives that paint a locked dark background — on a <span>/<td>/etc. that yields an unintended dark block. Rename your class (e.g. mono, codecell), or use the namespaced .easel-code/.easel-terminal/.easel-window form if you DO want the primitive. Offenders:',bad.slice(0,10))}}" +
+      "function run(){setTimeout(function(){scan();scanReserved()},400)}" +
       "if(document.fonts&&document.fonts.ready){document.fonts.ready.then(run).catch(run)}else{run()}" +
       "})();"
     );
