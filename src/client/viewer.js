@@ -47,65 +47,6 @@
   const PRESETS = ["paper", "aurora", "slate"];
   const DENSITIES = ["carded", "flat"];
 
-  /* The token block injected into every iframe wrapper — six combos so
-     pushed HTML themes correctly regardless of host preset/mode. */
-  const PRESET_TOKENS_CSS = `
-:root[data-preset="paper"][data-theme="light"] {
-  --ds-bg:#f4efe2;--ds-bg-elev:#f8f3e6;--ds-surface:#faf6ee;--ds-surface-soft:#f0ead9;
-  --ds-ink:#2a261e;--ds-ink-soft:#524b3c;--ds-muted:#756c57;
-  --ds-line:#d5cdb6;--ds-line-soft:#e3dcc6;
-  --ds-accent:#c97a1c;--ds-accent-soft:#f7e8c0;--ds-accent-ink:#fff;
-  --ds-code-bg:#2a261e;--ds-code-ink:#eae5d5;
-  --ds-shadow-md:0 1px 2px rgba(70,50,10,.06),0 18px 36px rgba(70,50,10,.1);
-  color-scheme:light;
-}
-:root[data-preset="paper"][data-theme="dark"] {
-  --ds-bg:#1c1b18;--ds-bg-elev:#25241f;--ds-surface:#25241f;--ds-surface-soft:#20201c;
-  --ds-ink:#ede9e0;--ds-ink-soft:#bbb5a8;--ds-muted:#888273;
-  --ds-line:#423f37;--ds-line-soft:#312f29;
-  --ds-accent:#f4bf5e;--ds-accent-soft:#3d3322;--ds-accent-ink:#1f1d18;
-  --ds-code-bg:#161514;--ds-code-ink:#eae5d5;
-  --ds-shadow-md:inset 0 1px 0 rgba(255,255,255,.045),0 1px 2px rgba(0,0,0,.55),0 18px 38px rgba(0,0,0,.45);
-  color-scheme:dark;
-}
-:root[data-preset="aurora"][data-theme="light"] {
-  --ds-bg:#f5f3fa;--ds-bg-elev:#fafaff;--ds-surface:#fff;--ds-surface-soft:#f0eef7;
-  --ds-ink:#1c1d24;--ds-ink-soft:#4a4d5a;--ds-muted:#7a7d8c;
-  --ds-line:#e1dff0;--ds-line-soft:#ebe9f5;
-  --ds-accent:#6d4eff;--ds-accent-soft:#ebe7ff;--ds-accent-ink:#fff;
-  --ds-code-bg:#1c1d24;--ds-code-ink:#ebe7ff;
-  --ds-shadow-md:0 1px 2px rgba(60,50,120,.05),0 18px 36px rgba(60,50,120,.08);
-  color-scheme:light;
-}
-:root[data-preset="aurora"][data-theme="dark"] {
-  --ds-bg:#0d0f14;--ds-bg-elev:#14171f;--ds-surface:#161a23;--ds-surface-soft:#11141a;
-  --ds-ink:#e7e9ee;--ds-ink-soft:#b9bdc6;--ds-muted:#8b909a;
-  --ds-line:rgba(143,160,200,.14);--ds-line-soft:rgba(143,160,200,.08);
-  --ds-accent:#b8c8ff;--ds-accent-soft:rgba(140,170,255,.12);--ds-accent-ink:#0d0f14;
-  --ds-code-bg:#07080a;--ds-code-ink:#e7e9ee;
-  --ds-shadow-md:inset 0 1px 0 rgba(255,255,255,.045),0 0 0 1px rgba(123,97,255,.06),0 24px 60px rgba(0,0,0,.55),0 0 80px -20px rgba(123,97,255,.25);
-  color-scheme:dark;
-}
-:root[data-preset="slate"][data-theme="light"] {
-  --ds-bg:#ecebe5;--ds-bg-elev:#f6f4ee;--ds-surface:#f6f4ee;--ds-surface-soft:#ecebe3;
-  --ds-ink:#1a1916;--ds-ink-soft:#34322d;--ds-muted:#76746c;
-  --ds-line:#d8d5cb;--ds-line-soft:#e1ddd2;
-  --ds-accent:#2f5fd1;--ds-accent-soft:#e4ebfb;--ds-accent-ink:#fff;
-  --ds-code-bg:#1c1b18;--ds-code-ink:#f1ede1;
-  --ds-shadow-md:0 1px 2px rgba(40,30,10,.05),0 16px 32px rgba(40,30,10,.08);
-  color-scheme:light;
-}
-:root[data-preset="slate"][data-theme="dark"] {
-  --ds-bg:#0c0d10;--ds-bg-elev:#15171c;--ds-surface:#15171c;--ds-surface-soft:#1c1f25;
-  --ds-ink:#f5f5f5;--ds-ink-soft:#d4d4d8;--ds-muted:#9ca3af;
-  --ds-line:#23262d;--ds-line-soft:#1c1f25;
-  --ds-accent:#7dd3fc;--ds-accent-soft:rgba(125,211,252,.16);--ds-accent-ink:#07242e;
-  --ds-code-bg:#07080a;--ds-code-ink:#f5f5f5;
-  --ds-shadow-md:0 1px 2px rgba(0,0,0,.4),0 12px 28px rgba(0,0,0,.45);
-  color-scheme:dark;
-}
-`;
-
   /* Semantic chips — universal across presets. Authors use:
        <span class="chip bug">BUG</span> / .ux / .polish / .ok / .info
      to get accessible, glow-haloed badges that work in both modes. */
@@ -142,12 +83,11 @@
      block, so stripping these in fidelity mode left the skill's own guidance
      ("wrap a mockup in .window") producing unstyled output. */
   const STRUCTURAL_PRIMITIVES_CSS = `
-/* Bind the CSS color-scheme to the host theme so any author CSS that uses
-   light-dark() (text ink, surfaces, borders) tracks the easel light/dark
-   TOGGLE rather than the OS preference. The default wrapper already gets this
-   via PRESET_TOKENS_CSS, but app-fidelity (kind:"mockup") pushes omit the
-   preset tokens — without this rule their light-dark() ink follows the OS
-   scheme and washes out whenever the OS disagrees with the easel toggle. */
+/* Bind the CSS color-scheme to the card's sealed theme so any author CSS that
+   uses light-dark() (text ink, surfaces, borders) — including the kit's token
+   fallbacks — resolves against the frozen mode rather than the OS preference.
+   Injected in every wrapper (default + app-fidelity), the only place the canvas
+   mode is now declared since the preset token block was removed. */
 :root[data-theme="light"] { color-scheme: light; }
 :root[data-theme="dark"]  { color-scheme: dark; }
 
