@@ -1103,23 +1103,30 @@ ${body}
 <head>
 <meta charset="utf-8" />
 <base target="_blank" />
-<link rel="preconnect" href="https://rsms.me/" />
-<link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
 <script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.13/dist/html-to-image.js"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; }
-${PRESET_TOKENS_CSS}
 ${SEMANTIC_CHIPS_CSS}
 ${STRUCTURAL_PRIMITIVES_CSS}
+/* MINIMAL FLOOR (layer 3 removed): no --ds token block, no Inter webfont, no
+   presentation type scale. The wrapper only commits a base surface + ink for
+   the frozen mode and a system-sans default — the agent owns everything else
+   (or inlines the kit for the presentation scaffold). Primitives + chips +
+   prose-width cap are retained. */
 html, body {
   margin: 0;
-  background: var(--ds-bg-elev);
-  color: var(--ds-ink);
-  font-family: "Inter", -apple-system, "SF Pro Text", system-ui, sans-serif;
-  font-feature-settings: "cv11", "ss01";
+  background: ${theme === "dark" ? "#0e1116" : "#faf7f0"};
+  color: ${theme === "dark" ? "#e8e8e8" : "#1a1a1a"};
+  font-family: -apple-system, "SF Pro Text", system-ui, "Segoe UI", sans-serif;
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
-  transition: background 200ms ease, color 200ms ease;
+}
+:where(body) :where(*) { color: inherit; }
+/* keep the accent chip working without the dropped --ds-accent token */
+.chip.accent {
+  background: ${theme === "dark" ? "#10241c" : "#eafaf0"};
+  color: ${theme === "dark" ? "#6ee7a8" : "#15803d"};
+  border-color: transparent;
 }
 body {
   padding: 40px clamp(28px, 4vw, 64px) 48px;
@@ -1163,104 +1170,7 @@ body > *:last-child { margin-bottom: 0 !important; }
   margin: 32px 0;
 }
 .wrap { display: block; }
-.kicker {
-  display: block;
-  font-size: 13px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--ds-muted);
-  font-weight: 500;
-  margin-bottom: 14px;
-}
-h1 {
-  font-size: 40px;
-  font-weight: 500;
-  letter-spacing: -0.025em;
-  line-height: 1.08;
-  margin: 0 0 18px;
-}
-.deck, .lede {
-  font-size: 19px;
-  line-height: 1.55;
-  color: var(--ds-ink-soft);
-  margin: 0 0 28px;
-  max-width: 720px;
-}
-h2 {
-  font-size: 26px;
-  font-weight: 500;
-  letter-spacing: -0.02em;
-  margin: 36px 0 12px;
-}
-h3 {
-  font-size: 19px;
-  font-weight: 600;
-  letter-spacing: -0.005em;
-  margin: 24px 0 8px;
-}
-h4 { font-size: 15px; font-weight: 600; margin: 20px 0 6px; }
-p {
-  font-size: 18px;
-  margin: 0 0 14px;
-  color: var(--ds-ink-soft);
-}
-a { color: var(--ds-accent); text-decoration: none; border-bottom: 1px solid color-mix(in srgb, var(--ds-accent) 40%, transparent); }
-a:hover { border-bottom-color: var(--ds-accent); }
-ul, ol { padding-left: 22px; margin: 0 0 18px; }
-li { font-size: 18px; margin-bottom: 6px; color: var(--ds-ink-soft); }
-code {
-  font-family: ui-monospace, "SF Mono", Menlo, monospace;
-  font-size: 0.92em;
-  background: var(--ds-surface-soft);
-  color: var(--ds-ink);
-  padding: 2px 6px;
-  border-radius: 5px;
-}
-pre {
-  background: var(--ds-code-bg);
-  color: var(--ds-code-ink);
-  padding: 18px 22px;
-  border-radius: 12px;
-  overflow: auto;
-  font-family: ui-monospace, "SF Mono", Menlo, monospace;
-  font-size: 13.5px;
-  line-height: 1.7;
-  margin: 16px 0 24px;
-}
-pre code { background: transparent; padding: 0; color: inherit; font-size: inherit; }
-blockquote {
-  border-left: 3px solid var(--ds-accent);
-  margin: 18px 0;
-  padding: 4px 0 4px 20px;
-  color: var(--ds-ink-soft);
-  font-size: 18px;
-}
-.card, .panel {
-  background: var(--ds-surface);
-  border: 1px solid var(--ds-line);
-  border-radius: 14px;
-  padding: 24px 28px;
-  margin: 0 0 20px;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.04);
-}
-hr {
-  border: 0;
-  border-top: 1px solid var(--ds-line);
-  margin: 36px 0;
-}
-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 15px;
-  margin: 18px 0 24px;
-}
-th, td {
-  text-align: left;
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--ds-line);
-}
-th { color: var(--ds-muted); font-weight: 500; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; }
-img { max-width: 100%; height: auto; border-radius: 10px; }
+img { max-width: 100%; height: auto; }
 :root[data-density="flat"] html,
 :root[data-density="flat"] body { background: transparent; }
 
