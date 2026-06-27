@@ -28,9 +28,9 @@ Triggers are **content-shape**, not user-phrasing. If the answer would be a wall
 
 ## Tools
 
-- **`push({ html, title?, kind? })`** — appends a card. `html` is required; the wrapper sandboxes it in an iframe and injects a baseline design system. `title` is shown in the card header. `kind` is a freeform tag for the chip (`mockup`, `diff`, `explanation`, `comparison`, `diagram`, `progress`, `status`, etc.).
+- **`push({ html, title?, kind?, theme? })`** — appends a card. `html` is required; the wrapper sandboxes it in an iframe and injects a baseline design system. `title` is shown in the card header. `kind` is a freeform tag for the chip (`mockup`, `diff`, `explanation`, `comparison`, `diagram`, `progress`, `status`, etc.). `theme` (`light`|`dark`) seals the card's canvas mode — frozen at push time, never flips with the global toggle; omit to snapshot the current global theme.
 - **`open()`** — force-open a fresh browser tab for this session.
-- **`config({ preset?, theme?, density? })`** — switch palette, mode, or layout live. Presets: `paper` | `aurora` | `slate`. Themes: `light` | `dark`. Density: `carded` | `flat`.
+- **`config({ preset?, theme?, density? })`** — set Easel's own chrome + the default for FUTURE pushes. Presets: `paper` | `aurora` | `slate`. Themes: `light` | `dark`. Density: `carded` | `flat`. Note: this does NOT restyle existing cards — each is a frozen snapshot. To change a card's mode, re-push with `theme`.
 - **`label({ label })`** — name the session ("Roadworthy 401 fix"). Call early once the task focus is clear; re-call when the theme shifts. Pass `""` to clear.
 
 Reply in chat with **one line**: `pushed to easel ↗ — #N`. Do not restate the content.
@@ -84,78 +84,74 @@ Don't pack content. Space carries the rhythm of a presentation.
 
 ### 3. Color
 
-- **The host iframe owns the canvas.** Don't paint `background` on `body` — it fights the host and shows up as a wrong-shade block when the user is in the opposite mode. *Exception:* if a particular push really needs to be dark regardless of host (a code-heavy push, say), then OWN the canvas — `background: #0b0f17; color: #e5e7eb;` on `.wrap` — and commit fully to dark.
+- **You own the canvas — commit to one mode.** A pushed card is an immutable snapshot, sealed at push time; it never flips when the user toggles Easel's global light/dark theme. So pick ONE mode and paint it: set your own `background` AND `color` on `.wrap` (e.g. light: `background: #faf7f0; color: #1a1a1a` — dark: `background: #0b0f17; color: #e5e7eb`). Declare the mode with the push tool's `theme: 'light'|'dark'` param when you've been told which to present in; omit it to snapshot the current global theme. (You *may* leave the surface to the host — the card body behind `.wrap` is frozen too — but painting it yourself is the safe default and what "own the canvas" means.)
 - **One accent only.** Use the wrapper's `var(--ds-accent)` token (it adapts to whichever preset the user picked). Limit accent uses to **3–4 per push**.
 - **Status colors** (red / amber / green) only when content actually maps to status — not as decoration.
 - **Page background is never pure white.** The wrapper uses an off-white (`#fafafa`-ish) or a deep dark depending on the host. If you must paint a card surface inside the push, use `var(--ds-surface)`.
 
-### 4. Light / dark — make EVERYTHING adaptive
+### 4. Light / dark — commit to ONE mode, no responsiveness
 
-Because the host owns the canvas color, **text color and any local card backgrounds must also respond to the user's light/dark mode**. Hardcoding `color: #111` puts black text on a dark canvas and the whole push goes invisible — this has bitten us repeatedly.
+The card is frozen to a single mode, so **don't make it adapt**. Pick light or dark, paint concrete colours for that one mode, and stop. Writing `light-dark()` / `prefers-color-scheme` for the page surface is dead weight — the card won't flip, so the adaptive branch never earns its keep and just risks the wrong half winning. The thing that bit us before — hardcoding `color: #111` onto a *host-controlled* canvas that could be dark — can't happen anymore, because you now control the background too: set them as a pair.
 
-Use CSS `light-dark()` to swap:
+Paint the one mode you chose:
 
 ```html
 <style>
-  :root { color-scheme: light dark; }
   .wrap {
-    color: light-dark(#111, #e5e7eb);
+    background: #faf7f0;          /* light card — pick your surface */
+    color: #1a1a1a;              /* ink to match it */
     padding: 56px 40px 96px;
     font-family: -apple-system, 'Inter', system-ui, sans-serif;
   }
-  /* Scope inheritance so the wrapper's text color reaches every child.
+  /* Push the wrapper's ink into every child so a frame default never leaks.
      ZERO-specificity (:where) so it neutralises UA link/button colours but is
      beaten by ANY authored container colour — a hand-rolled dark callout keeps
      its own ink instead of inheriting .wrap's and vanishing on its dark bg. */
   :where(.wrap) :where(*) { color: inherit; }
 
-  /* Cards float above whatever canvas the tool gives us — also adapt */
   .card {
-    background: light-dark(#fff, #111827);
-    border: 1px solid light-dark(#e5e5e5, #1f2937);
+    background: #ffffff;
+    border: 1px solid #e0d9c3;
     border-radius: 12px;
     padding: 24px;
   }
-
-  /* Same treatment for any badge, chip, accent shade you'd previously hardcode */
-  .badge {
-    background: light-dark(#f0fdf4, #052e16);
-    color: light-dark(#028043, #6ee7b7);
-  }
+  .badge { background: #f0fdf4; color: #028043; }
 </style>
 <div class="wrap">…</div>
 ```
 
-**Locked-mode containers must lock their own text color too.** Any container that paints a *fixed*, non-adaptive background — a terminal/code block locked to dark, an always-dark callout, a hero filled with a brand color — MUST also set its own text color (and re-scope `color: inherit` to its children for nested elements). Otherwise it inherits `.wrap`'s `light-dark()` and the text flips to the wrong shade for that container's background in one of the two modes. (As long as you use the zero-specificity `:where(.wrap) :where(*)` adoption rule above, a single class on the container — `.tip { background:#111; color:#eee }` — is enough; its colour now wins. The old element-qualified form `.wrap div { color: inherit }` was `(0,1,1)` and silently OUTRANKED such a container, flipping its text to the canvas ink — black-on-black — which was the recurring "dark block, text invisible" bug. No `!important` needed anymore.)
+(Dark card: `.wrap { background:#0b0f17; color:#e5e7eb }`, `.card { background:#111827; border-color:#1f2937 }`, `.badge { background:#052e16; color:#6ee7b7 }`.) The `--ds-*` tokens still work if you prefer them — they resolve once to the card's frozen mode and stay put — but for a self-owned canvas concrete colours are clearer.
+
+**Background and ink are always a pair.** Any container that paints its own background — a terminal/code block locked to dark, a callout, a hero filled with a brand color, a white panel on a dark card — MUST also set its own text color (and re-scope `color: inherit` to its children for nested elements). Otherwise it inherits `.wrap`'s committed ink, which may not suit that container's background (dark ink on a dark hero → invisible). (As long as you use the zero-specificity `:where(.wrap) :where(*)` adoption rule above, a single class on the container — `.tip { background:#111; color:#eee }` — is enough; its colour now wins. The old element-qualified form `.wrap div { color: inherit }` was `(0,1,1)` and silently OUTRANKED such a container, flipping its text to the canvas ink — black-on-black — which was the recurring "dark block, text invisible" bug. No `!important` needed anymore.)
 
 #### App / UI recreations are *always* locked-mode
 
 When you're rendering a recreation of a real piece of UI — a mock of an app screen, a component instance, an embedded preview of what the user will actually see — **that mockup owns its theme completely. Don't make it adapt to the host.**
 
-It's a screenshot-equivalent. If the real app is a dark cobalt dashboard with cyan accents, the mockup should be dark cobalt + cyan regardless of whether the user has easel in light or dark mode. If the real app is a warm cream marketing page, the mockup stays warm cream. The host toggle changes the *surrounding explanation*, not the embedded app preview.
+It's a screenshot-equivalent. If the real app is a dark cobalt dashboard with cyan accents, the mockup should be dark cobalt + cyan regardless of the card's own mode. If the real app is a warm cream marketing page, the mockup stays warm cream. This was always the rule for recreations; now the *whole* card works this way (sealed at push time), so a mock just commits to the app's real colours like everything else.
 
 Two reasons:
 1. **Visual fidelity.** A mockup of the app in dark mode looks wrong when paper-light leaks into it. The user is trying to evaluate the implementation, not a translated version of it.
 2. **It removes a class of bugs.** App previews have lots of nested elements (buttons, chips, table cells, modal overlays) — getting every layer to adapt correctly via `light-dark()` is fragile. Locking the whole island is simpler and more faithful.
 
-How to do it: paint the mockup's outer container with the app's actual `background` and `color`, and re-scope `color: inherit` to every descendant so the host's adaptive text doesn't leak in:
+How to do it: paint the mockup's outer container with the app's actual `background` and `color`, and re-scope `color: inherit` to every descendant so the card's own ink doesn't leak in:
 
 ```html
 <style>
   .wrap {
-    /* host-adaptive surrounding prose */
-    color: light-dark(#111, #e5e7eb);
+    /* the card's committed prose mode (one mode, not adaptive) */
+    background: #faf7f0; color: #1a1a1a;
   }
   :where(.wrap) :where(*) { color: inherit; }   /* zero-specificity: locked islands below keep their own ink */
 
-  /* The app mock — LOCKED to the real app's colors, ignores host mode */
+  /* The app mock — LOCKED to the real app's colors, independent of the card mode */
   .app-mock {
     background: #0a0e1a;        /* the app's actual canvas */
     color: #e5edff;             /* the app's actual ink */
     border-radius: 12px;
     padding: 32px;
   }
-  .app-mock * { color: inherit; }    /* re-scope so .wrap's light-dark() can't leak in */
+  .app-mock * { color: inherit; }    /* re-scope so .wrap's committed ink can't leak in */
   .app-mock .btn-primary {
     background: #3b82f6;
     color: #fff;
@@ -175,7 +171,7 @@ How to do it: paint the mockup's outer container with the app's actual `backgrou
 </div>
 ```
 
-Same principle for light-themed apps: lock to the app's cream/white surface, lock the ink, lock every accent. The host toggle moves the prose around the mock; the mock stays put.
+Same principle for light-themed apps: lock to the app's cream/white surface, lock the ink, lock every accent. Both the prose card and the mock inside it are frozen — neither moves when the user toggles Easel's global theme.
 
 #### Use the actual values, not approximations
 

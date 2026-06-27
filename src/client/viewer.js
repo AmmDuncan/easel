@@ -525,7 +525,11 @@
         /* ignore */
       }
     }
-    broadcastConfigToIframes({ preset, theme, density });
+    // NOTE: we deliberately do NOT push theme/preset/density into rendered
+    // iframes. A pushed card is an immutable snapshot — its canvas is sealed at
+    // render time. applyConfig only restyles Easel's own chrome (host <html>
+    // tokens) and the default for FUTURE pushes; it never reaches back into
+    // existing cards.
     if (!opts || !opts.skipServer) {
       pushConfigToServer({ preset, theme, density });
     }
@@ -539,20 +543,6 @@
   function syncDensityButtons(active) {
     densityBtnEls.forEach((btn) => {
       btn.classList.toggle("active", btn.dataset.density === active);
-    });
-  }
-
-  function broadcastConfigToIframes(cfg) {
-    iframes.forEach((iframe) => {
-      try {
-        iframe.contentWindow &&
-          iframe.contentWindow.postMessage(
-            { type: "easel:config", ...cfg },
-            "*",
-          );
-      } catch (e) {
-        /* ignore */
-      }
     });
   }
 
@@ -842,7 +832,12 @@
     iframe.setAttribute("scrolling", "no");
     iframe.setAttribute("title", push.title || "push " + push.index);
     iframe.dataset.pushId = push.id;
-    iframe.srcdoc = wrapPushedHtml(push.html, currentTheme(), push.id, push.kind);
+    // Explicit push.theme wins; absent → snapshot the global at render. Either
+    // way it's frozen — the card never flips on a later global toggle.
+    const sealedTheme = push.theme === "light" || push.theme === "dark"
+      ? push.theme
+      : currentTheme();
+    iframe.srcdoc = wrapPushedHtml(push.html, sealedTheme, push.id, push.kind);
     iframe.addEventListener("load", () => {
       iframes.add(iframe);
       // Primary path: the iframe self-measures and posts back size via
@@ -1288,26 +1283,12 @@ img { max-width: 100%; height: auto; border-radius: 10px; }
 <body>
 ${body}
 <script>
+// Canvas is sealed at render (data-theme/preset/density are baked into <html>
+// above and never change). The only live message this card honours is print —
+// config/theme broadcasts are intentionally ignored so the snapshot is immutable.
 (function(){
-  function apply(cfg){
-    if (!cfg) return;
-    if (cfg.theme === "light" || cfg.theme === "dark") {
-      document.documentElement.setAttribute("data-theme", cfg.theme);
-      window.__claudeDisplayTheme = cfg.theme;
-    }
-    if (cfg.preset === "paper" || cfg.preset === "aurora" || cfg.preset === "slate") {
-      document.documentElement.setAttribute("data-preset", cfg.preset);
-      window.__claudeDisplayPreset = cfg.preset;
-    }
-    if (cfg.density === "carded" || cfg.density === "flat") {
-      document.documentElement.setAttribute("data-density", cfg.density);
-      window.__claudeDisplayDensity = cfg.density;
-    }
-  }
   window.addEventListener("message", function(e){
     if (!e || !e.data) return;
-    if (e.data.type === "easel:config") apply(e.data);
-    if (e.data.type === "easel:theme") apply({ theme: e.data.theme });
     if (e.data.type === "easel:print") {
       try { window.print(); } catch(_) {}
     }
@@ -1326,7 +1307,7 @@ ${body}
     const configScript =
       "<script src='https://cdn.jsdelivr.net/npm/html-to-image@1.11.13/dist/html-to-image.js'></script><script>(function(){function a(c){if(!c)return;if(c.theme==='light'||c.theme==='dark'){document.documentElement.setAttribute('data-theme',c.theme);window.__claudeDisplayTheme=c.theme}if(c.preset==='paper'||c.preset==='aurora'||c.preset==='slate'){document.documentElement.setAttribute('data-preset',c.preset);window.__claudeDisplayPreset=c.preset}if(c.density==='carded'||c.density==='flat'){document.documentElement.setAttribute('data-density',c.density);window.__claudeDisplayDensity=c.density}}a(" +
       JSON.stringify({ theme, preset, density }) +
-      ");window.addEventListener('message',function(e){if(!e||!e.data)return;if(e.data.type==='easel:config')a(e.data);if(e.data.type==='easel:theme')a({theme:e.data.theme});if(e.data.type==='easel:print'){try{window.print()}catch(_){}}})})();</script>";
+      ");window.addEventListener('message',function(e){if(!e||!e.data)return;if(e.data.type==='easel:print'){try{window.print()}catch(_){}}})})();</script>";
     const imageScript = "<script>" + imageExportScript() + "</script>";
     const guardScript = "<script>" + contrastGuardScript(pushId) + "</script>";
     const measureScript = "<script>" + selfMeasureScript(pushId) + "</script>";

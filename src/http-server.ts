@@ -197,7 +197,7 @@ export function startHttpServer(): void {
   });
 
   app.post("/api/push", async (req: Request, res: Response) => {
-    const { sessionId, html, title, kind } = req.body ?? {};
+    const { sessionId, html, title, kind, theme } = req.body ?? {};
     if (typeof sessionId !== "string" || !sessionId.trim()) {
       res.status(400).json({ error: "sessionId required" });
       return;
@@ -226,7 +226,7 @@ export function startHttpServer(): void {
       }
     }
 
-    const push = appendPush(sessionId, { html: storedHtml, title, kind });
+    const push = appendPush(sessionId, { html: storedHtml, title, kind, theme });
     touchSession(sessionId);
     broadcast(sessionId, "push", push);
 

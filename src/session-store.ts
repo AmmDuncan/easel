@@ -20,6 +20,8 @@ export type Push = {
   index: number;
   title: string | null;
   kind: string | null;
+  /** Sealed canvas mode for this push. null → client snapshots the global theme at render. */
+  theme: "light" | "dark" | null;
   html: string;
   createdAt: number;
 };
@@ -111,14 +113,16 @@ export function getSessionView(id: string): { meta: SessionMeta; pushes: Push[] 
 
 export function appendPush(
   sessionId: string,
-  input: { html: string; title?: string; kind?: string },
+  input: { html: string; title?: string; kind?: string; theme?: string },
 ): Push {
   const meta = ensureSession(sessionId);
+  const theme = input.theme === "light" || input.theme === "dark" ? input.theme : null;
   const push: Push = {
     id: randomUUID(),
     index: meta.nextIndex,
     title: input.title?.trim() || null,
     kind: input.kind?.trim() || null,
+    theme,
     html: input.html,
     createdAt: Date.now(),
   };

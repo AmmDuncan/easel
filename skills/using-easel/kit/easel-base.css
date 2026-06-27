@@ -4,11 +4,15 @@
    HOW TO USE: inline this whole block inside a <style> at the top of a push,
    then compose with the classes below. Wrap everything in <div class="wrap">.
 
-   Built ON the easel wrapper's injected --ds-* tokens (which adapt to the
-   user's preset + light/dark mode). Every token has a literal light-dark()
-   fallback, so this file ALSO renders correctly as a standalone .html (e.g.
-   when you render-and-look locally before pushing). Inside easel the wrapper's
-   tokens win and the card inherits the user's chosen accent for free.
+   Built ON the easel wrapper's injected --ds-* tokens. A pushed card is an
+   IMMUTABLE SNAPSHOT: its mode is sealed at push time and never flips when the
+   user toggles Easel's global theme, so these tokens (and their light-dark()
+   fallbacks) resolve ONCE to the card's frozen mode and stay there. Every token
+   has a literal light-dark() fallback, so this file ALSO renders correctly as a
+   standalone .html (e.g. when you render-and-look locally before pushing).
+   Inside easel the wrapper's tokens win and the card inherits the user's chosen
+   accent for free. You OWN this canvas — commit to one mode; don't write
+   responsive (light-dark/prefers-color-scheme) CSS expecting the card to adapt.
 
    This is the SCAFFOLD. The full rulebook lives in SKILL.md (fidelity bar,
    type/whitespace/color, locked-mode, .window/.code/.chip primitives,
@@ -18,7 +22,10 @@
 
 :root { color-scheme: light dark; }
 
-/* ---- canvas: set text, NOT background (the host owns the canvas) ---------- */
+/* ---- canvas: frozen to one mode. The host card surface behind .wrap is itself
+   sealed at push time, so inheriting it is safe; set your own `background` here
+   when you want full control of the surface (a specific paper tint, a dark
+   card). Either way the card never flips. ----------------------------------- */
 .wrap {
   font-family: 'Inter', -apple-system, system-ui, sans-serif;
   color: var(--ds-ink, light-dark(#1a1a1a, #e9e9ea));

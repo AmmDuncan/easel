@@ -101,6 +101,12 @@ const inputSchema = {
       description:
         "Freeform tag: mockup, app, diff, explanation, comparison, diagram, status, progress, etc. SPECIAL: 'mockup' and 'app' switch the iframe into APP-FIDELITY mode — the wrapper skips its PRESENTATION defaults (preset design-token CSS, semantic chips, prose width constraints, body bg/color, the Inter webfont) so the host theme can't leak in and you control every pixel. It KEEPS the self-contained structural primitives (.window/.window.dark window chrome, .code/.terminal code blocks — all fixed-colour, theme-independent) and a neutral system-sans default font, so you can still reach for <div class=\"window\"> in a mockup and it renders. Set your own font-family/colours in the pushed HTML to override the sans default. Use this kind when the push is a recreation of real UI (app screen, component instance, embedded preview). For presentation content (explanations, comparisons, status reports), omit kind or use a non-fidelity value.",
     },
+    theme: {
+      type: "string",
+      enum: ["light", "dark"],
+      description:
+        "Canvas mode for THIS push — light or dark. SEALED at push time and never flips with the global Easel toggle: a pushed card is an immutable snapshot, like a screenshot. You OWN this canvas — set your own background + text colours in the HTML for the mode you pick here; do NOT write light-dark() / prefers-color-scheme for the page surface (the card is frozen to one mode, so adaptive CSS is dead weight). Omit to snapshot whatever the global theme is at push time (also frozen). Pass 'light' or 'dark' explicitly when you've been told which mode to present in.",
+    },
   },
   required: ["html"],
   additionalProperties: false,
@@ -111,6 +117,7 @@ async function pushToServer(args: {
   html: string;
   title?: string;
   kind?: string;
+  theme?: string;
   port: number;
 }) {
   const r = await fetch(`http://127.0.0.1:${args.port}/api/push`, {
@@ -121,6 +128,7 @@ async function pushToServer(args: {
       html: args.html,
       title: args.title,
       kind: args.kind,
+      theme: args.theme,
     }),
   });
   if (!r.ok) {
@@ -147,7 +155,9 @@ export async function main() {
       {
         name: TOOL_PUSH,
         description:
-          "Push an HTML card to this session's live browser tab. Renders in a sandboxed iframe over a host-controlled canvas that can be LIGHT or DARK depending on the user's OS theme. Treat each card as a presentation slide — generous whitespace, presentation-scale type, tangible visuals. Your HTML MUST adapt to both light and dark modes.\n\n" +
+          "Push an HTML card to this session's live browser tab. Renders in a sandboxed iframe. Treat each card as a presentation slide — generous whitespace, presentation-scale type, tangible visuals.\n\n" +
+          "═══ YOU OWN THE CANVAS — COMMIT TO ONE MODE ═══\n" +
+          "A pushed card is an IMMUTABLE SNAPSHOT, like a screenshot: it's sealed at push time and NEVER reflows when the user toggles Easel's global light/dark theme. So pick ONE mode for this push and own every colour in it — set your own `background` AND `color` on `.wrap`/`body`, and choose surfaces/borders/ink for that single mode. Do NOT write `light-dark()` or `prefers-color-scheme` for the page surface; the card won't flip, so adaptive CSS is dead weight that just risks the wrong branch winning. Use the `theme` param to declare the mode ('light'/'dark') when you've been told which to present in; omit it to snapshot the current global theme (also frozen). Still scope `color: inherit` to descendants so a stray default ink can't leak in, and the locked primitives (.code/.terminal/.window) work exactly as before — the whole surface now just behaves like they already do: one committed mode, fully self-contained.\n\n" +
           "═══ FIDELITY BAR — SHIP HIGH-FIDELITY BY DEFAULT ═══\n" +
           "Default to polished, production-grade output that looks like a real screenshot of shipped software or a finished design — NOT a rough sketch, wireframe, or grey-box placeholder. This is the default for EVERY push; you do not need to be asked for quality. Only drop to low-fidelity (wireframe, ASCII-ish boxes, lorem-ipsum, unstyled) when the user EXPLICITLY says rough/lo-fi/wireframe/sketch/quick-and-dirty is fine, or asks for a thumbnail/napkin idea. When in doubt, go high-fidelity.\n" +
           "What high-fidelity means concretely:\n" +
@@ -157,18 +167,19 @@ export async function main() {
           "• Visual craft: deliberate hierarchy, aligned grids, consistent spacing scale, real iconography (inline SVG, not emoji-as-icon), proper empty/hover/active states where they matter. Avoid the generic-AI look (one purple gradient, evenly-sized boxes, centered everything).\n" +
           "• Tangible over abstract (see VISUALS): a mock should read as the actual thing, not labeled rectangles.\n" +
           "If you genuinely can't reach the bar (missing real values, ambiguous source), say so in ONE line in chat and push your best honest attempt — don't pass a rough draft off as final, and don't silently ship a grey-box.\n\n" +
-          "═══ ADAPTIVE COLOR (gets wrong most often) ═══\n" +
-          "• Do NOT set `background` on `body` or your root wrapper. The host paints the canvas — setting bg fights it and creates a wrong-shade block in the opposite mode.\n" +
-          "• Use `light-dark()` for ALL text colors, card backgrounds, borders, and decorative shades. Add `:root { color-scheme: light dark; }` so the function resolves. Hardcoded `color: #475569` goes invisible in dark mode; hardcoded `border: 1px solid #e5e5e5` becomes a hard white line.\n" +
-          "• After setting `.wrap { color: light-dark(...); }`, re-scope `color: inherit` to every descendant so child elements don't fall back to the host's default.\n" +
-          "• Inverse rule: if you DO paint a fixed background on a container (a code block locked to dark, a brand-color hero), you MUST also set its text color AND re-scope `color: inherit` to its children. Background and text are a pair.\n\n" +
-          "═══ COPY-PASTE STARTER (adaptive) ═══\n" +
-          "  :root { color-scheme: light dark; }\n" +
-          "  .wrap { color: light-dark(#111, #e8e8e8); padding: 56px 48px; font-family: -apple-system, 'Inter', system-ui, sans-serif; max-width: 820px; }\n" +
+          "═══ COMMITTED COLOR — PICK ONE MODE, PAINT IT FULLY ═══\n" +
+          "The card is frozen to one mode (the `theme` param, or the global theme snapshotted at push time). So:\n" +
+          "• DO set `background` AND `color` explicitly on your root wrapper. You own the canvas — paint it. (Old guidance said 'leave bg to the host'; that's gone — the host no longer reflows your card, so an unpainted surface just inherits chrome you don't control.)\n" +
+          "• Pick concrete colours for the ONE mode you chose — `color: #111` for a light card, `color: #e8e8e8` for a dark one. Do NOT use `light-dark()` / `prefers-color-scheme` for the surface; the card won't flip, so the adaptive branch is dead weight and risks resolving to the wrong half.\n" +
+          "• Still re-scope `color: inherit` to every descendant so a stray default ink can't leak in.\n" +
+          "• Pairing rule (unchanged): any container with a fixed background (a dark code block, a brand-color hero, a white card) MUST set its own text color and re-scope `color: inherit` to its children. Background and ink are always a pair.\n\n" +
+          "═══ COPY-PASTE STARTER (light card) ═══\n" +
+          "  .wrap { background: #faf7f0; color: #1a1a1a; padding: 56px 48px; font-family: -apple-system, 'Inter', system-ui, sans-serif; max-width: 820px; }\n" +
           "  .wrap *, .wrap h1, .wrap h2, .wrap h3, .wrap p, .wrap li, .wrap span { color: inherit; }\n" +
-          "  .card { background: light-dark(#fff, #161616); border: 1px solid light-dark(#e0d9c3, #2a2a2a); border-radius: 12px; padding: 24px; }\n\n" +
+          "  .card { background: #ffffff; border: 1px solid #e0d9c3; border-radius: 12px; padding: 24px; }\n" +
+          "  (dark card: .wrap { background:#0e1116; color:#e8e8e8 }  .card { background:#161616; border-color:#2a2a2a })\n\n" +
           "═══ CODE / TERMINAL BLOCKS — USE THE BUILT-IN PRIMITIVE, DON'T HAND-ROLL ═══\n" +
-          "The #1 recurring bug is a hand-rolled dark code container: you set `background:#0f172a` on a custom div but leave base text inheriting `.wrap`'s `light-dark(#111,…)`, which resolves to near-black in light host mode and VANISHES against the dark panel (only the explicitly-coloured syntax spans survive). Don't hand-roll it. The wrapper ships a baked-in, always-safe primitive:\n" +
+          "The #1 recurring bug is a hand-rolled dark code container: you set `background:#0f172a` on a custom div but leave base text inheriting `.wrap`'s ink, which on a light card is near-black and VANISHES against the dark panel (only the explicitly-coloured syntax spans survive). Don't hand-roll it. The wrapper ships a baked-in, always-safe primitive:\n" +
           "  <div class=\"code\"> … </div>   (alias: class=\"terminal\")\n" +
           "It locks BOTH background (#0f172a) and ink (#e6edf3), re-scopes `color:inherit` to every child, and provides verified github-dark syntax token classes you can drop onto spans — NO per-token tuning needed:\n" +
           "  .kw (keywords #ff7b72) · .string (#a5d6ff) · .fn (function #d2a8ff) · .prop (identifiers #79c0ff) · .num (#ffa657) · .comment (#8b949e) · .muted (#94a3b8) · .accent (#6ee7b7)\n" +
@@ -176,10 +187,10 @@ export async function main() {
           "Plain <pre>/<code> are also already safe (bg+ink token pair). Only reach for a fully custom container when .code/.terminal genuinely don't fit — and then obey the locked-mode rule below.\n" +
           "SAFETY NET: every push self-checks for low-contrast text (WCAG <3:1) after render. If your push trips it, the card gets an amber `⚠ contrast` chip on the meta row with the offender list in the tooltip, and the iframe console.warns with sample rgb pairs. Treat the chip as a build-failure-equivalent — the fix is almost always swapping the hand-rolled container for `.code` / `.terminal` (or, for a non-code locked-bg container, applying the locked-mode rule below).\n\n" +
           "═══ COPY-PASTE STARTER (any OTHER LOCKED-MODE container — brand hero, custom panel) ═══\n" +
-          "If a container has a FIXED background (not `light-dark()`), you MUST set its own text color AND re-scope `color: inherit` to its children. Otherwise the children inherit `light-dark(...)` from `.wrap` and the text flips to the wrong shade in one mode (e.g. dark text on a locked-dark panel in light host mode → invisible).\n" +
+          "If a container has a background that differs from the card surface, you MUST set its own text color AND re-scope `color: inherit` to its children. Otherwise the children inherit `.wrap`'s committed ink, which may not suit the container's bg (e.g. dark text on a dark hero on a light card → invisible).\n" +
           "  .hero { background: #0f172a; color: #e6edf3; border-radius: 12px; padding: 20px 24px; }\n" +
           "  .hero * { color: inherit; }\n" +
-          "• Same pairing applies in the OPPOSITE direction — locked-LIGHT containers (e.g. a white card on the host canvas). A `.card { background: #fff }` with no `color:` inherits `.wrap`'s light-dark() text, which in dark host mode resolves to a light cream/gray → invisible titles on a white card. Commit text too AND re-scope inherit on children. This bites just as often as the dark case.\n" +
+          "• Same pairing applies in the OPPOSITE direction — a light panel sitting on a DARK card. A `.card { background: #fff }` with no `color:` inherits `.wrap`'s dark-card ink (a light cream/gray) → invisible titles on white. Commit text too AND re-scope inherit on children. This bites just as often as the dark case.\n" +
           "  .card { background: #ffffff; color: #111111; border: 1px solid #e5e5e5; border-radius: 12px; padding: 24px 32px; }\n" +
           "  .card * { color: inherit; }\n" +
           "• Syntax-highlighted code in a locked-bg block: EVERY token color must be verified readable against the bg, not just the body color. Recurring bug: locking to #0f172a then giving 'property' / 'punctuation' / 'comment' tokens something like #2c2c40 because it 'looked subtle' — against #0f172a it's nearly invisible and identifiers disappear. Either use a tested theme designed for your bg (Shiki github-dark / vitesse-dark / one-dark-pro for #0f172a-ish, github-light / vitesse-light for #f5f7fa-ish), or pick from this verified palette for #0f172a: keyword #ff7b72, string #a5d6ff, function #d2a8ff, property #79c0ff, number #ffa657, comment #8b949e, default text #e6edf3. If you can't articulate why each token reads against the bg, drop highlighting and use single-color monospace — that always works.\n\n" +
@@ -367,6 +378,7 @@ export async function main() {
       html?: string;
       title?: string;
       kind?: string;
+      theme?: string;
     };
     if (typeof args.html !== "string" || !args.html.length) {
       throw new Error("easel.push: `html` is required");
@@ -377,6 +389,7 @@ export async function main() {
       html: args.html,
       title: args.title,
       kind: args.kind,
+      theme: args.theme,
       port,
     });
 
