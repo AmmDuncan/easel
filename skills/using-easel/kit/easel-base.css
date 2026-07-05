@@ -16,7 +16,7 @@
 
    This is the SCAFFOLD. The full rulebook lives in SKILL.md (fidelity bar,
    type/whitespace/color, locked-mode, .window/.code/.chip primitives,
-   full-bleed, kind:"mockup"). Read EASEL-GUIDE.md for the 5 composition rules
+   full-bleed, kind:"mockup"). Read EASEL-GUIDE.md for the 6 composition rules
    this scaffold encodes.
    =========================================================================== */
 
@@ -159,7 +159,43 @@
 .callout.danger  { --co-bg: light-dark(#fdecec,#240f0f); --co-bd: light-dark(#f5cccc,#4a1f1f); --co-ic-bg: light-dark(#fadada,#341515); --co-ic: light-dark(#b91c1c,#f59a9a); }
 
 /* ===========================================================================
-   PRIMITIVE 3 — thread / message card (LOCKED DARK)
+   PRIMITIVE 3 — diagram (drawn structure: flows, layers, trees, round trips)
+   RULE 6: when the relationship is the message, DRAW it — don't arrange cards.
+   Author the SVG at 1:1 scale (viewBox ~860 wide → 1 unit = 1px, so the type
+   floor stays honest), style every part via these classes (never fill/stroke
+   attributes — classes keep the --ds-* tokens + frozen-mode pairing), and put
+   the arrowhead <defs> from EASEL-GUIDE.md once per svg. Labels: short (≤3
+   words) in .d-label; anything longer goes in a <foreignObject> with .d-note.
+   =========================================================================== */
+.diagram { margin-top: 28px; }
+.diagram svg { width: 100%; height: auto; display: block; overflow: visible; }
+
+.d-box  { fill: var(--ds-surface, light-dark(#ffffff, #15171c));
+          stroke: var(--ds-line, light-dark(#d9d9dd, #34373d)); stroke-width: 1; }
+.d-box.soft   { fill: var(--ds-surface-soft, light-dark(#f3f4f6, #1f2329)); }
+.d-box.accent { stroke: var(--ds-accent, light-dark(#15803d, #4ade80)); stroke-width: 1.5; }
+/* region = containment (a layer, a boundary, "inside the worktree") — dashed,
+   soft fill, its .d-label sits at the top-left INSIDE the region */
+.d-region { fill: var(--ds-surface-soft, light-dark(#f6f7f8, #191c21));
+            stroke: var(--ds-line-soft, light-dark(#e3e5e8, #2c3038));
+            stroke-dasharray: 5 4; }
+
+.d-label { font: 600 16px 'Inter', system-ui, sans-serif;
+           fill: var(--ds-ink, light-dark(#1a1a1a, #e9e9ea)); }
+.d-sub   { font: 500 14px ui-monospace, monospace;
+           fill: var(--ds-muted, light-dark(#6b6b6b, #9a9a9a)); }
+.d-note  { font-size: 14px; line-height: 1.4; font-family: 'Inter', system-ui, sans-serif;
+           color: var(--ds-ink-soft, light-dark(#56565a, #9b9ba1)); } /* inside foreignObject */
+
+.d-edge  { fill: none; stroke: var(--ds-ink-soft, light-dark(#8a8a90, #7d828c));
+           stroke-width: 1.5; }
+.d-edge.accent { stroke: var(--ds-accent, light-dark(#15803d, #4ade80)); }
+.d-edge.dashed { stroke-dasharray: 5 4; }   /* returns, async, "maybe" paths */
+.d-arrowhead   { fill: var(--ds-ink-soft, light-dark(#8a8a90, #7d828c)); stroke: none; }
+.d-arrowhead.accent { fill: var(--ds-accent, light-dark(#15803d, #4ade80)); }
+
+/* ===========================================================================
+   PRIMITIVE 4 — thread / message card (LOCKED DARK)
    It sets its OWN text colour on every node (the .wrap inherit-guard outranks
    a descendant universal, so locked-bg containers must commit their own ink).
    For app/UI mockups use the wrapper's .window / .window.dark instead.

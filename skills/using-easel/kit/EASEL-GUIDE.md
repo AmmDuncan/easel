@@ -122,11 +122,11 @@ the thing being explained is inherently *spatial* — a flow that branches and
 rejoins, a system with layers, data moving between places, a hierarchy, a
 state machine, a timeline, a request/response round trip. Cards cannot show
 geometry: direction, branching, convergence, containment, adjacency. When the
-**relationship is the message, draw a real diagram** — inline SVG with actual
-arrows that connect actual boxes, forks that visibly fork, layers that visibly
-contain, lanes that carry a moving thing. Style the SVG with the same tokens
-(`--ds-*` fills, 1px neutral strokes, presentation-scale ≥14px labels,
-`marker-end` arrowheads) so it reads as part of the card, not clip-art.
+**relationship is the message, draw a real diagram** using the kit's `.d-*`
+scaffold — see **Drawing scaffold** below for the classes, the arrowhead
+`<defs>`, the 1:1 sizing rule, and a worked example. Never hand-roll fills,
+strokes, or font sizes in SVG attributes — the classes carry the `--ds-*`
+tokens and the type floor.
 - **The tell**: your prose says "flows into", "branches", "sits between",
   "wraps", "goes through", "comes back" — and the draft renders none of that
   motion or position. Rebuild as a drawing.
@@ -137,6 +137,80 @@ contain, lanes that carry a moving thing. Style the SVG with the same tokens
 - **Glance test, sharpened**: rule 4 of the recipe asks "would a bullet list
   say this as well?" — for structure, also ask *"does this show anything a
   vertical stack of boxes wouldn't?"* If no, it's cards in a trench coat.
+
+---
+
+## Drawing scaffold (rule 6's classes — in `easel-base.css`)
+
+| Class | On | What |
+|---|---|---|
+| `.diagram` | wrapper div | width/scaling for the svg inside |
+| `.d-box` (+ `.soft`, `.accent`) | `<rect>` | a node; accent = the focal one |
+| `.d-region` | `<rect>` | containment — a layer/boundary; dashed, label inside top-left |
+| `.d-label` / `.d-sub` | `<text>` | 16px name / 14px mono detail |
+| `.d-note` | div in `<foreignObject>` | wrapping prose ≥3 words — SVG `<text>` never wraps |
+| `.d-edge` (+ `.accent`, `.dashed`) | `<path>`/`<line>` | connector; dashed = return/async/maybe |
+| `fill="context-stroke"` | marker path | arrowhead auto-matches its edge's colour (render-verified); `.d-arrowhead` exists for manual override |
+
+**Three mechanical rules that keep a drawn diagram legible:**
+
+1. **Author at 1:1** — `viewBox="0 0 860 H"` (≈ the card's content width), so one
+   unit = one pixel and the 16/14px type classes stay at the floor for real.
+   Grow **H**, never shrink type, when content doesn't fit.
+2. **Text first, boxes after.** Size each `<rect>` around its worst-case label
+   (~10px per character at 16px + 24px padding), not the other way round. Short
+   names in `.d-label`; anything that wants to be a sentence goes in a
+   `<foreignObject>` + `.d-note`, which wraps.
+3. **Arrows meet edges.** Start/end edge paths ON box borders (x = rect edge),
+   with `marker-end` for direction. Orthogonal elbows (`M.. H.. V..`) read
+   better than diagonals when boxes aren't aligned.
+
+Paste once per `<svg>`:
+
+```html
+<defs>
+  <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7"
+    markerHeight="7" orient="auto-start-reverse">
+    <path fill="context-stroke" d="M0 0 L10 5 L0 10 z"/>
+  </marker>
+</defs>
+```
+
+**Worked example — a submit flow with a branch** (the shape rule 6 exists for):
+
+```html
+<div class="diagram"><svg viewBox="0 0 860 240" xmlns="http://www.w3.org/2000/svg">
+  <defs>… the #ah marker above …</defs>
+  <rect class="d-box" x="10" y="90" width="180" height="60" rx="10"/>
+  <text class="d-label" x="100" y="116" text-anchor="middle">TransactionForm</text>
+  <text class="d-sub"   x="100" y="136" text-anchor="middle">onSubmit()</text>
+
+  <path class="d-edge" d="M190 120 H290" marker-end="url(#ah)"/>
+
+  <rect class="d-box" x="290" y="90" width="200" height="60" rx="10"/>
+  <text class="d-label" x="390" y="116" text-anchor="middle">createTransaction</text>
+  <text class="d-sub"   x="390" y="136" text-anchor="middle">services/index.ts</text>
+
+  <!-- branch: success up, error down — the fork cards can't draw -->
+  <path class="d-edge accent" d="M490 105 H560 V60 H620" marker-end="url(#ah)"/>
+  <path class="d-edge dashed" d="M490 135 H560 V180 H620" marker-end="url(#ah)"/>
+
+  <rect class="d-box accent" x="620" y="30"  width="220" height="60" rx="10"/>
+  <text class="d-label" x="730" y="56"  text-anchor="middle">cache invalidated</text>
+  <text class="d-sub"   x="730" y="76"  text-anchor="middle">transactionQueryKeys.all</text>
+  <rect class="d-box soft" x="620" y="150" width="220" height="60" rx="10"/>
+  <text class="d-label" x="730" y="176" text-anchor="middle">toast + field errors</text>
+  <text class="d-sub"   x="730" y="196" text-anchor="middle">onError → mapZodIssues</text>
+</svg></div>
+```
+
+Every diagram shape — flow, layers (`.d-region` wrapping boxes), timeline
+(one axis + boxes on it), state machine (boxes + labeled edges both ways),
+tree (elbows fanning out) — is these same seven parts arranged differently.
+The **generic-AI trap is undifferentiated geometry** (five identical boxes in
+a featureless row), NOT drawing itself: differentiate the focal node
+(`.accent`), the containment (`.d-region`), the path kinds (solid/dashed) —
+that's what makes it a diagram instead of decorated boxes.
 
 ---
 

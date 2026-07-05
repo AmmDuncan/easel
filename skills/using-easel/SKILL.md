@@ -273,11 +273,22 @@ Bad shapes you should never push:
 - Five boxes in a row connected by arrows, each box being just a number + title + one-line description.
 - "Sequence diagrams" rendered as text labels under horizontal lines.
 
+**Read the box-and-arrow ban precisely: the sin is UNDIFFERENTIATED geometry
+(identical boxes, featureless row), not drawing.** The historical failure mode
+of this list was fleeing it into stacked/gridded CARDS — which are worse: they
+can't show direction, branching, or containment at all. When the content has
+structure, the answer is a REAL drawn diagram (kit rule 6 + the `.d-*` drawing
+scaffold in EASEL-GUIDE.md): a focal node that looks focal, forks that visibly
+fork, regions that contain, solid vs dashed paths. Cards are for content
+units; drawings are for the shape between them.
+
 Good shapes:
 - A mock browser window with a real address bar, dots, and the actual UI inside.
 - A terminal block with a green dot, a username prompt, and a code session.
 - A device frame around a screen mockup.
 - Genuine proportional bars / pie / arc when you're showing real ratios.
+- A drawn SVG flow/layer/state diagram per kit rule 6 — differentiated
+  geometry, tokens-styled, arrows that meet boxes.
 
 ### 6. Layout patterns that work
 
