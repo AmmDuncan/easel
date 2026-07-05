@@ -61,7 +61,7 @@ unrelated author elements in the same push.
 
 ---
 
-## The 5 composition rules
+## The 6 composition rules
 
 **1. Presentation scale — body ≥ 18px, nothing below 14px.** [F3 / SKILL §1]
 Lede 46 · title 32 · h2 22 · body 18–21 · eyebrow/mono 14. The scaffold's type
@@ -114,6 +114,30 @@ Two traps, both AI-slop:
   as a stuck selection, not hierarchy. Four exits of one decision are equal —
   don't rank them. Only emphasise when something genuinely *is* primary.
 
+**6. Diagram the structure — cards carry content, they cannot carry SHAPE.**
+[user feedback 2026-07-05: "tired of the arranged cards"]
+The default failure this rule exists to kill: every explanation renders as
+stacked or gridded cards (`.spine` of `.node`s, `.lanes` of tiles) even when
+the thing being explained is inherently *spatial* — a flow that branches and
+rejoins, a system with layers, data moving between places, a hierarchy, a
+state machine, a timeline, a request/response round trip. Cards cannot show
+geometry: direction, branching, convergence, containment, adjacency. When the
+**relationship is the message, draw a real diagram** — inline SVG with actual
+arrows that connect actual boxes, forks that visibly fork, layers that visibly
+contain, lanes that carry a moving thing. Style the SVG with the same tokens
+(`--ds-*` fills, 1px neutral strokes, presentation-scale ≥14px labels,
+`marker-end` arrowheads) so it reads as part of the card, not clip-art.
+- **The tell**: your prose says "flows into", "branches", "sits between",
+  "wraps", "goes through", "comes back" — and the draft renders none of that
+  motion or position. Rebuild as a drawing.
+- **Division of labour**: cards remain right for *content units* (a message,
+  an option's detail, one step's explanation). The *space between them* —
+  what connects to what, what contains what — is the diagram's job. A good
+  push often embeds cards **inside** an SVG-drawn structure, not the reverse.
+- **Glance test, sharpened**: rule 4 of the recipe asks "would a bullet list
+  say this as well?" — for structure, also ask *"does this show anything a
+  vertical stack of boxes wouldn't?"* If no, it's cards in a trench coat.
+
 ---
 
 ## Picking `kind`
@@ -131,9 +155,11 @@ specimen in `<div class="full-bleed">` — see SKILL "Full-bleed mockups".
 ## Compose a card — the recipe
 
 1. **Hero** — `.kicker` eyebrow → `.lede` → `.deck` (one tight sentence).
-2. **Identify the shape**: is the body a *sequence* (→ `.spine`) or a set of
-   *parallel options* (→ `.lanes`)? Most explainers are a short sequence that
-   ends in a fork of parallel outcomes (spine → lanes).
+2. **Identify the shape**: does the body have *structure* — branching, layers,
+   movement, containment? → **draw it** (rule 6, inline SVG). Is it a plain
+   *sequence* (→ `.spine`) or *parallel options* (→ `.lanes`)? Check for
+   structure FIRST — spine/lanes are the fallback for shapeless content, not
+   the default for everything.
 3. **Build tangible, not abstract** [SKILL §5]: an incoming message is a
    `.thread`, a guard rail is a `.callout`, a decision is a `.node` with a
    `git-branch` badge — not labeled rectangles with arrows.
