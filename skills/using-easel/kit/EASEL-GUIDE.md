@@ -325,6 +325,50 @@ stat card or an icon is the "fills space with BS" failure — air is a feature.
 
 ---
 
+## The 5 color rules — a soothing palette by NUMBERS, not by taste
+
+The `--ds-*` tokens already comply with all of these; the rules exist for
+every color chosen BEYOND the tokens (a chart series, a custom wash, a status
+variant). They're checkable in HSL, so compliance is arithmetic — any
+generator can verify them without having taste. When in doubt: use a token.
+
+**C1. Saturation bands — the calm invariant.**
+Canvas + neutrals: **S ≤ 10%**. Secondary surfaces, washes, tints: **S ≤ 30%**.
+The accent and status tones: **S 40–60%**. Nothing on a presentation surface
+ever exceeds **70%** — high-chroma color is what reads as loud, cheap, and
+AI-generated. If a color feels aggressive, drop its S before touching its hue.
+
+**C2. Never the poles.**
+No `#ffffff` canvas, no `#000000` ink. Light canvas lives at **L 96–98%** with
+a slight hue; ink at **L 8–15%**. Max-contrast pairings are harsh; the calm
+range keeps body text at **≥ 4.5:1** (AA, non-negotiable) while avoiding the
+glare of pure poles. Soft off-white + near-black reads restful at identical
+legibility.
+
+**C3. 60–30–10 by area.**
+~60% of the card's area is quiet canvas, ~30% is surface/soft tiers doing the
+grouping, ~10% is accent + status combined. This is the AREA version of
+appearance rule A4's counting version (3–4 accent moments) — both must hold.
+The restraint is the mechanism: the accent is noticed precisely because it's
+scarce.
+
+**C4. Grays lean — one temperature per card.**
+Every neutral carries a faint hue (**S 2–8%**), never dead `#808080`-family
+gray. The lean follows the accent's temperature and stays consistent: cool
+accent (teal/blue) → cool-leaning grays (technical, precise); warm accent
+(amber/rose) → warm-leaning grays (cozy, premium). Mixing warm surfaces with
+cool grays in one card is the subtle wrongness people feel but can't name.
+
+**C5. Dark mode desaturates and lightens — it never inverts.**
+A color moving to a dark canvas drops **S by 15–25 points** and raises L —
+saturated color on dark vibrates and strains. (This is exactly the pairing
+the `light-dark()` fallbacks encode; apply the same transform to any
+hand-picked color's dark variant.) Status tones especially: the dark-mode
+red/amber/green are the *muted* siblings, not the light-mode values pasted
+onto black.
+
+---
+
 ## Picking `kind`
 
 | Content shape | `kind` | Why |
