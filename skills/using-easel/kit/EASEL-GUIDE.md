@@ -157,9 +157,14 @@ tokens and the type floor.
 1. **Author at 1:1** — `viewBox="0 0 860 H"` (≈ the card's content width), so one
    unit = one pixel and the 16/14px type classes stay at the floor for real.
    Grow **H**, never shrink type, when content doesn't fit.
-2. **Text first, boxes after.** Size each `<rect>` around its worst-case label
-   (~10px per character at 16px + 24px padding), not the other way round. Short
-   names in `.d-label`; anything that wants to be a sentence goes in a
+2. **Text first, boxes after — budgeted for the REAL font.** Size each
+   `<rect>` around its worst-case label: at 14px the kit mono renders as
+   **Roboto Mono inside easel (~8.5px/char — wider than local fallbacks)**, so
+   budget `chars × 8.5 + 2×24px inset` minimum, and verify against the widest
+   line, not the average. A sub that lands within ~20px of a box edge is a
+   defect (proven live: a sub that cleared a local render sat flush in easel).
+   When text approaches the edge, SHORTEN THE TEXT — never shrink it, never
+   let it kiss the border. Anything that wants to be a sentence goes in a
    `<foreignObject>` + `.d-note`, which wraps.
 3. **Arrows meet edges.** Start/end edge paths ON box borders (x = rect edge),
    with `marker-end` for direction. Orthogonal elbows (`M.. H.. V..`) read
@@ -203,6 +208,16 @@ Paste once per `<svg>`:
   <text class="d-sub"   x="730" y="196" text-anchor="middle">onError → mapZodIssues</text>
 </svg></div>
 ```
+
+**Bars & mini-charts — a bar must show something the number beside it can't.**
+A row of plain single-tone bars with the values in a distant column is
+decoration re-encoding the label (and gray pills read as skeleton loaders).
+Rules: (a) the value sits AT the bar's end, riding it, not across a gulf;
+(b) give bars a second dimension when the data has one — **stacked segments**
+(e.g. working vs waiting), a threshold marker, a comparison ghost-bar — or
+drop the bars for a plain figure column; (c) segment tones: solid ink-soft
+for the primary series, a hatched/soft tone for the secondary, tiny legend
+inline with the section eyebrow, not a floating box.
 
 **Orientation follows depth — width is fixed, height is free.** The card is
 ~860px wide and infinitely tall, so the layout axis is chosen by the
