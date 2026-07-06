@@ -204,6 +204,17 @@ Paste once per `<svg>`:
 </svg></div>
 ```
 
+**Orientation follows depth — width is fixed, height is free.** The card is
+~860px wide and infinitely tall, so the layout axis is chosen by the
+structure's long dimension:
+- **≤4 hops / siblings** → horizontal reads naturally (like the example).
+- **Deep chain** (5+ hops) → vertical: boxes stack top-down, edges run down
+  the left, branches elbow out right. Or serpentine (left→right, drop a row,
+  right→left) when steps are short.
+- **Deep tree** → vertical trunk with children indented right, file-tree
+  style — never a horizontal fan that crushes leaf labels.
+- Never shrink boxes or type to force a deep structure sideways; grow H.
+
 Every diagram shape — flow, layers (`.d-region` wrapping boxes), timeline
 (one axis + boxes on it), state machine (boxes + labeled edges both ways),
 tree (elbows fanning out) — is these same seven parts arranged differently.
@@ -211,6 +222,48 @@ The **generic-AI trap is undifferentiated geometry** (five identical boxes in
 a featureless row), NOT drawing itself: differentiate the focal node
 (`.accent`), the containment (`.d-region`), the path kinds (solid/dashed) —
 that's what makes it a diagram instead of decorated boxes.
+
+---
+
+## The 5 reading rules — presentation craft, not layout mechanics
+
+The 6 composition rules make a card *look* right; these make it *read* right.
+A card is a presentation someone scrolls once, top to bottom — treat it like
+a talk, not a reference page.
+
+**R1. The point first — lede states the conclusion, not the topic.**
+"Worktrees now resolve their own config" beats "Config resolution changes".
+Order the whole card as an inverted pyramid: answer → how → detail → footnotes.
+A reader who stops at ANY scroll depth should leave with the truth, just less
+of it. Never make the reader scroll to find out why they're reading.
+
+**R2. One idea per section, a signpost every screenful.**
+Chunk with numbered section eyebrows (`01 · What changed`) so a scanner can
+navigate by waypoints. No section carries more than ~5 items — at 6+, group
+them and present the groups. If two sections say the same kind of thing,
+they're one section.
+
+**R3. Annotate, don't narrate.**
+Put the explanation ON the thing: a caption under the diagram, a label on the
+edge, a one-line note beside the box — not a paragraph above that describes
+what the reader is about to see. Prefer direct labels over legends (a legend
+is a lookup table; use one only when 3+ encodings repeat). If you're writing
+"as shown below…", delete the sentence and label the drawing.
+
+**R4. Text has shapes — respect them.**
+Decks and captions: one sentence. Bullets: ≤2 lines, parallel grammar.
+Tiles: name + one line, never a paragraph in a box (a paragraph squeezed
+into a tile is prose being punished). And the inverse: when prose IS the
+content — a rationale, a story — let it be prose in the reading measure;
+don't shatter it into fragments across cards.
+
+**R5. One visual grammar per card.**
+The same shape must mean the same thing everywhere: if a soft box = "outcome"
+in section 2, a soft box in section 4 is also an outcome. Pick the meanings
+once (box kinds, edge kinds, the accent, icon set), then repeat them —
+repetition of FORM is grammar (good); repetition of CONTENT is padding (bad).
+A new style mid-card is a new thing to decode; every decode is a toll on the
+reader.
 
 ---
 
