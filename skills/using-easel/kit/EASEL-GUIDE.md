@@ -267,6 +267,49 @@ reader.
 
 ---
 
+## The 5 appearance rules — what makes it beautiful, not just correct
+
+Composition places things, reading rules order them; these decide how the
+card *feels*. Distilled from Refactoring UI onto the kit's tokens.
+
+**A1. Hierarchy by de-emphasis — quiet the neighbors, never shout.**
+One focal element per screenful. When something doesn't stand out, the fix is
+softening everything around it (ink-soft, lighter weight, smaller *presence*)
+— not making it bigger/bolder/redder. Secondary text gets a softer COLOR at
+the same size, not a smaller size. Labels are the least important thing in a
+labeled pair — de-emphasize the label or drop it, never bold it.
+
+**A2. Depth from one light source — and don't box what spacing can group.**
+Light comes from above: `.card`'s two-part shadow (sharp small + soft large)
+is the elevation; use ONE elevation level per card, elevate only what floats.
+Prefer the three background tiers or plain proximity over hairline borders —
+an element wearing border + shadow + tint at once is over-dressed; pick one.
+Where you do rule things off, hairlines (`--ds-line-soft`) not heavy strokes.
+
+**A3. Backgrounds come in tiers — group with them.**
+Canvas < `--ds-surface-soft` < `--ds-surface` is a deliberate ladder: a soft
+wash groups related content without drawing a box around it. One accent-soft
+wash (a hero, THE key section) per card, maximum — two washes reads as
+wallpaper. Grays carry a hue on purpose; never flat `#808080`-family grays
+next to the tokens.
+
+**A4. The accent earns moments; neutrals do the work.**
+3–4 accent instances per card, total — the kicker, the focal node's stroke,
+the success edge, one `.mono` chip. Everything else neutral, and that
+restraint is exactly what makes the accented thing land. No gradients on
+surfaces, no second accent hue, and status tones stay reserved for status
+(composition rule 5).
+
+**A5. Polish lives in the smallest details.**
+The radius scale is 6 / 10 / 14 (chip / tile / card) — never mix radii at one
+level. Align numbers in columns (`font-variant-numeric: tabular-nums` for
+tables of figures). Icons: one stroke width, optically centered in their
+chips. Padding floor: 24px inside cards — cramped beats ugly to the bottom of
+every ranking. And empty space stays empty: decorating a quiet corner with a
+stat card or an icon is the "fills space with BS" failure — air is a feature.
+
+---
+
 ## Picking `kind`
 
 | Content shape | `kind` | Why |
