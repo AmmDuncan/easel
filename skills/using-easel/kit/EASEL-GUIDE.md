@@ -150,12 +150,18 @@ tokens and the type floor.
 | `.d-label` / `.d-sub` | `<text>` | 16px name / 14px mono detail |
 | `.d-note` | div in `<foreignObject>` | wrapping prose ≥3 words — SVG `<text>` never wraps |
 | `.d-edge` (+ `.accent`, `.dashed`) | `<path>`/`<line>` | connector; dashed = return/async/maybe |
+| `.d-elabel` (+ `.on-canvas`) | `<text>` | the WHEN of an arrow ("on 401") — halo knocks out lines beneath; sits ON the edge |
+| `.d-step` | `<g>` (circle + text) | reading-order badge ① ② ③ — neutral ink, never accent |
+| `.d-actor` / `.d-life` | `<rect>` / `<line>` | swimlane actor box + dashed lifeline (see sequence recipe) |
 | `fill="context-stroke"` | marker path | arrowhead auto-matches its edge's colour (render-verified); `.d-arrowhead` exists for manual override |
 
 **Three mechanical rules that keep a drawn diagram legible:**
 
 1. **Author at 1:1** — `viewBox="0 0 860 H"` (≈ the card's content width), so one
    unit = one pixel and the 16/14px type classes stay at the floor for real.
+   The scaffold caps `.diagram svg` at `--d-w` (default 860px) to keep that
+   true in wide viewports — authoring at another width? set
+   `style="--d-w:800px"` on `.diagram` to match, or every label rescales.
    Grow **H**, never shrink type, when content doesn't fit.
 2. **Text first, boxes after — budgeted for the REAL font.** Size each
    `<rect>` around its worst-case label: at 14px the kit mono renders as
@@ -174,7 +180,7 @@ Paste once per `<svg>`:
 
 ```html
 <defs>
-  <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7"
+  <marker id="ah" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="7"
     markerHeight="7" orient="auto-start-reverse">
     <path fill="context-stroke" d="M0 0 L10 5 L0 10 z"/>
   </marker>
@@ -206,6 +212,52 @@ Paste once per `<svg>`:
   <rect class="d-box soft" x="620" y="150" width="220" height="60" rx="10"/>
   <text class="d-label" x="730" y="176" text-anchor="middle">toast + field errors</text>
   <text class="d-sub"   x="730" y="196" text-anchor="middle">onError → mapZodIssues</text>
+</svg></div>
+```
+
+**Label the arrows, number the journey.** An arrow without its condition
+makes the reader infer WHEN that path fires — put the condition on the edge
+with `.d-elabel`, sitting just clear of its run (centred above a horizontal
+one, beside a vertical one); the halo is insurance for the line that DOES
+cross it — a lifeline, a gridline — and it must MATCH the surface beneath:
+set `--d-halo` on `.diagram` whenever the svg sits on anything but a plain
+card. When a diagram is a round
+trip or has one correct reading order, add `.d-step` badges — a diagram that
+must be read in order but doesn't say the order is a puzzle, not an
+explanation. Verify text fits with `node diagram-lint.mjs <file>` instead of
+the 8.5px/char hand rule — it renders and measures every label against its
+box, the viewBox, and its neighbours.
+
+**Sequence / swimlane recipe — for request/response between actors** (the
+browser → server → API round trip). One `.d-actor` box per participant across
+the top, a dashed `.d-life` dropping from each, messages as ordinary
+`.d-edge` arrows lane-to-lane with **time flowing DOWN**; returns dashed;
+`.d-elabel` on every arrow (the message IS the label); `.d-step` badges when
+the hops interleave — anchored on the SENDER's lifeline at the arrow's tail,
+never inside a box (there it reads as a notification dot). 3–4 actors fit the 860 width; more → collapse the
+minor ones into one "everything else" lane.
+
+```html
+<div class="diagram"><svg viewBox="0 0 860 300" xmlns="http://www.w3.org/2000/svg">
+  <defs>… the #ah marker …</defs>
+  <rect class="d-actor" x="40" y="10" width="160" height="44" rx="10"/>
+  <text class="d-label" x="120" y="38" text-anchor="middle">Browser</text>
+  <rect class="d-actor" x="350" y="10" width="160" height="44" rx="10"/>
+  <text class="d-label" x="430" y="38" text-anchor="middle">Nitro proxy</text>
+  <rect class="d-actor" x="660" y="10" width="160" height="44" rx="10"/>
+  <text class="d-label" x="740" y="38" text-anchor="middle">dlams</text>
+  <line class="d-life" x1="120" y1="54" x2="120" y2="290"/>
+  <line class="d-life" x1="430" y1="54" x2="430" y2="290"/>
+  <line class="d-life" x1="740" y1="54" x2="740" y2="290"/>
+
+  <path class="d-edge" d="M120 100 H430" marker-end="url(#ah)"/>
+  <text class="d-elabel" x="272" y="94" text-anchor="middle">GET /api/fees</text>
+  <path class="d-edge" d="M430 150 H740" marker-end="url(#ah)"/>
+  <text class="d-elabel" x="582" y="144" text-anchor="middle">+ bearer token</text>
+  <path class="d-edge dashed" d="M740 210 H430" marker-end="url(#ah)"/>
+  <text class="d-elabel" x="588" y="204" text-anchor="middle">200 · fee list</text>
+  <path class="d-edge dashed" d="M430 260 H120" marker-end="url(#ah)"/>
+  <text class="d-elabel" x="278" y="254" text-anchor="middle">cache 60s, forward</text>
 </svg></div>
 ```
 

@@ -21,6 +21,12 @@
    =========================================================================== */
 
 :root { color-scheme: light dark; }
+/* a pushed card is SEALED to one mode — bind color-scheme to the viewer's
+   data-theme stamp so light-dark() can never follow the OS instead. The
+   viewer stamps it on every push; a STANDALONE render must stamp it itself:
+   <html data-theme="light"> — or a dark-OS machine half-inverts the file. */
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"]  { color-scheme: dark; }
 
 /* ---- canvas: frozen to one mode. The host card surface behind .wrap is itself
    sealed at push time, so inheriting it is safe; set your own `background` here
@@ -168,7 +174,10 @@
    words) in .d-label; anything longer goes in a <foreignObject> with .d-note.
    =========================================================================== */
 .diagram { margin-top: 28px; }
-.diagram svg { width: 100%; height: auto; display: block; overflow: visible; }
+/* cap at the authored viewBox width (override with --d-w) — uncapped 100%
+   rescales every label: a 14px floor authored at 860 renders 22px at 1440 */
+.diagram svg { width: 100%; max-width: var(--d-w, 860px); margin-inline: auto;
+               height: auto; display: block; overflow: visible; }
 
 .d-box  { fill: var(--ds-surface, light-dark(#ffffff, #15171c));
           stroke: var(--ds-line, light-dark(#d9d9dd, #34373d)); stroke-width: 1; }
@@ -188,11 +197,38 @@
            color: var(--ds-ink-soft, light-dark(#56565a, #9b9ba1)); } /* inside foreignObject */
 
 .d-edge  { fill: none; stroke: var(--ds-ink-soft, light-dark(#8a8a90, #7d828c));
-           stroke-width: 1.5; }
+           stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
 .d-edge.accent { stroke: var(--ds-accent, light-dark(#15803d, #4ade80)); }
 .d-edge.dashed { stroke-dasharray: 5 4; }   /* returns, async, "maybe" paths */
 .d-arrowhead   { fill: var(--ds-ink-soft, light-dark(#8a8a90, #7d828c)); stroke: none; }
 .d-arrowhead.accent { fill: var(--ds-accent, light-dark(#15803d, #4ade80)); }
+
+/* edge label — the WHEN of an arrow ("on 401", "approved"). The paint-order
+   halo knocks out any edge/gridline passing beneath, so place it ON the edge
+   (centred over a horizontal run, beside a vertical one), never floating in
+   whitespace. Halo = the surface the diagram sits on: .card by default; add
+   .on-canvas when the svg sits directly on the page background. */
+.d-elabel { font: 500 14px 'Inter', system-ui, sans-serif;
+            fill: var(--ds-ink-soft, light-dark(#56565a, #9b9ba1));
+            paint-order: stroke; stroke-linejoin: round; stroke-width: 6px;
+            stroke: var(--d-halo, var(--ds-surface, light-dark(#ffffff, #15171c))); }
+/* halo must MATCH the surface beneath — set --d-halo on .diagram when the svg
+   sits on anything but a plain card (canvas, .d-region, a soft box) */
+.d-elabel.on-canvas { stroke: var(--ds-canvas, light-dark(#faf7f0, #0b0f17)); }  /* deprecated: prefer --d-halo */
+
+/* reading-order badge — <g class="d-step"><circle r="12"/><text>1</text></g>.
+   Neutral ink, NOT the accent: order markers repeat, and repetition would
+   burn every accent moment. Centre text with text-anchor:middle + dy. */
+.d-step circle { fill: var(--ds-muted, light-dark(#6b6b6b, #9a9a9a)); stroke: none; }  /* not ink — 4 dark discs out-shout the diagram */
+.d-step text   { font: 600 14px 'Inter', system-ui, sans-serif;
+                 fill: var(--ds-surface, light-dark(#ffffff, #15171c)); }
+
+/* sequence / swimlane parts — an actor box atop a dashed lifeline; messages
+   are ordinary .d-edge arrows hopping lane to lane, time flowing DOWN */
+.d-life  { stroke: var(--ds-muted, light-dark(#8f8f95, #7d828c));
+           stroke-width: 1; stroke-dasharray: 3 6; fill: none; }  /* 3:1 floor — badges anchor on this */
+.d-actor { fill: var(--ds-surface-soft, light-dark(#f3f4f6, #1f2329));
+           stroke: var(--ds-line, light-dark(#d9d9dd, #34373d)); stroke-width: 1; }
 
 /* ===========================================================================
    PRIMITIVE 4 — thread / message card (LOCKED DARK)
