@@ -209,16 +209,6 @@ Paste once per `<svg>`:
 </svg></div>
 ```
 
-**Bars & mini-charts — a bar must show something the number beside it can't.**
-A row of plain single-tone bars with the values in a distant column is
-decoration re-encoding the label (and gray pills read as skeleton loaders).
-Rules: (a) the value sits AT the bar's end, riding it, not across a gulf;
-(b) give bars a second dimension when the data has one — **stacked segments**
-(e.g. working vs waiting), a threshold marker, a comparison ghost-bar — or
-drop the bars for a plain figure column; (c) segment tones: solid ink-soft
-for the primary series, a hatched/soft tone for the secondary, tiny legend
-inline with the section eyebrow, not a floating box.
-
 **Orientation follows depth — width is fixed, height is free.** The card is
 ~860px wide and infinitely tall, so the layout axis is chosen by the
 structure's long dimension:
@@ -237,6 +227,57 @@ The **generic-AI trap is undifferentiated geometry** (five identical boxes in
 a featureless row), NOT drawing itself: differentiate the focal node
 (`.accent`), the containment (`.d-region`), the path kinds (solid/dashed) —
 that's what makes it a diagram instead of decorated boxes.
+
+---
+
+## Charts & data (the `.v-*` primitives — in `easel-base.css`)
+
+Real data gets the same treatment diagrams got in rule 6: primitives, not
+hand-rolled fills. For any non-trivial chart (multi-series, time series, a
+dashboard of them) also consult the **`dataviz` skill** — its form heuristic
+and `anti-patterns.md` apply verbatim; the kit's tokens are its "design
+system parameters", already validated.
+
+| Class | What |
+|---|---|
+| `.v-stat` (`.lb`/`.num`/`.sub`) | stat tile — big tabular number + label + delta |
+| `.v-rows` > `.v-row` > `.v-track` > `.v-bar` | horizontal bar list; stacked segments = several `.v-bar`s in one track (2px gap free) |
+| `.s1`–`.s4` | series colour, FIXED order (blue teal violet rose) |
+| `.v-legend` > `.k` | inline legend chips, sits with the section eyebrow |
+| `.v-grid` `.v-axis` `.v-tick` `.v-col` `.v-line` `.v-area` `.v-dot` | drawn SVG charts, authored 1:1 like `.diagram` |
+| `.v-spark` | tiny inline sparkline beside a stat |
+
+**Hard rules (from the dataviz method — all checkable):**
+
+1. **Sometimes the answer is not a chart.** One number → `.v-stat`, not a
+   one-bar bar chart. A 3-row comparison → figures in a column, maybe bars.
+2. **Series colours come ONLY from `--ds-series-1..4`, in fixed order** —
+   validated ALL-PAIRS for CVD separation + contrast on both canvases
+   (light `#3b6fd8 #2aa08c #54418a #a86a10`, dark restepped, not flipped).
+   Slot 4 is amber, not rose: a blue/teal/violet/rose set collapses to two
+   colours under deuteranopia (measured s2↔s4 ΔE 1.0). Never a 5th hue:
+   fold into "Other" or facet. Never repaint survivors when a filter drops
+   a series — colour follows the entity, not its rank.
+3. **One y-axis, ever.** Two measures of different scale → two charts or
+   index both to a common base. Dual-axis is the #1 chart mistake.
+4. **A bar must show something the number beside it can't.** The value sits
+   in INK immediately after the track's end (`.v-val`, `<em>` for the
+   secondary segment: "1,860 + 420") — never a distant column, and never
+   white text INSIDE the bar (fails AA on most series-mode combos, and a
+   bar narrower than its label silently truncates the number). Give bars a
+   second dimension when the data has one — stacked segments, a threshold
+   marker — or drop bars for plain figures.
+5. **Text wears ink, never the series colour.** Values, labels, legends in
+   ink/ink-soft with a coloured swatch beside them. Numbers in columns get
+   `tabular-nums` (the `.v-*` classes already do).
+6. **Legend: ≥2 series always, 1 series never** (the title names it). No
+   number on every point — label the ends, the max, the anomaly, with
+   `.v-label` (ink, 14px) inside the svg.
+7. **Rounded corners at the data end only** (the track's last `.v-bar`
+   already does this); the baseline edge stays square. Drawn `.v-col`
+   columns stay square — an svg rect's `rx` would round the baseline too.
+   Status tones stay reserved for status — a series is never "the red
+   one" unless it IS bad.
 
 ---
 
@@ -410,6 +451,7 @@ specimen in `<div class="full-bleed">` — see SKILL "Full-bleed mockups".
 | `.icchip` | tinted icon chip | drives off `--c` / `--tint` |
 | `.callout` | tinted note/guard | `.info` `.success` `.danger`; default amber |
 | `.thread` | locked-dark message card | sets its own ink on every node |
+| `.v-stat` `.v-rows` `.v-legend` `.s1`–`.s4` `.v-grid`… | chart primitives | see **Charts & data**; series colours validated, fixed order |
 
 For app/UI mockups, code, and chips that the SKILL already ships
 (`.window` / `.window.dark`, `.code` / `.terminal`, `.chip`), use those — don't

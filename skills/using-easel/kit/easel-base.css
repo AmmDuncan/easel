@@ -210,3 +210,75 @@
 .thread .body { padding: 16px 20px 20px; }
 .thread .who { font-size: 14px; font-weight: 600; color: #8ab4ff !important; }
 .thread .msg { font-size: 18px; line-height: 1.5; margin: 6px 0 0; color: #e6e9ef !important; }
+
+/* ===========================================================================
+   PRIMITIVE 5 — charts (.v-*): bar rows, stat tiles, drawn axes, sparklines
+   RULES (EASEL-GUIDE "Charts & data"): series colours come ONLY from
+   --ds-series-1..4 in FIXED order (validated for CVD + contrast on both
+   canvases — never invent a 5th hue; fold into "Other" or facet). Values and
+   labels wear ink, never the series colour. One y-axis, ever.
+   =========================================================================== */
+.wrap {
+  --ds-series-1: light-dark(#3b6fd8, #5f93ea);  /* blue   */
+  --ds-series-2: light-dark(#2aa08c, #189688);  /* teal   */
+  --ds-series-3: light-dark(#54418a, #7a52c4);  /* violet */
+  --ds-series-4: light-dark(#a86a10, #b88428);  /* amber — a rose slot fails deutan CVD */
+}
+.s1 { --series: var(--ds-series-1); }
+.s2 { --series: var(--ds-series-2); }
+.s3 { --series: var(--ds-series-3); }
+.s4 { --series: var(--ds-series-4); }
+
+/* stat tile — when the answer is ONE number, it's a tile, not a chart */
+.v-stat .lb  { font-size: 15px; font-weight: 500;
+               color: var(--ds-ink-soft, light-dark(#56565a, #9b9ba1)); }
+.v-stat .num { font-size: 40px; font-weight: 600; letter-spacing: -.02em;
+               line-height: 1.1; margin-top: 6px; font-variant-numeric: tabular-nums; }
+.v-stat .sub { font-size: 15px; margin-top: 4px;
+               color: var(--ds-muted, light-dark(#6b6b6b, #9a9a9a)); }
+.v-stat .sub.up   { color: light-dark(#116d43, #34d399); }  /* NOT the accent hex — a delta must not spend an accent moment */
+.v-stat .sub.down { color: light-dark(#b91c1c, #f87171); }
+
+/* horizontal bar rows — label | track; the value sits in INK right after the
+   track's end (never white inside the bar: fails AA on most series×mode
+   combos, and a bar narrower than its label silently truncates the number).
+   Stacked segments sit in one track; the 2px gap comes free from the flex
+   gap. Baseline (left) edge stays square; only the data end rounds. */
+.v-rows { display: grid; gap: 14px; }
+.v-row  { display: grid; grid-template-columns: minmax(90px, max-content) 1fr;
+          gap: 14px; align-items: center; }
+.v-row .lb { font-size: 16px; color: var(--ds-ink-soft, light-dark(#56565a, #9b9ba1)); }
+.v-track { display: flex; gap: 2px; align-items: center; height: 26px; }
+.v-bar  { height: 100%; width: var(--w); background: var(--series, var(--ds-series-1));
+          min-width: 3px; font-style: normal; /* segments are often <i> elements */ }
+.v-track .v-bar:last-of-type { border-radius: 0 4px 4px 0; }
+/* the value, in ink, after the track — "1,860 + 420"; <em> = secondary segment */
+.v-val  { font-size: 14px; font-weight: 600; margin-left: 10px; white-space: nowrap;
+          font-variant-numeric: tabular-nums;
+          color: var(--ds-ink, light-dark(#1a1a1a, #e9e9ea)); }
+.v-val em { font-style: normal; color: var(--ds-ink-soft, light-dark(#56565a, #9b9ba1)); }
+
+/* legend — inline with the section eyebrow, never a floating box; ≥2 series
+   always get one, a single series never does (the title names it) */
+.v-legend { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
+.v-legend .k { display: inline-flex; gap: 7px; align-items: center; font-size: 14px;
+               color: var(--ds-ink-soft, light-dark(#56565a, #9b9ba1)); }
+.v-legend .k i { width: 10px; height: 10px; border-radius: 3px;
+                 background: var(--series, var(--ds-series-1)); }
+
+/* drawn charts (columns / lines inside an svg, authored 1:1 like .diagram) */
+.v-grid  { stroke: var(--ds-line-soft, light-dark(#ececef, #23262c)); stroke-width: 1; }
+.v-axis  { stroke: var(--ds-line, light-dark(#d9d9dd, #34373d)); stroke-width: 1; }
+.v-tick  { font: 500 14px ui-monospace, monospace;
+           fill: var(--ds-muted, light-dark(#6b6b6b, #9a9a9a)); }
+.v-label { font: 600 14px 'Inter', system-ui, sans-serif;   /* the max, the ends, the anomaly */
+           fill: var(--ds-ink, light-dark(#1a1a1a, #e9e9ea)); }
+.v-col   { fill: var(--series, var(--ds-series-1)); }
+.v-line  { fill: none; stroke: var(--series, var(--ds-series-1));
+           stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.v-area  { fill: var(--series, var(--ds-series-1)); opacity: .12; stroke: none; }
+.v-dot   { fill: var(--series, var(--ds-series-1));
+           stroke: var(--ds-surface, light-dark(#ffffff, #15171c)); stroke-width: 2; }
+
+/* sparkline — a small inline svg next to a stat; no axes, no labels */
+.v-spark { width: 120px; height: 32px; }
