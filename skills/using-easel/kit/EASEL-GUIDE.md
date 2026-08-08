@@ -150,12 +150,18 @@ tokens and the type floor.
 | `.d-label` / `.d-sub` | `<text>` | 16px name / 14px mono detail |
 | `.d-note` | div in `<foreignObject>` | wrapping prose ≥3 words — SVG `<text>` never wraps |
 | `.d-edge` (+ `.accent`, `.dashed`) | `<path>`/`<line>` | connector; dashed = return/async/maybe |
+| `.d-elabel` (+ `.on-canvas`) | `<text>` | the WHEN of an arrow ("on 401") — halo knocks out lines beneath; sits ON the edge |
+| `.d-step` | `<g>` (circle + text) | reading-order badge ① ② ③ — neutral ink, never accent |
+| `.d-actor` / `.d-life` | `<rect>` / `<line>` | swimlane actor box + dashed lifeline (see sequence recipe) |
 | `fill="context-stroke"` | marker path | arrowhead auto-matches its edge's colour (render-verified); `.d-arrowhead` exists for manual override |
 
 **Three mechanical rules that keep a drawn diagram legible:**
 
 1. **Author at 1:1** — `viewBox="0 0 860 H"` (≈ the card's content width), so one
    unit = one pixel and the 16/14px type classes stay at the floor for real.
+   The scaffold caps `.diagram svg` at `--d-w` (default 860px) to keep that
+   true in wide viewports — authoring at another width? set
+   `style="--d-w:800px"` on `.diagram` to match, or every label rescales.
    Grow **H**, never shrink type, when content doesn't fit.
 2. **Text first, boxes after — budgeted for the REAL font.** Size each
    `<rect>` around its worst-case label: at 14px the kit mono renders as
@@ -174,7 +180,7 @@ Paste once per `<svg>`:
 
 ```html
 <defs>
-  <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7"
+  <marker id="ah" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="7"
     markerHeight="7" orient="auto-start-reverse">
     <path fill="context-stroke" d="M0 0 L10 5 L0 10 z"/>
   </marker>
@@ -209,15 +215,51 @@ Paste once per `<svg>`:
 </svg></div>
 ```
 
-**Bars & mini-charts — a bar must show something the number beside it can't.**
-A row of plain single-tone bars with the values in a distant column is
-decoration re-encoding the label (and gray pills read as skeleton loaders).
-Rules: (a) the value sits AT the bar's end, riding it, not across a gulf;
-(b) give bars a second dimension when the data has one — **stacked segments**
-(e.g. working vs waiting), a threshold marker, a comparison ghost-bar — or
-drop the bars for a plain figure column; (c) segment tones: solid ink-soft
-for the primary series, a hatched/soft tone for the secondary, tiny legend
-inline with the section eyebrow, not a floating box.
+**Label the arrows, number the journey.** An arrow without its condition
+makes the reader infer WHEN that path fires — put the condition on the edge
+with `.d-elabel`, sitting just clear of its run (centred above a horizontal
+one, beside a vertical one); the halo is insurance for the line that DOES
+cross it — a lifeline, a gridline — and it must MATCH the surface beneath:
+set `--d-halo` on `.diagram` whenever the svg sits on anything but a plain
+card. When a diagram is a round
+trip or has one correct reading order, add `.d-step` badges — a diagram that
+must be read in order but doesn't say the order is a puzzle, not an
+explanation. Verify text fits with `node diagram-lint.mjs <file>` instead of
+the 8.5px/char hand rule — it renders and measures every label against its
+box, the viewBox, and its neighbours.
+
+**Sequence / swimlane recipe — for request/response between actors** (the
+browser → server → API round trip). One `.d-actor` box per participant across
+the top, a dashed `.d-life` dropping from each, messages as ordinary
+`.d-edge` arrows lane-to-lane with **time flowing DOWN**; returns dashed;
+`.d-elabel` on every arrow (the message IS the label); `.d-step` badges when
+the hops interleave — anchored on the SENDER's lifeline at the arrow's tail,
+never inside a box (there it reads as a notification dot). 3–4 actors fit the 860 width; more → collapse the
+minor ones into one "everything else" lane.
+
+```html
+<div class="diagram"><svg viewBox="0 0 860 300" xmlns="http://www.w3.org/2000/svg">
+  <defs>… the #ah marker …</defs>
+  <rect class="d-actor" x="40" y="10" width="160" height="44" rx="10"/>
+  <text class="d-label" x="120" y="38" text-anchor="middle">Browser</text>
+  <rect class="d-actor" x="350" y="10" width="160" height="44" rx="10"/>
+  <text class="d-label" x="430" y="38" text-anchor="middle">Nitro proxy</text>
+  <rect class="d-actor" x="660" y="10" width="160" height="44" rx="10"/>
+  <text class="d-label" x="740" y="38" text-anchor="middle">dlams</text>
+  <line class="d-life" x1="120" y1="54" x2="120" y2="290"/>
+  <line class="d-life" x1="430" y1="54" x2="430" y2="290"/>
+  <line class="d-life" x1="740" y1="54" x2="740" y2="290"/>
+
+  <path class="d-edge" d="M120 100 H430" marker-end="url(#ah)"/>
+  <text class="d-elabel" x="272" y="94" text-anchor="middle">GET /api/fees</text>
+  <path class="d-edge" d="M430 150 H740" marker-end="url(#ah)"/>
+  <text class="d-elabel" x="582" y="144" text-anchor="middle">+ bearer token</text>
+  <path class="d-edge dashed" d="M740 210 H430" marker-end="url(#ah)"/>
+  <text class="d-elabel" x="588" y="204" text-anchor="middle">200 · fee list</text>
+  <path class="d-edge dashed" d="M430 260 H120" marker-end="url(#ah)"/>
+  <text class="d-elabel" x="278" y="254" text-anchor="middle">cache 60s, forward</text>
+</svg></div>
+```
 
 **Orientation follows depth — width is fixed, height is free.** The card is
 ~860px wide and infinitely tall, so the layout axis is chosen by the
@@ -237,6 +279,63 @@ The **generic-AI trap is undifferentiated geometry** (five identical boxes in
 a featureless row), NOT drawing itself: differentiate the focal node
 (`.accent`), the containment (`.d-region`), the path kinds (solid/dashed) —
 that's what makes it a diagram instead of decorated boxes.
+
+---
+
+## Charts & data (the `.v-*` primitives — in `easel-base.css`)
+
+Real data gets the same treatment diagrams got in rule 6: primitives, not
+hand-rolled fills. For any non-trivial chart (multi-series, time series, a
+dashboard of them) also consult the **`dataviz` skill** — its form heuristic
+and `anti-patterns.md` apply verbatim; the kit's tokens are its "design
+system parameters", already validated.
+
+| Class | What |
+|---|---|
+| `.v-stat` (`.lb`/`.num`/`.sub`) | stat tile — big tabular number + label + delta |
+| `.v-rows` > `.v-row` (label + track + `.v-val` value) | horizontal bar list; `.v-row` is `display:contents` so ONE grid aligns every row; stacked segments = several `.v-bar`s in one track (3px gap free) |
+| `.s1`–`.s4` | series colour, FIXED order (blue teal violet rose) |
+| `.v-legend` > `.k` | inline legend chips, sits with the section eyebrow |
+| `.v-grid` `.v-axis` `.v-tick` `.v-col` `.v-line` `.v-area` `.v-dot` | drawn SVG charts, authored 1:1 like `.diagram` |
+| `.v-spark` | tiny inline sparkline beside a stat |
+
+**Hard rules (from the dataviz method — all checkable):**
+
+1. **Sometimes the answer is not a chart.** One number → `.v-stat`, not a
+   one-bar bar chart. A 3-row comparison → figures in a column, maybe bars.
+2. **Series colours come ONLY from `--ds-series-1..4`, in fixed order** —
+   validated ALL-PAIRS for CVD separation + contrast on both canvases
+   (light `#3b6fd8 #2aa08c #54418a #a86a10`, dark restepped, not flipped).
+   Slot 4 is amber, not rose: a blue/teal/violet/rose set collapses to two
+   colours under deuteranopia (measured s2↔s4 ΔE 1.0). Never a 5th hue:
+   fold into "Other" or facet. Never repaint survivors when a filter drops
+   a series — colour follows the entity, not its rank.
+3. **One y-axis, ever.** Two measures of different scale → two charts or
+   index both to a common base. Dual-axis is the #1 chart mistake.
+4. **A bar must show something the number beside it can't.** The value sits
+   in INK in its own right-aligned column (`.v-val`, a SIBLING of the
+   track; `<em>` for the secondary segment: "1,860 + 420") — never white
+   text INSIDE the bar (fails AA on most series-mode combos and silently
+   truncates on narrow bars), and never a child of the track (flex
+   negotiates the bar's width away — a declared 88% measured at 68%).
+   Give bars a second dimension when the data has one — stacked segments,
+   a threshold marker — or drop bars for plain figures.
+5. **Text wears ink, never the series colour.** Values, labels, legends in
+   ink/ink-soft with a coloured swatch beside them. Numbers in columns get
+   `tabular-nums` (the `.v-*` classes already do).
+6. **Legend: ≥2 series always, 1 series never** (the title names it). No
+   number on every point — label the ends, the max, the anomaly, with
+   `.v-label` (ink, 14px) inside the svg. Every chart svg carries
+   `role="img"` + an `aria-label` naming metric and range. A `.v-spark`
+   beside a chart of the same metric shows the SAME data points.
+7. **Rounded corners at the data end only** (the track's last `.v-bar`
+   already does this); the baseline edge stays square. Drawn `.v-col`
+   columns stay square — an svg rect's `rx` would round the baseline too.
+   A FILLED `.v-area` requires a ZERO baseline with a labelled floor tick
+   (truncated axes are for lines only — area is the encoding). Status
+   tones stay reserved for status — a series is never "the red one"
+   unless it IS bad. Delta tones are `.good`/`.bad` (polarity), never
+   up/down (direction): a rising cost is bad.
 
 ---
 
@@ -410,6 +509,7 @@ specimen in `<div class="full-bleed">` — see SKILL "Full-bleed mockups".
 | `.icchip` | tinted icon chip | drives off `--c` / `--tint` |
 | `.callout` | tinted note/guard | `.info` `.success` `.danger`; default amber |
 | `.thread` | locked-dark message card | sets its own ink on every node |
+| `.v-stat` `.v-rows` `.v-legend` `.s1`–`.s4` `.v-grid`… | chart primitives | see **Charts & data**; series colours validated, fixed order |
 
 For app/UI mockups, code, and chips that the SKILL already ships
 (`.window` / `.window.dark`, `.code` / `.terminal`, `.chip`), use those — don't
