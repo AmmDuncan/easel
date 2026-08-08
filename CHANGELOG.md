@@ -4,6 +4,18 @@ All notable changes to easel. This project adheres to [Semantic Versioning](http
 
 ## Unreleased
 
+## 0.8.0 — 2026-08-08
+
+### Added
+- **Chart primitives in the `using-easel` kit (`.v-*`)** — stat tiles (`.v-stat`), horizontal bar rows (`.v-rows`/`.v-track`/`.v-bar`/`.v-val` — one shared grid, flex-basis widths so declared percentages render exactly; values in ink beside the track, never white inside a bar), inline legends, drawn-chart classes (`.v-grid`/`.v-axis`/`.v-tick`/`.v-label`/`.v-col`/`.v-line`/`.v-area`/`.v-dot`) and sparklines. Plus `--ds-series-1..4` categorical tokens per mode, validated ALL-PAIRS for deutan/protan CVD + surface contrast with the dataviz validator (slot 4 is amber — a rose slot collapses under deuteranopia; tritan fallback = 3px segment gap + ink values). EASEL-GUIDE gains a "Charts & data" section with 7 hard rules and a bridge to the `dataviz` skill.
+- **Diagram furniture in the kit (`.d-*` additions)** — `.d-elabel` edge labels with a surface-matching halo (`--d-halo`), `.d-step` reading-order badges (muted, never accent), `.d-actor`/`.d-life` swimlane parts, and a worked sequence-diagram recipe in the guide. Canonical arrowhead `defs` corrected to `refX="10"` so tips actually meet edges.
+- **`kit/diagram-lint.mjs`** — renders a push/demo HTML file and MEASURES label fit instead of the 8.5px/char hand rule: escape, clearance, straddle, collide, halo-on-fill, crowding, effective type-floor at two viewport widths, and HTML overflow. Exit 0 clean / 1 violations / 2 cannot-run (fails closed when playwright is missing; `--playwright <dir>` or `$EASEL_PLAYWRIGHT`).
+
+### Fixed
+- **`light-dark()` in the kit followed the OS, not the sealed card theme.** `color-scheme` is now bound to `:root[data-theme]` (which the viewer stamps on every push), so a frozen card can no longer half-invert on a dark-mode machine. Standalone renders stamp `<html data-theme="light|dark">` themselves.
+- **Uncapped `.diagram svg` rescaled the authored type floor with the window** (14px authored rendered 22.4px at 1440). Now capped at `max-width: var(--d-w, 860px)`.
+- `.d-edge` elbows get round line joins, matching every other stroke in the kit.
+
 ## 0.7.0 — 2026-06-27
 
 ### Changed
