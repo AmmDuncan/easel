@@ -293,7 +293,7 @@ system parameters", already validated.
 | Class | What |
 |---|---|
 | `.v-stat` (`.lb`/`.num`/`.sub`) | stat tile — big tabular number + label + delta |
-| `.v-rows` > `.v-row` > `.v-track` > `.v-bar` | horizontal bar list; stacked segments = several `.v-bar`s in one track (2px gap free) |
+| `.v-rows` > `.v-row` (label + track + `.v-val` value) | horizontal bar list; `.v-row` is `display:contents` so ONE grid aligns every row; stacked segments = several `.v-bar`s in one track (3px gap free) |
 | `.s1`–`.s4` | series colour, FIXED order (blue teal violet rose) |
 | `.v-legend` > `.k` | inline legend chips, sits with the section eyebrow |
 | `.v-grid` `.v-axis` `.v-tick` `.v-col` `.v-line` `.v-area` `.v-dot` | drawn SVG charts, authored 1:1 like `.diagram` |
@@ -313,23 +313,29 @@ system parameters", already validated.
 3. **One y-axis, ever.** Two measures of different scale → two charts or
    index both to a common base. Dual-axis is the #1 chart mistake.
 4. **A bar must show something the number beside it can't.** The value sits
-   in INK immediately after the track's end (`.v-val`, `<em>` for the
-   secondary segment: "1,860 + 420") — never a distant column, and never
-   white text INSIDE the bar (fails AA on most series-mode combos, and a
-   bar narrower than its label silently truncates the number). Give bars a
-   second dimension when the data has one — stacked segments, a threshold
-   marker — or drop bars for plain figures.
+   in INK in its own right-aligned column (`.v-val`, a SIBLING of the
+   track; `<em>` for the secondary segment: "1,860 + 420") — never white
+   text INSIDE the bar (fails AA on most series-mode combos and silently
+   truncates on narrow bars), and never a child of the track (flex
+   negotiates the bar's width away — a declared 88% measured at 68%).
+   Give bars a second dimension when the data has one — stacked segments,
+   a threshold marker — or drop bars for plain figures.
 5. **Text wears ink, never the series colour.** Values, labels, legends in
    ink/ink-soft with a coloured swatch beside them. Numbers in columns get
    `tabular-nums` (the `.v-*` classes already do).
 6. **Legend: ≥2 series always, 1 series never** (the title names it). No
    number on every point — label the ends, the max, the anomaly, with
-   `.v-label` (ink, 14px) inside the svg.
+   `.v-label` (ink, 14px) inside the svg. Every chart svg carries
+   `role="img"` + an `aria-label` naming metric and range. A `.v-spark`
+   beside a chart of the same metric shows the SAME data points.
 7. **Rounded corners at the data end only** (the track's last `.v-bar`
    already does this); the baseline edge stays square. Drawn `.v-col`
    columns stay square — an svg rect's `rx` would round the baseline too.
-   Status tones stay reserved for status — a series is never "the red
-   one" unless it IS bad.
+   A FILLED `.v-area` requires a ZERO baseline with a labelled floor tick
+   (truncated axes are for lines only — area is the encoding). Status
+   tones stay reserved for status — a series is never "the red one"
+   unless it IS bad. Delta tones are `.good`/`.bad` (polarity), never
+   up/down (direction): a rising cost is bad.
 
 ---
 

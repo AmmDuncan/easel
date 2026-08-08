@@ -250,9 +250,11 @@
 /* ===========================================================================
    PRIMITIVE 5 — charts (.v-*): bar rows, stat tiles, drawn axes, sparklines
    RULES (EASEL-GUIDE "Charts & data"): series colours come ONLY from
-   --ds-series-1..4 in FIXED order (validated for CVD + contrast on both
-   canvases — never invent a 5th hue; fold into "Other" or facet). Values and
-   labels wear ink, never the series colour. One y-axis, ever.
+   --ds-series-1..4 in FIXED order — validated all-pairs for DEUTAN/PROTAN
+   + contrast on both canvases. Under TRITAN (~1 in 10k) slots 1-2 converge:
+   the 3px segment gap and the ink values are the secondary cue there. Never
+   invent a 5th hue; fold into "Other" or facet. Values and labels wear ink,
+   never the series colour. One y-axis, ever.
    =========================================================================== */
 .wrap {
   --ds-series-1: light-dark(#3b6fd8, #5f93ea);  /* blue   */
@@ -272,24 +274,30 @@
                line-height: 1.1; margin-top: 6px; font-variant-numeric: tabular-nums; }
 .v-stat .sub { font-size: 15px; margin-top: 4px;
                color: var(--ds-muted, light-dark(#6b6b6b, #9a9a9a)); }
-.v-stat .sub.up   { color: light-dark(#116d43, #34d399); }  /* NOT the accent hex — a delta must not spend an accent moment */
-.v-stat .sub.down { color: light-dark(#b91c1c, #f87171); }
+/* polarity, not direction: a RISING cost is .bad — the class states the
+   judgment, so "+12% spend" can never wear green by accident */
+.v-stat .sub.good { color: light-dark(#116d43, #34d399); }  /* NOT the accent hex — a delta must not spend an accent moment */
+.v-stat .sub.bad  { color: light-dark(#b91c1c, #f87171); }
 
 /* horizontal bar rows — label | track; the value sits in INK right after the
    track's end (never white inside the bar: fails AA on most series×mode
    combos, and a bar narrower than its label silently truncates the number).
    Stacked segments sit in one track; the 2px gap comes free from the flex
    gap. Baseline (left) edge stays square; only the data end rounds. */
-.v-rows { display: grid; gap: 14px; }
-.v-row  { display: grid; grid-template-columns: minmax(90px, max-content) 1fr;
+.v-rows { display: grid; grid-template-columns: minmax(90px, max-content) 1fr max-content;
           gap: 14px; align-items: center; }
+.v-row  { display: contents; }  /* ONE shared grid — per-row grids size their label
+          column independently and two equal values render unequal bars */
 .v-row .lb { font-size: 16px; color: var(--ds-ink-soft, light-dark(#56565a, #9b9ba1)); }
-.v-track { display: flex; gap: 2px; align-items: center; height: 26px; }
-.v-bar  { height: 100%; width: var(--w); background: var(--series, var(--ds-series-1));
+.v-track { display: flex; gap: 3px; align-items: center; height: 26px; min-width: 0; }
+.v-bar  { height: 100%; flex: 0 0 var(--w); background: var(--series, var(--ds-series-1));
           min-width: 3px; font-style: normal; /* segments are often <i> elements */ }
+          /* flex-basis, NEVER width: a width inside a flex track gets negotiated
+             away by siblings — measured --w:88% rendering at 68% */
 .v-track .v-bar:last-of-type { border-radius: 0 4px 4px 0; }
-/* the value, in ink, after the track — "1,860 + 420"; <em> = secondary segment */
-.v-val  { font-size: 14px; font-weight: 600; margin-left: 10px; white-space: nowrap;
+/* the value, in ink, a SIBLING of the track (own grid column, right-aligned
+   figures) — "1,860 + 420"; <em> = secondary segment */
+.v-val  { font-size: 14px; font-weight: 600; white-space: nowrap; text-align: right;
           font-variant-numeric: tabular-nums;
           color: var(--ds-ink, light-dark(#1a1a1a, #e9e9ea)); }
 .v-val em { font-style: normal; color: var(--ds-ink-soft, light-dark(#56565a, #9b9ba1)); }
@@ -313,8 +321,13 @@
 .v-line  { fill: none; stroke: var(--series, var(--ds-series-1));
            stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .v-area  { fill: var(--series, var(--ds-series-1)); opacity: .12; stroke: none; }
+          /* ~1.17:1 vs the card — DECORATION only: never ship .v-area without
+             its .v-line, and a filled area needs a ZERO baseline (a truncated
+             axis is fine for a line, wrong for a fill — area IS the encoding) */
 .v-dot   { fill: var(--series, var(--ds-series-1));
            stroke: var(--ds-surface, light-dark(#ffffff, #15171c)); stroke-width: 2; }
 
-/* sparkline — a small inline svg next to a stat; no axes, no labels */
+/* sparkline — a small inline svg next to a stat; no axes, no labels; SAME
+   data as any full chart of the metric beside it */
 .v-spark { width: 120px; height: 32px; }
+.v-spark .v-dot { r: 3; stroke-width: 1.5; }  /* chart-scale halo detaches at 120x32 */
