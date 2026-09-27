@@ -15,6 +15,8 @@
  * references are left alone.
  */
 
+import type { WalkStep } from "./walk-types.js";
+
 const PER_IMAGE_TIMEOUT_MS = 8000;
 const MAX_IMAGE_BYTES = 8_000_000;
 
@@ -105,4 +107,32 @@ export async function inlineRemoteImages(
   }
 
   return { html: out, inlined: dataUriByUrl.size, failed };
+}
+
+const WALK_HTML_FIELDS = ["body_html", "picture_html", "example_html", "slower_html", "why_html"] as const;
+
+/**
+ * Runs every html field of every step (including asked sub-steps, which are
+ * plain entries in the same `steps` array) through `inliner`, best-effort.
+ * Absent optional fields are left absent. Generic over `WalkInput`/`Walk` —
+ * both just need a `steps` array.
+ */
+export async function inlineWalkHtml<T extends { steps: WalkStep[] }>(
+  walk: T,
+  inliner: (html: string) => Promise<InlineResult>,
+): Promise<T> {
+  const steps = await Promise.all(
+    walk.steps.map(async (step) => {
+      const next: WalkStep = { ...step };
+      for (const field of WALK_HTML_FIELDS) {
+        const value = next[field];
+        if (typeof value === "string" && value.length > 0) {
+          const result = await inliner(value);
+          next[field] = result.html;
+        }
+      }
+      return next;
+    }),
+  );
+  return { ...walk, steps };
 }

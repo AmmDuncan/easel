@@ -18,7 +18,7 @@ import {
 import { readConfig, writeConfig } from "./config-store.js";
 import { clearLockIfMine, writeLock } from "./server-manager.js";
 import { DATA_ROOT, DEFAULT_PROJECT_ROOTS, TOKEN_FILE, WALKS_DIR, resolvePort } from "./paths.js";
-import { inlineRemoteImages } from "./inline-images.js";
+import { inlineRemoteImages, inlineWalkHtml } from "./inline-images.js";
 import { createWalk, findWalk, listProjects, listWalks, saveProgress, saveWalk, walkProjectPath } from "./walk-store.js";
 import { parseWalkInput, type WalkAsk, type WalkStep } from "./walk-types.js";
 import { resolveProject } from "./project.js";
@@ -343,16 +343,24 @@ export function startHttpServer(): void {
     });
   });
 
-  app.post("/api/walks", requireWalkToken, (req: Request, res: Response) => {
+  app.post("/api/walks", requireWalkToken, async (req: Request, res: Response) => {
     const { sessionId, cwd, walk } = req.body ?? {};
     const parsed = parseWalkInput(walk);
     if (!parsed.ok) {
       res.status(400).json({ error: parsed.error });
       return;
     }
+    let inputWalk = parsed.walk;
+    if (process.env.EASEL_INLINE_IMAGES !== "0") {
+      try {
+        inputWalk = await inlineWalkHtml(parsed.walk, inlineRemoteImages);
+      } catch (err) {
+        console.warn("[easel] walk image inlining failed; storing original html:", err);
+      }
+    }
     const roots = readPanelProjectRoots();
     const project = resolveProject(typeof cwd === "string" ? cwd : null, roots, homedir());
-    const created = createWalk(WALKS_DIR, parsed.walk, project, {
+    const created = createWalk(WALKS_DIR, inputWalk, project, {
       sessionId: typeof sessionId === "string" ? sessionId : null,
       cwd: typeof cwd === "string" ? cwd : null,
     });
