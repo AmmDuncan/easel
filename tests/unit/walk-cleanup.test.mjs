@@ -161,3 +161,19 @@ test("sweepWalks purges a stale trash entry, expires a 91-day-done walk, keeps a
   assert.equal(existsSync(join(root, "dvla", `${waiting.id}.json`)), true);
   assert.equal(existsSync(join(root, ".trash", trashId)), false);
 });
+
+test("trashProject/clearDone/renameProject/moveWalk reject traversal and unknown slugs", () => {
+  const root = freshRoot();
+  createWalk(root, sampleWalk(), proj, meta);
+  assert.equal(trashProject(root, "../../etc"), null);
+  assert.equal(clearDone(root, "../../etc"), "unknown");
+  assert.equal(renameProject(root, "../../etc", "X"), "unknown");
+  const w = createWalk(root, sampleWalk(), proj, meta);
+  assert.equal(moveWalk(root, w.id, "../../etc"), "unknown-project");
+});
+
+test("restoreTrash rejects a malformed trashId", () => {
+  const root = freshRoot();
+  assert.equal(restoreTrash(root, "../../etc"), "not-found");
+  assert.equal(restoreTrash(root, "not-a-trash-id"), "not-found");
+});

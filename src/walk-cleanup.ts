@@ -6,7 +6,15 @@ import type { ProjectInfo, Walk } from "./walk-types.js";
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
 
+const SLUG_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
+const TRASH_ID_RE = /^t_[a-z0-9]+$/;
+
 type TrashMeta = { kind: "walk" | "walks" | "project"; slug: string; ids: string[]; at: number };
+
+/** A slug is only trustworthy if it matches the allowed shape AND names a real project dir. */
+function isKnownSlug(root: string, slug: string): boolean {
+  return SLUG_RE.test(slug) && projectDirs(root).includes(slug);
+}
 
 function trashRoot(root: string): string {
   return join(root, ".trash");
@@ -50,6 +58,9 @@ export type RestoreResult = { restored: string[] } | "not-found" | "conflict";
 
 /** Restores a trash entry (a walk, a batch of walks, or a whole project) back to its origin. */
 export function restoreTrash(root: string, trashId: string): RestoreResult {
+  if (!TRASH_ID_RE.test(trashId)) {
+    return "not-found";
+  }
   const dir = join(trashRoot(root), trashId);
   const meta = readMeta(dir);
   if (!meta) {
@@ -91,7 +102,7 @@ export function moveWalk(root: string, id: string, toSlug: string): MoveResult {
   if (!found) {
     return "unknown-walk";
   }
-  if (!existsSync(join(root, toSlug, "project.json"))) {
+  if (!isKnownSlug(root, toSlug)) {
     return "unknown-project";
   }
   const fromSlug = found.walk.project;
@@ -116,6 +127,9 @@ export function renameProject(root: string, slug: string, label: string): Rename
   if (typeof label !== "string" || label.length < 1 || label.length > 60) {
     return "invalid";
   }
+  if (!isKnownSlug(root, slug)) {
+    return "unknown";
+  }
   const path = join(root, slug, "project.json");
   const info = readJson<ProjectInfo>(path);
   if (!info) {
@@ -129,11 +143,11 @@ export function renameProject(root: string, slug: string, label: string): Rename
 export type ClearDoneResult = { trashId: string | null; count: number };
 
 /** Moves every done walk in a project into one trash entry. */
-export function clearDone(root: string, slug: string): ClearDoneResult {
-  const dir = join(root, slug);
-  if (!existsSync(dir)) {
-    return { trashId: null, count: 0 };
+export function clearDone(root: string, slug: string): ClearDoneResult | "unknown" {
+  if (!isKnownSlug(root, slug)) {
+    return "unknown";
   }
+  const dir = join(root, slug);
   const doneIds = readdirSync(dir)
     .filter((f) => /^w_[a-z0-9]+\.json$/.test(f))
     .map((f) => f.replace(/\.json$/, ""))
@@ -160,10 +174,10 @@ export function clearDone(root: string, slug: string): ClearDoneResult {
 
 /** Moves a whole project directory (and every walk in it) into one trash entry. */
 export function trashProject(root: string, slug: string): string | null {
-  const dir = join(root, slug);
-  if (!existsSync(dir)) {
+  if (!isKnownSlug(root, slug)) {
     return null;
   }
+  const dir = join(root, slug);
   const trashId = newTrashId();
   const dest = join(trashRoot(root), trashId);
   mkdirSync(dest, { recursive: true });

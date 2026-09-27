@@ -541,11 +541,11 @@ export function startHttpServer(): void {
 
   app.post("/api/projects/:slug/clear-done", requireWalkToken, (req, res) => {
     const slug = String(req.params.slug);
-    if (!existsSync(join(WALKS_DIR, slug))) {
+    const result = clearDone(WALKS_DIR, slug);
+    if (result === "unknown") {
       res.status(404).json({ error: "unknown project" });
       return;
     }
-    const result = clearDone(WALKS_DIR, slug);
     broadcastGlobal("changed", { project: slug });
     res.json(result);
   });

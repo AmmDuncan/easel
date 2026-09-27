@@ -178,3 +178,33 @@ test("DELETE /api/projects/:slug trashes the project then restore brings it back
   const got = await (await fetch(`${base}/api/walks/${id}`)).json();
   assert.ok(got.walk);
 });
+
+test("path traversal: delete/patch/clear-done/move target all 404 and a sibling dir is untouched", async () => {
+  const { mkdirSync, writeFileSync, readdirSync } = await import("node:fs");
+  // sibling of WALKS_DIR (~/.easel/walks), i.e. ~/.easel/victim
+  const victim = join(home, ".easel", "victim");
+  mkdirSync(victim, { recursive: true });
+  writeFileSync(join(victim, "canary.txt"), "untouched");
+  const before = readdirSync(victim);
+
+  const traversal = "..%2F..%2Fvictim";
+
+  const del = await fetch(`${base}/api/projects/${traversal}`, { method: "DELETE", headers: withToken() });
+  assert.equal(del.status, 404);
+
+  const patch = await fetch(`${base}/api/projects/${traversal}`, {
+    method: "PATCH", headers: withToken(), body: JSON.stringify({ label: "X" }),
+  });
+  assert.equal(patch.status, 404);
+
+  const clear = await fetch(`${base}/api/projects/${traversal}/clear-done`, { method: "POST", headers: withToken() });
+  assert.equal(clear.status, 404);
+
+  const id = await createWalk();
+  const move = await fetch(`${base}/api/walks/${id}/move`, {
+    method: "POST", headers: withToken(), body: JSON.stringify({ project: "../../victim" }),
+  });
+  assert.equal(move.status, 404);
+
+  assert.deepEqual(readdirSync(victim), before);
+});
