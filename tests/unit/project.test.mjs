@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { resolveProject } from "../../dist/project.js";
@@ -42,4 +42,32 @@ test("null cwd is misc", () => {
 
 test("the root itself is not a project", () => {
   assert.equal(resolveProject(join(home, "work/studios"), roots, home).slug, "studios");
+});
+
+const studios = join(home, "work/studios");
+for (const d of ["dvla-stores-frontend", "dvla-stores-frontend-worktrees/feat-x", "wellvo-ai", "afcas-payment-system", "afcas-payment-system-worktrees", "max-zip"]) {
+  mkdirSync(join(studios, d), { recursive: true });
+}
+writeFileSync(join(studios, "max"), "");
+
+test("a dashed folder joins the sibling named by its prefix", () => {
+  const p = resolveProject(join(studios, "dvla-stores-frontend"), roots, home);
+  assert.equal(p.slug, "dvla");
+  assert.equal(p.path, dvla);
+});
+
+test("the shortest sibling prefix wins", () => {
+  assert.equal(resolveProject(join(studios, "dvla-stores-frontend-worktrees/feat-x"), roots, home).slug, "dvla");
+});
+
+test("a dashed folder with no bare sibling stays its own project", () => {
+  assert.equal(resolveProject(join(studios, "wellvo-ai"), roots, home).slug, "wellvo-ai");
+});
+
+test("a worktrees folder joins its repo", () => {
+  assert.equal(resolveProject(join(studios, "afcas-payment-system-worktrees"), roots, home).slug, "afcas-payment-system");
+});
+
+test("a sibling file with the prefix name does not group", () => {
+  assert.equal(resolveProject(join(studios, "max-zip"), roots, home).slug, "max-zip");
 });

@@ -115,7 +115,9 @@ export function saveProgress(
   if (!p || !found) {
     return null;
   }
-  const next: WalkProgress = { ...found.progress, ...patch, walkId: id, updatedAt: Date.now() };
+  const now = Date.now();
+  const merged: WalkProgress = { ...found.progress, ...patch, walkId: id, updatedAt: now };
+  const next: WalkProgress = { ...merged, finishedAt: merged.stage === "done" ? found.progress.finishedAt ?? now : null };
   writeJson(p.replace(/\.json$/, ".progress.json"), next);
   return next;
 }
@@ -129,8 +131,9 @@ function summaries(root: string, slug: string): WalkSummary[] {
     .map(({ walk, progress }) => ({
       id: walk.id, title: walk.title, kind: walk.kind, createdAt: walk.createdAt,
       updatedAt: progress.updatedAt, steps: progress.picked.length || walk.steps.length, minutes: walk.orient.minutes,
-      status: walkStatus(progress), current: progress.current,
+      status: walkStatus(progress), current: progress.current, stage: progress.stage,
       openActions: walkStatus(progress) === "done" ? walk.actions.length - progress.actionsDone.length : 0,
+      finishedAt: walkStatus(progress) === "done" ? progress.finishedAt ?? progress.updatedAt : null,
     }))
     .sort((a, b) => b.updatedAt - a.updatedAt);
 }
@@ -154,7 +157,7 @@ export function listProjects(root: string): ProjectSummary[] {
         lastActivity: walks[0]?.updatedAt ?? 0,
         openActions: walks.reduce((n, w) => n + w.openActions, 0),
         resume: walks.filter((w) => w.status === "in_progress")
-          .map((w) => ({ walkId: w.id, title: w.title, step: w.current, total: w.steps })),
+          .map((w) => ({ walkId: w.id, title: w.title, step: w.current, total: w.steps, stage: w.stage })),
       };
     })
     .sort((a, b) => b.lastActivity - a.lastActivity);

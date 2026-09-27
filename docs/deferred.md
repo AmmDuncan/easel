@@ -39,3 +39,29 @@ The c36be19 wren P2s on hierarchy, cards, type ramp, accent, Back slot, map curr
 - src/client/panel.css: paper-light progress fill vs track is about 2.1:1 (every bar has a text twin, so not a 1.4.11 fail).
 - src/client/panel.js: single-character shortcuts (WCAG 2.1.4) are an accepted single-user decision.
 - Coverage not yet measured: 320 px reflow, 200% zoom, motion and reduced-motion review, the native toast's text pixels.
+
+## Review wave on 633abe1 (taste + copy, 2026-09-27)
+
+- src/client/panel-walk.js: split `walkView` (611 lines, six reasons to change). Ask lifecycle (~120 lines) -> `panel-ask.js`, map overlay (~60) next; move the `go` busy rule and the error-vs-toast branch into walk-nav with tests first. (taste)
+- src/client/panel-home.js: `projectView` (~220 lines) -> `panel-project.js`. (taste)
+- src/client/panel-dom.js: extract `sectionHead(title, count)` (3 copies), `meter(n, of)` (2 copies); make `backButton()` carry `data-k` and use it at both call sites. (taste)
+- src/client/walk-nav.js: `kindLabel(kind)` for the three `KIND[x] ?? "Walk"` copies. (taste)
+- src/client/panel.css: inline style strings (skeleton, margin-tops, check title) -> classes. (taste)
+- src/walk-store.ts: add stage, stepName and minutesLeft to `resume` and drop the per-walk fetch in `liveWalks` (fetches every step's HTML on each change event). (taste)
+- src/client/panel-walk.js: a late Ask answer after leaving the walk no longer saves the "asked" status (the answer itself is stored server-side). (fix-pass side effect)
+- src/client/panel-walk.js: map raw server Ask errors (`Unknown stepId`, `Question must be 1..500 characters`, `Claude stopped with an error (code N)`) to plain text. (copy)
+
+## Review wave on 633abe1 (wren-fanout wf_cdf716be-a08, 2026-09-27)
+
+- src/client/panel.css: 1024 has no single grid; the 640 column starts at 5 x positions (Home rail, step rail, `.pn-col`, error, map overlay) and the top row spans the viewport. One grid at >=720. (wren S-1)
+- src/client/panel.css: at 1024 the well/meter reach 956 while prose/cards/ask stop at 942 (`max-width: 62ch`). (wren S-2)
+- src/client/panel.js: route changes are silent to screen readers (no h1 focus, no announce, `document.title` fixed); Check Reveal, End "Saved" and S/W toggles from body also silent. (wren S-3)
+- src/client/panel-walk.js: step rail, Map and End use three status grammars; rail rows look clickable but are inert; Map shows "Not yet" for passed steps; End has no "you are here". (wren S-4)
+- src/client/panel-home.js: Home H1 "Walks" = Project tab "Walks" = "All walks"; Keep has no Recap/Actions labels; Project counts line order differs from section order; kbd hints only on some routes. (wren S-6)
+- src/client/panel-home.js: volume ceilings undrawn: Home rail has no max-height (20+ projects clip), Keep expands every done walk (~250 rows at the 90-day ceiling) and fails whole on one fetch (`Promise.all`), Project New/Done have no Show more. (wren S-7)
+- src/client/panel-walk.js: Answer card reads like the Example card; give it its own marker. (wren)
+- src/client/walk-kit.css: 3-stat tiles wrap 2+1 at 420 (`minmax(88px,1fr)`); `.wk-compare tr.hl` lost its accent fill, unrendered. (wren, side edit of the ramp change)
+- src/client/panel.css: Check "I had it"/"Not quite" pressed state carried by border only; End source filename 12px mono breaks mid-token at 420; Project row time column jumps ~10px between sections; Projects dividers show at 1024 only. (wren)
+- src/client/panel-walk.js: End "Saved to dvla · Keep" looks like a link and duplicates "Open in Keep". (wren)
+- src/client/panel-home.js: Keep loading state is text "Loading..." (skeleton exists); Keep section titles do not link back to their walk. (wren)
+- docs/superpowers/specs/2026-09-27-walks-panel-design.md: retention conflict. "Done walks kept 90 days" vs "Keep entries never auto-delete", but Keep is built from done walks, so expiry deletes Keep entries. Cleanup still measures from last activity (`updatedAt`); decide before relying on Keep long term.

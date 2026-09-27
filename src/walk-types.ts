@@ -33,16 +33,18 @@ export type WalkProgress = {
   steps: Record<string, StepStatus>;
   checks: { answer: string; mark: "right" | "wrong" | null }[];
   actionsDone: number[]; startedAt: number | null; updatedAt: number;
+  finishedAt?: number | null;
 };
 export type WalkStatus = "waiting" | "in_progress" | "done";
 export type WalkSummary = {
   id: string; title: string; kind: WalkKind; createdAt: number; updatedAt: number;
   steps: number; minutes: number; status: WalkStatus; current: number; openActions: number;
+  finishedAt: number | null; stage: WalkStage;
 };
 export type ProjectInfo = { slug: string; label: string; path: string };
 export type ProjectSummary = ProjectInfo & {
   waiting: number; inProgress: number; done: number; lastActivity: number; openActions: number;
-  resume: { walkId: string; title: string; step: number; total: number }[];
+  resume: { walkId: string; title: string; step: number; total: number; stage: WalkStage }[];
 };
 
 export const WALK_LIMITS = { steps: 12, map: 12, check: 3, recap: 5, actions: 20 } as const;

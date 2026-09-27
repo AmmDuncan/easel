@@ -2,7 +2,7 @@
 
 import { clearDone, deleteProject, deleteWalk, getJson, moveWalk, putProgress, renameProject, restoreTrash } from "./panel-api.js";
 import { checkIcon, h, icon, kbd, openMenu, plural, timeAgo } from "./panel-dom.js";
-import { KIND_LABEL as KIND, liveSummary } from "./walk-nav.js";
+import { KIND_LABEL as KIND, liveSummary, progressRatio, rowSummary } from "./walk-nav.js";
 
 const STALE_MS = 14 * 24 * 60 * 60 * 1000;
 const NEW_SHOWN = 5;
@@ -21,15 +21,32 @@ function section(title, rows, count) {
 }
 
 function row({ title, meta, end, bar, glyph, onClick, stale }) {
-  return h("li", {}, h("button", { class: "pn-row", on: { click: onClick } },
+  return h("li", {}, h("button", { class: "pn-row", title, on: { click: onClick } },
     glyph ? h("span", { class: "pn-row-glyph" }, icon(glyph)) : null,
     h("span", { class: "pn-row-main" },
       h("span", { class: "pn-row-title" }, title),
       h("span", { class: "pn-row-meta" }, meta, stale ? h("span", { class: "pn-stale" }, ` · ${stale}`) : null)),
-    end || bar !== undefined
-      ? h("span", { class: "pn-row-end" }, end ?? "",
-        bar === undefined ? null : h("span", { class: "pn-row-bar", "aria-hidden": "true" }, h("i", { style: `width:${Math.round(bar * 100)}%` })))
-      : null));
+    rowEnd(end, bar)));
+}
+
+function rowEnd(end, bar) {
+  if (!end && bar === undefined) {
+    return null;
+  }
+  const meter = bar === undefined ? null : h("span", { class: "pn-row-bar", "aria-hidden": "true" }, h("i", { style: `width:${Math.round(bar * 100)}%` }));
+  return h("span", { class: "pn-row-end" }, end ?? "", meter);
+}
+
+/** Hero and row line for an in-progress walk; Orient and Say it back name the stage. */
+function liveMeta(w, withName) {
+  if (w.stage === "orient") {
+    return "Choosing steps";
+  }
+  if (w.stage === "check") {
+    return "Say it back · optional";
+  }
+  const where = withName && w.stepName ? `Step ${w.step} of ${w.of}: ${w.stepName}` : `Step ${w.step} of ${w.of}`;
+  return w.minutesLeft === null ? where : `${where} · about ${w.minutesLeft} min left`;
 }
 
 /** Run a trash-backed action, then offer Undo for 10 s. */
@@ -97,8 +114,11 @@ async function liveWalks(projects) {
   const resume = projects.flatMap((p) => p.resume.map((r) => ({ ...r, project: p })));
   const live = await Promise.all(resume.map((r) => getJson(`/api/walks/${encodeURIComponent(r.walkId)}`)
     .then(({ walk, progress }) => ({ id: r.walkId, title: r.title, project: r.project, updatedAt: progress.updatedAt ?? 0, ...liveSummary(walk, progress) }))
-    .catch(() => null)));
-  return live.filter(Boolean).sort((a, b) => b.updatedAt - a.updatedAt);
+    .catch(() => ({
+      id: r.walkId, title: r.title, project: r.project, updatedAt: 0,
+      ...rowSummary({ stage: r.stage, current: r.step, steps: r.total }),
+    }))));
+  return live.sort((a, b) => b.updatedAt - a.updatedAt);
 }
 
 export async function homeView(app, stale = () => false) {
@@ -130,7 +150,7 @@ export async function homeView(app, stale = () => false) {
   const summary = [totals.waiting ? `${totals.waiting} new` : null, totals.inProgress ? `${totals.inProgress} in progress` : null]
     .filter(Boolean).join(" · ");
 
-  if (!live.length && !waiting.length && !projects.length) {
+  if (!projects.length) {
     app.frame({
       top: homeTop(""),
       main: h("div", { class: "pn-empty center" },
@@ -153,11 +173,11 @@ export async function homeView(app, stale = () => false) {
     if (live[0]) {
       const w = live[0];
       return h("section", { class: "pn-hero" },
-        h("p", { class: "pn-kicker" }, `Continue · ${w.project.label}`),
+        h("p", { class: "pn-kicker" }, `In progress · ${w.project.label}`),
         h("h2", { class: "pn-hero-title" }, w.title),
-        h("p", { class: "pn-meta" }, `Step ${w.step} of ${w.of}: ${w.stepName} · about ${w.minutesLeft} min left`),
-        h("div", { class: "pn-meter", role: "img", "aria-label": `Step ${w.step} of ${w.of}` }, h("i", { style: `width:${Math.round((w.step / w.of) * 100)}%` })),
-        h("div", { class: "pn-hero-actions" }, h("button", { class: "pn-btn primary", on: { click: open(w.id) } }, "Resume", kbd("⏎"))));
+        h("p", { class: "pn-meta" }, liveMeta(w, true)),
+        h("div", { class: "pn-meter", "aria-hidden": "true" }, h("i", { style: `width:${Math.round(progressRatio(w.step, w.of) * 100)}%` })),
+        h("div", { class: "pn-hero-actions" }, h("button", { class: "pn-btn primary", on: { click: open(w.id) } }, "Continue", kbd("⏎"))));
     }
     const w = waiting[0];
     return h("section", { class: "pn-hero" },
@@ -178,9 +198,9 @@ export async function homeView(app, stale = () => false) {
   function render() {
     const also = live.slice(1).map((w) => row({
       title: w.title,
-      meta: `${w.project.label} · Step ${w.step} of ${w.of} · ${w.minutesLeft} min left`,
+      meta: `${w.project.label} · ${liveMeta(w, false)}`,
       end: w.updatedAt ? timeAgo(w.updatedAt) : "",
-      bar: w.step / w.of,
+      bar: progressRatio(w.step, w.of),
       onClick: open(w.id),
     }));
     const fresh = waiting.filter((w) => w !== lead);
@@ -195,7 +215,7 @@ export async function homeView(app, stale = () => false) {
       glyph: "list",
       onClick: () => app.navigate(`/panel/p/${encodeURIComponent(p.slug)}?tab=keep`),
     }));
-    const newSection = section("New", freshRows, totals.waiting);
+    const newSection = section("New", freshRows, fresh.length);
     if (newSection && hidden > 0) {
       newSection.append(h("button", { class: "pn-more", on: { click: () => { showAll = true; render(); } } }, `Show ${hidden} more`));
     }
@@ -208,7 +228,7 @@ export async function homeView(app, stale = () => false) {
     const caughtUp = lead ? null : h("div", { class: "pn-hero" },
       h("h2", { class: "pn-hero-title" }, "All caught up"),
       h("p", { class: "pn-meta", style: "margin-top:4px" }, "Nothing new or in progress. Finished walks stay in each project's Keep."));
-    const queue = h("div", {}, caughtUp, hero(), section("Also in progress", also, also.length), newSection, section("Open actions", actions, projects.reduce((n, p) => n + p.openActions, 0)), projectsList);
+    const queue = h("div", {}, caughtUp, hero(), section("Also in progress", also, also.length), newSection, section("Open actions", actions, actions.length), projectsList);
     app.frame({
       top: homeTop(summary),
       main: h("div", { class: "pn-step-enter" }, rail ? h("div", { class: "pn-split" }, rail, queue) : queue),
@@ -239,7 +259,7 @@ export async function projectView(slug, params, app, stale = () => false) {
   }
   const project = projects.find((p) => p.slug === slug) ?? { slug, label: slug };
   let tab = params.get("tab") === "keep" ? "keep" : "walks";
-  const done = walks.filter((w) => w.status === "done");
+  const done = walks.filter((w) => w.status === "done").sort((a, b) => b.finishedAt - a.finishedAt);
   let kept = null;
   let keepError = false;
   let renaming = false;
@@ -367,21 +387,22 @@ export async function projectView(slug, params, app, stale = () => false) {
 
   function tabs() {
     const t = (id, label) => h("button", {
-      class: "pn-tab", role: "tab", "aria-selected": String(tab === id),
+      class: "pn-tab", "data-k": `tab-${id}`, "aria-current": tab === id ? "page" : false,
       on: { click: () => { tab = id; app.replaceUrl(`/panel/p/${encodeURIComponent(slug)}${id === "keep" ? "?tab=keep" : ""}`); render(); } },
     }, label);
-    return h("div", { class: "pn-tabs", role: "tablist" }, t("walks", "Walks"), t("keep", "Keep"));
+    return h("div", { class: "pn-tabs" }, t("walks", "Walks"), t("keep", "Keep"));
   }
 
   function walksTab() {
     const open = (w) => () => app.navigate(`/panel/w/${w.id}`);
-    const inProgress = walks.filter((w) => w.status === "in_progress").map((w) => walkRow(w, {
-      title: w.title, meta: `Step ${Math.min(w.current + 1, w.steps)} of ${w.steps}`, bar: w.current / w.steps, end: timeAgo(w.updatedAt), onClick: open(w),
-    }));
+    const inProgress = walks.filter((w) => w.status === "in_progress").map((w) => {
+      const live = rowSummary(w);
+      return walkRow(w, { title: w.title, meta: liveMeta(live, false), bar: progressRatio(live.step, live.of), end: timeAgo(w.updatedAt), onClick: open(w) });
+    });
     const fresh = walks.filter((w) => w.status === "waiting").map((w) => walkRow(w, {
       title: w.title, meta: `${KIND[w.kind] ?? "Walk"} · ${plural(w.steps, "step")} · ${w.minutes} min`, end: timeAgo(w.createdAt), stale: staleLabel(w), onClick: open(w),
     }));
-    const finished = done.map((w) => walkRow(w, { title: w.title, meta: `Done · ${plural(w.steps, "step")}`, end: timeAgo(w.updatedAt), onClick: open(w) }));
+    const finished = done.map((w) => walkRow(w, { title: w.title, meta: `Done · ${plural(w.steps, "step")}`, end: timeAgo(w.finishedAt), onClick: open(w) }));
     if (!walks.length) {
       return h("div", { class: "pn-empty" }, h("p", {}, "No walks in this project yet."));
     }
@@ -415,7 +436,7 @@ export async function projectView(slug, params, app, stale = () => false) {
       const actions = walk.actions.map((a, i) => {
         const isDone = progress.actionsDone.includes(i);
         return h("li", {}, h("button", {
-          class: "pn-action", role: "checkbox", "aria-checked": String(isDone),
+          class: "pn-action", "data-k": `keep-${walk.id}-${i}`, role: "checkbox", "aria-checked": String(isDone),
           on: {
             click: async () => {
               const before = progress.actionsDone;
@@ -433,7 +454,7 @@ export async function projectView(slug, params, app, stale = () => false) {
         }, checkIcon(), h("span", {}, a)));
       });
       return h("section", { class: "pn-sec" },
-        h("div", { class: "pn-sec-h" }, h("h2", {}, walk.title), h("span", { class: "pn-n" }, `finished ${timeAgo(progress.updatedAt)}`)),
+        h("div", { class: "pn-sec-h" }, h("h2", {}, walk.title), h("span", { class: "pn-n" }, `finished ${timeAgo(progress.finishedAt ?? progress.updatedAt)}`)),
         walk.recap.length ? h("ul", { class: "pn-list" }, walk.recap.map((r) => h("li", {}, r))) : null,
         walk.actions.length ? h("ul", { class: "pn-rows", style: "margin-top:8px" }, actions) : null);
     }));
@@ -443,11 +464,15 @@ export async function projectView(slug, params, app, stale = () => false) {
     if (view.destroyed) {
       return;
     }
+    const activeKey = document.activeElement?.dataset?.k;
     app.frame({
       top: top(),
       main: h("div", { class: "pn-col" }, h("p", { class: "pn-sub", style: "margin-top:8px" }, countsLine(project)), tabs(), tab === "keep" ? keepTab() : walksTab()),
       bar: null,
     });
+    if (activeKey) {
+      document.querySelector(`[data-k="${activeKey}"]`)?.focus({ preventScroll: true });
+    }
   }
 
   render();

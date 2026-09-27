@@ -91,8 +91,15 @@ const CSP =
  * Render untrusted walk HTML: sandboxed without allow-scripts (nothing in it
  * can run or reach the panel's token), same-origin only so we can size it.
  */
+const frameHeights = new Map();
+
 export function htmlFrame(html, title, bodyClass = "") {
   const frame = h("iframe", { class: "pn-frame", sandbox: "allow-same-origin", title });
+  const key = `${bodyClass}|${html}`;
+  if (frameHeights.has(key)) {
+    frame.style.height = `${frameHeights.get(key)}px`;
+  }
+  let loaded = false;
   frame.srcdoc =
     `<!doctype html><html><head><meta charset="utf-8">` +
     `<meta http-equiv="Content-Security-Policy" content="${CSP}">` +
@@ -100,11 +107,16 @@ export function htmlFrame(html, title, bodyClass = "") {
     `<style>${tokenCss()}${kitCss}</style></head><body class="${bodyClass}">${html}</body></html>`;
   const fit = () => {
     const doc = frame.contentDocument;
-    if (!doc?.documentElement) {
+    if (!loaded || !doc?.documentElement) {
       return;
     }
     frame.style.height = "0px";
-    frame.style.height = `${doc.documentElement.scrollHeight}px`;
+    const height = doc.documentElement.scrollHeight;
+    frame.style.height = `${height}px`;
+    if (frameHeights.size > 200) {
+      frameHeights.clear();
+    }
+    frameHeights.set(key, height);
   };
   let lastWidth = 0;
   new ResizeObserver(([entry]) => {
@@ -119,6 +131,7 @@ export function htmlFrame(html, title, bodyClass = "") {
     if (!doc) {
       return;
     }
+    loaded = true;
     fit();
     new ResizeObserver(fit).observe(doc.body);
     doc.fonts?.ready.then(fit);

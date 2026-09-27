@@ -44,6 +44,7 @@ export function walkView({ walk, progress, projectLabel }, params, app) {
   let ask = { ...CLOSED_ASK };
   let focusHeading = false;
   let mapOpener = null;
+  let focusTarget = null;
 
   const order = () => pickedOrder(walk, picked);
   let at = initialAt(params, progress, order().length);
@@ -199,7 +200,7 @@ export function walkView({ walk, progress, projectLabel }, params, app) {
       h("h1", { class: "pn-answer", tabindex: "-1" }, walk.orient.answer),
       h("div", { class: "pn-facts" }, facts),
       h("div", { class: "pn-path-h" }, h("h2", {}, "Your path"), h("span", {}, `${picked.length} of ${total} steps · about ${minutesFor(walk, picked.length)} min`)),
-      h("p", { class: "pn-hint" }, "Suggested steps are on. Turn off what you already know."),
+      h("p", { class: "pn-hint" }, "Turn off any step you already know."),
       h("ul", { class: "pn-map", "aria-label": "Steps to walk" }, rows));
   }
 
@@ -220,19 +221,19 @@ export function walkView({ walk, progress, projectLabel }, params, app) {
         h("p", { class: "pn-kicker" }, layerLabel()),
         htmlFrame(layer === "slower" ? step.slower_html : step.why_html, layer)));
     }
+    if (ask.open || waitingHere()) {
+      parts.push(askBlock(step));
+    }
     parts.push(h("div", { class: "pn-prose" }, htmlFrame(step.body_html, step.name)));
     if (step.picture_html) {
       parts.push(h("div", { class: "pn-well" }, htmlFrame(step.picture_html, `${step.name} picture`)));
     }
     if (step.example_html) {
       parts.push(h("div", { class: "pn-card" },
-        h("p", { class: "pn-kicker" }, walk.example ? `Example · ${walk.example.name}` : "Example"),
+        h("p", { class: "pn-kicker" }, walk.example ? `Example: ${walk.example.name}` : "Example"),
         htmlFrame(step.example_html, "Example", "wk-example")));
     }
     parts.push(...answers(step));
-    if (ask.open || waitingHere()) {
-      parts.push(askBlock(step));
-    }
     parts.push(sourceList(step.sources));
     return h("div", { class: layer || ask.open ? "pn-step-split" : "pn-step-enter pn-step-split" }, stepRail(), h("div", {}, parts));
   }
@@ -251,7 +252,7 @@ export function walkView({ walk, progress, projectLabel }, params, app) {
   function answers(step) {
     const kids = walk.steps.filter((s) => s.parent === step.id);
     const questions = questionsFor(step.id);
-    return kids.map((kid, i) => h("section", { class: "pn-card", id: `ans-${kid.id}`, "aria-label": "Answer to your question" },
+    return kids.map((kid, i) => h("section", { class: "pn-card", id: `ans-${kid.id}`, "data-k": `ans-${kid.id}`, tabindex: "-1", "aria-label": "Answer to your question" },
       h("p", { class: "pn-kicker" }, questions[i] ? `You asked: ${questions[i]}` : "You asked"),
       h("p", { class: "pn-answer-take" }, kid.takeaway),
       htmlFrame(kid.body_html, "Answer"),
@@ -259,7 +260,13 @@ export function walkView({ walk, progress, projectLabel }, params, app) {
   }
 
   function waitingHere() {
-    return ask.busy && ask.origin === at;
+    return ask.busy && typeof at === "number" && order()[at]?.id === ask.origin;
+  }
+
+  /** "step 3" while the step is picked, else its name. */
+  function stepRef(stepId) {
+    const pos = order().findIndex((s) => s.id === stepId);
+    return pos === -1 ? walk.steps.find((s) => s.id === stepId)?.name ?? "a step" : `step ${pos + 1}`;
   }
 
   function askBlock(step) {
@@ -268,12 +275,12 @@ export function walkView({ walk, progress, projectLabel }, params, app) {
         h("p", {}, "You asked: ", h("b", {}, ask.question)),
         h("ol", { class: "pn-ask-steps" },
           h("li", { class: "ok" }, h("span", { class: "dot" }), "Question sent"),
-          h("li", { class: "now" }, h("span", { class: "dot" }), "Reading the walk's sources, usually about 20 seconds"),
-          h("li", {}, h("span", { class: "dot" }), "Answer added under this step")),
-        h("p", { class: "pn-sub", style: "margin-top:12px" }, "You can keep reading. The answer is saved under this step when it's ready."));
+          h("li", { class: "now" }, h("span", { class: "dot" }), "Reading this walk and the project files"),
+          h("li", {}, h("span", { class: "dot" }), "Answer goes under this step")),
+        h("p", { class: "pn-sub", style: "margin-top:12px" }, "This can take up to 90 seconds. You can keep reading or move to another step."));
     }
     const input = h("textarea", {
-      id: "pn-ask-q", class: "pn-input pn-ask-input", rows: "3", maxlength: "500", placeholder: "Ask about this step",
+      id: "pn-ask-q", "data-k": "ask-input", class: "pn-input pn-ask-input", rows: "3", maxlength: "500", placeholder: "Ask about this step",
       on: {
         input: (e) => { ask.text = e.target.value; },
         keydown: (e) => {
@@ -287,15 +294,14 @@ export function walkView({ walk, progress, projectLabel }, params, app) {
     input.value = ask.text;
     const error = ask.error
       ? h("div", { class: "pn-alert", role: "alert" }, icon("warn"),
-        h("span", {}, h("b", {}, "No answer this time"), `${ask.error.replace(/[.\s]+$/, "")}. Your question is kept.`))
+        h("span", {}, h("b", {}, "Question not answered"), `${ask.error.replace(/[.\s]+$/, "")}.`))
       : null;
-    queueMicrotask(() => input.focus());
     return h("section", { class: "pn-ask", "aria-label": "Ask about this step" },
       error,
       h("label", { for: "pn-ask-q" }, "Your question"),
       input,
       h("div", { class: "pn-ask-row" },
-        h("span", {}, "Answered from the walk's sources, usually in about 20 seconds."),
+        h("span", {}, "Answered from this walk and the project files. Can take up to 90 seconds."),
         h("button", { class: "pn-btn primary", on: { click: () => sendAsk(step) } }, ask.error ? "Try again" : "Send question", kbd("⌘⏎"))));
   }
 
@@ -304,12 +310,12 @@ export function walkView({ walk, progress, projectLabel }, params, app) {
       return;
     }
     if (ask.busy) {
-      app.toast(`One question at a time. Step ${ask.origin + 1}'s answer is still coming.`);
+      app.toast(`One question at a time. The answer for ${stepRef(ask.origin)} is still coming.`);
       return;
     }
     ask.open = true;
+    focusTarget = "ask-input";
     render(true);
-    document.querySelector(".pn-ask")?.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }
 
   function closeAsk() {
@@ -317,6 +323,7 @@ export function walkView({ walk, progress, projectLabel }, params, app) {
       return false;
     }
     ask = { ...CLOSED_ASK };
+    focusTarget = "ask";
     render(true);
     return true;
   }
@@ -326,8 +333,8 @@ export function walkView({ walk, progress, projectLabel }, params, app) {
     if (!question || ask.busy) {
       return;
     }
-    const origin = at;
-    ask = { ...ask, busy: true, error: null, question, origin };
+    ask = { ...ask, busy: true, error: null, question, origin: step.id };
+    focusTarget = "ask";
     render(true);
     try {
       const { step: answer } = await askStep(walk.id, step.id, question);
@@ -335,27 +342,34 @@ export function walkView({ walk, progress, projectLabel }, params, app) {
       walk.steps.splice(lastKid + 1, 0, answer);
       walk.asks = [...(walk.asks ?? []), { stepId: step.id, question, outcome: "ok" }];
       statuses[step.id] = statuses[step.id] === "got" ? "got" : "asked";
-      save();
       ask = { ...CLOSED_ASK };
       if (destroyed) {
+        app.toast(`Answer ready in ${walk.title}`);
         return;
       }
-      render(true);
-      if (at === origin) {
-        document.getElementById(`ans-${answer.id}`)?.scrollIntoView({ block: "start", behavior: "smooth" });
-      } else {
-        app.toast(`Answer ready on step ${origin + 1}`, { label: "Show", onClick: () => go(origin) });
+      save();
+      const pos = order().findIndex((s) => s.id === step.id);
+      if (pos === at) {
+        focusTarget = `ans-${answer.id}`;
       }
-      app.announce(`Answer added: ${answer.takeaway}`);
+      render(true);
+      if (pos === at) {
+        app.announce(`Answer added: ${answer.takeaway}`);
+      } else if (pos === -1) {
+        app.toast(`Answer ready under ${step.name}`);
+      } else {
+        app.toast(`Answer ready on step ${pos + 1}`, { label: "Show", onClick: () => go(pos) });
+      }
     } catch (err) {
       const raw = err.message || "no reply from easel";
       const message = raw.charAt(0).toUpperCase() + raw.slice(1);
-      if (at === origin && !destroyed) {
+      if (!destroyed && order()[at]?.id === step.id) {
         ask = { ...CLOSED_ASK, open: true, error: message, text: question };
+        focusTarget = "ask-input";
         render(true);
       } else {
         ask = { ...CLOSED_ASK };
-        app.toast(`Ask on step ${origin + 1} didn't finish: ${message}`);
+        app.toast(`No answer for ${stepRef(step.id)} in ${walk.title}: ${message}`);
       }
     }
   }
@@ -381,7 +395,7 @@ export function walkView({ walk, progress, projectLabel }, params, app) {
     const items = walk.check.map((c, i) => {
       const id = `pn-check-${i}`;
       const input = h("input", {
-        id, class: "pn-input", type: "text", value: checks[i].answer, placeholder: "Your answer, from memory",
+        id, "data-k": `check-${i}-input`, class: "pn-input", type: "text", value: checks[i].answer, placeholder: "Your answer, from memory",
         on: {
           input: (e) => { checks[i].answer = e.target.value; },
           keydown: (e) => {
@@ -397,10 +411,10 @@ export function walkView({ walk, progress, projectLabel }, params, app) {
         item.append(
           h("div", { class: "pn-expected" }, h("small", {}, "Expected"), c.expected),
           h("div", { class: "pn-reveal", role: "group", "aria-label": "How did you do?" },
-            h("button", { class: "pn-btn", "aria-pressed": String(checks[i].mark === "right"), on: { click: () => mark(i, "right") } }, "I had it"),
-            h("button", { class: "pn-btn", "aria-pressed": String(checks[i].mark === "wrong"), on: { click: () => mark(i, "wrong") } }, "Not quite")));
+            h("button", { class: "pn-btn", "data-k": `check-${i}-right`, "aria-pressed": String(checks[i].mark === "right"), on: { click: () => mark(i, "right") } }, "I had it"),
+            h("button", { class: "pn-btn", "data-k": `check-${i}-wrong`, "aria-pressed": String(checks[i].mark === "wrong"), on: { click: () => mark(i, "wrong") } }, "Not quite")));
       } else {
-        item.append(h("div", { class: "pn-reveal" }, h("button", { class: "pn-btn", on: { click: () => reveal(i) } }, "Reveal answer")));
+        item.append(h("div", { class: "pn-reveal" }, h("button", { class: "pn-btn", "data-k": `check-${i}-reveal`, on: { click: () => reveal(i) } }, "Reveal answer")));
       }
       return item;
     });
@@ -412,6 +426,7 @@ export function walkView({ walk, progress, projectLabel }, params, app) {
 
   function reveal(i) {
     revealed.add(i);
+    focusTarget = `check-${i}-right`;
     save();
     render(true);
   }
@@ -427,7 +442,7 @@ export function walkView({ walk, progress, projectLabel }, params, app) {
   }
 
   function checkBar() {
-    return [backButton(), h("span", { class: "pn-spacer" }), h("button", { class: "pn-btn primary", on: { click: next } }, "Finish", kbd("⏎"))];
+    return [backButton(), h("span", { class: "pn-spacer" }), h("button", { class: "pn-btn primary", "data-k": "finish", on: { click: next } }, "Finish")];
   }
 
   // ---------- end ----------
@@ -437,7 +452,7 @@ export function walkView({ walk, progress, projectLabel }, params, app) {
     const actions = walk.actions.map((a, i) => {
       const done = actionsDone.includes(i);
       return h("li", {}, h("button", {
-        class: "pn-action", role: "checkbox", "aria-checked": String(done),
+        class: "pn-action", "data-k": `action-${i}`, role: "checkbox", "aria-checked": String(done),
         on: {
           click: () => {
             actionsDone = done ? actionsDone.filter((x) => x !== i) : [...actionsDone, i];
@@ -541,11 +556,15 @@ export function walkView({ walk, progress, projectLabel }, params, app) {
       app.frame({ top: top(), main: endMain(), bar: endBar() });
     }
     window.scrollTo(0, keepScroll ? y : 0);
+    const key = focusTarget ?? activeKey;
+    focusTarget = null;
     if (focusHeading) {
       focusHeading = false;
       document.querySelector(".pn-main h1")?.focus({ preventScroll: true });
-    } else if (activeKey) {
-      document.querySelector(`.pn-bar [data-k="${activeKey}"]`)?.focus({ preventScroll: true });
+    } else if (key) {
+      const el = document.querySelector(`[data-k="${key}"]`);
+      el?.focus({ preventScroll: true });
+      (el?.closest("section") ?? el)?.scrollIntoView({ block: "nearest" });
     }
   }
 
@@ -561,7 +580,7 @@ export function walkView({ walk, progress, projectLabel }, params, app) {
         }
         return false;
       }
-      if (k === "enter" || e.key === "ArrowRight") {
+      if ((k === "enter" || e.key === "ArrowRight") && at !== "check") {
         next();
         return true;
       }

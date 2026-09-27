@@ -28,6 +28,20 @@ test("progress merges and bumps updatedAt", () => {
   assert.equal(findWalk(root, w.id).progress.current, 2);
 });
 
+test("finishedAt is set once on done, survives later ticks, and clears on leaving done", () => {
+  const root = mkdtempSync(join(tmpdir(), "walks-"));
+  const w = createWalk(root, sampleWalk(), proj, meta);
+  assert.equal(saveProgress(root, w.id, { stage: "walk", startedAt: 1 }).finishedAt, null);
+  const done = saveProgress(root, w.id, { stage: "done" });
+  assert.equal(typeof done.finishedAt, "number");
+  writeJson(join(root, "dvla", `${w.id}.progress.json`), { ...done, finishedAt: 5 });
+  const ticked = saveProgress(root, w.id, { actionsDone: [0] });
+  assert.equal(ticked.finishedAt, 5);
+  assert.notEqual(ticked.updatedAt, 5);
+  assert.equal(listWalks(root, "dvla")[0].finishedAt, 5);
+  assert.equal(saveProgress(root, w.id, { stage: "check" }).finishedAt, null);
+});
+
 test("progress for unknown id writes nothing", () => {
   const root = mkdtempSync(join(tmpdir(), "walks-"));
   assert.equal(saveProgress(root, "w_nope", { current: 1 }), null);

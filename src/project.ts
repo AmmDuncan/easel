@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, statSync } from "node:fs";
 import { basename, dirname, join, relative, resolve, sep } from "node:path";
 import type { ProjectInfo } from "./walk-types.js";
 
@@ -24,12 +24,28 @@ function gitTopLevel(start: string): string | null {
   }
 }
 
+function isDirectory(path: string): boolean {
+  return existsSync(path) && statSync(path).isDirectory();
+}
+
+/** `dvla-stores-frontend` joins sibling folder `dvla`: the shortest existing folder that prefixes the name at a dash. */
+function groupFolder(root: string, name: string): string {
+  const parts = name.split("-");
+  for (let i = 1; i < parts.length; i++) {
+    const candidate = join(root, parts.slice(0, i).join("-"));
+    if (isDirectory(candidate)) {
+      return candidate;
+    }
+  }
+  return join(root, name);
+}
+
 function info(path: string): ProjectInfo {
   const label = basename(path);
   return { slug: slugify(label), label, path };
 }
 
-/** cwd -> project: first folder under a workspace root, else git top level, else cwd. */
+/** cwd -> project: first folder under a workspace root (grouped by dash prefix), else git top level, else cwd. */
 export function resolveProject(cwd: string | null, roots: string[], home: string): ProjectInfo {
   if (!cwd) {
     return { slug: "misc", label: "misc", path: "" };
@@ -39,7 +55,7 @@ export function resolveProject(cwd: string | null, roots: string[], home: string
     const root = resolve(expandHome(r, home));
     const rel = relative(root, abs);
     if (rel && !rel.startsWith("..") && !rel.startsWith(sep)) {
-      return info(join(root, rel.split(sep)[0]));
+      return info(groupFolder(root, rel.split(sep)[0]));
     }
   }
   return info(gitTopLevel(abs) ?? abs);

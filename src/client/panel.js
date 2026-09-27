@@ -63,12 +63,14 @@ function errorView(err) {
   app.frame({
     top: [h("div", { class: "pn-top-row" },
       h("button", { class: "pn-icon-btn", "aria-label": "All walks (H)", on: { click: () => app.navigate("/panel") } }, icon("home")))],
-    main: h("div", { class: "pn-error", role: "alert" }, h("h1", { tabindex: "-1" }, copy.title), h("p", {}, copy.body),
+    main: h("div", { class: "pn-error" },
+      h("div", { role: "alert" }, h("h1", { tabindex: "-1" }, copy.title), h("p", {}, copy.body)),
       h("div", { class: "pn-reveal" },
         h("button", { class: "pn-btn primary", on: { click: () => app.navigate("/panel") } }, "All walks", kbd("H")),
-        h("button", { class: "pn-btn", on: { click: () => route() } }, "Try again", kbd("R")))),
+        missing ? null : h("button", { class: "pn-btn", on: { click: () => route() } }, "Try again", kbd("R")))),
     bar: null,
   });
+  document.querySelector(".pn-error h1")?.focus({ preventScroll: true });
   return {};
 }
 

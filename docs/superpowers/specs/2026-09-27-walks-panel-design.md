@@ -89,6 +89,7 @@ Prose only for "why". Section recipes per content type decide the default step o
 - **Walk:** a top line `dvla . Waivers TRD` with `Map M` on the right; in the page, "Step 3 of 7 . How" with the time left from the picked steps, over one thin continuous bar. `M` opens the full map as an overlay list. No sideways-scrolling map strip. Past 720 px the picked steps also show as a rail on the left.
 - **Step body:** takeaway, picture, running example; scrolls. `Slower` and `Why` expand inline directly under the takeaway; the same key collapses them.
 - **Bottom bar, always visible:** `Back` always far left, then `Slower`, `Why`, `Ask` as quiet buttons, then `Got it` as the one primary. Below 480 px the key hints and the Back label drop and the bar stays one row, never an overflow menu. While the Ask box is open, `Send question` is the primary and `Got it` goes quiet.
+- **The Ask box opens under the takeaway**, where Slower and Why open, so it is on screen the moment A is pressed.
 - **Ask answers inline** under the current step and are saved as step "3a". The count never changes mid-walk ("3 of 7" stays "3 of 7").
 - **Keys:** `Enter` or `->` Got it, `<-` back, `S` slower, `W` why, `A` ask, `M` map, `H` home, `Esc` hide panel. Single-letter keys are off while the Ask or Check input has focus.
 - **Volume ceilings (Rule 79),** each rendered at zero, one and the ceiling: projects 12, walks per project 30 (older done walks fold under "Done"), steps 12, map strip 12, check prompts 3, Keep actions 20.
