@@ -27,13 +27,13 @@ const app = {
   announce(text) {
     liveEl.textContent = text;
   },
-  toast(text, action) {
+  toast(text, action, ms = 6000) {
     document.querySelector(".pn-toast")?.remove();
     clearTimeout(toastTimer);
     const el = h("div", { class: "pn-toast", role: "status" }, h("span", {}, text),
       action ? h("button", { on: { click: () => { el.remove(); action.onClick(); } } }, action.label) : null);
     document.body.append(el);
-    toastTimer = setTimeout(() => el.remove(), 6000);
+    toastTimer = setTimeout(() => el.remove(), ms);
   },
   navigate(path) {
     history.pushState(null, "", path);
@@ -41,6 +41,9 @@ const app = {
   },
   replaceUrl(path) {
     history.replaceState(null, "", path);
+  },
+  refresh() {
+    route();
   },
 };
 
@@ -85,7 +88,9 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
     e.preventDefault();
     if (typing(e.target)) {
-      e.target.blur();
+      if (!current?.onEscape?.()) {
+        e.target.blur();
+      }
       return;
     }
     if (!current?.onEscape?.()) {
@@ -128,13 +133,12 @@ async function boot() {
     /* keep defaults */
   }
   await loadKit();
-  onEvents({
-    walk: () => {
-      if (current?.refreshOnWalk) {
-        route();
-      }
-    },
-  });
+  const refreshLists = () => {
+    if (current?.refreshOnWalk) {
+      route();
+    }
+  };
+  onEvents({ walk: refreshLists, changed: refreshLists });
   route();
 }
 

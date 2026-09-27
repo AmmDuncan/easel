@@ -1,7 +1,7 @@
 // Home (one queue across projects) and Project (Walks + Keep tabs).
 
-import { getJson, putProgress } from "./panel-api.js";
-import { h, icon, timeAgo } from "./panel-dom.js";
+import { clearDone, deleteProject, deleteWalk, getJson, moveWalk, putProgress, renameProject, restoreTrash } from "./panel-api.js";
+import { h, icon, openMenu, timeAgo } from "./panel-dom.js";
 
 const STALE_MS = 14 * 24 * 60 * 60 * 1000;
 
@@ -23,6 +23,31 @@ function row({ title, meta, end, bar, onClick, stale }) {
       h("span", { class: "pn-row-meta" }, meta, stale ? h("span", { class: "pn-stale" }, ` · ${stale}`) : null),
       bar === undefined ? null : h("span", { class: "pn-row-bar", "aria-hidden": "true" }, h("i", { style: `width:${Math.round(bar * 100)}%` }))),
     end ? h("span", { class: "pn-row-end" }, end) : null));
+}
+
+/** Run a trash-backed action, then offer Undo for 10 s. */
+async function undoable(app, action, message) {
+  try {
+    const res = await action();
+    const undo = res?.trashId
+      ? {
+        label: "Undo",
+        onClick: async () => {
+          try {
+            await restoreTrash(res.trashId);
+            app.refresh();
+          } catch (err) {
+            app.toast(`Couldn't undo: ${err.message}`);
+          }
+        },
+      }
+      : null;
+    app.toast(message, undo, 10000);
+    return res;
+  } catch (err) {
+    app.toast(`That didn't work: ${err.message}`);
+    return null;
+  }
 }
 
 function staleLabel(w) {
@@ -120,9 +145,126 @@ export async function projectView(slug, params, app) {
   let tab = params.get("tab") === "keep" ? "keep" : "walks";
   const done = walks.filter((w) => w.status === "done");
   let kept = null;
+  let renaming = false;
+  const others = projects.filter((p) => p.slug !== slug);
+  const view = { refreshOnWalk: true };
+
+  function projectMenu(e) {
+    openMenu(e.currentTarget, [
+      { label: "Rename", onSelect: () => { renaming = true; render(); } },
+      { label: done.length ? `Clear ${plural(done.length, "done walk")}` : "Clear done walks", disabled: !done.length, onSelect: clear },
+      { label: "Delete project", danger: true, onSelect: removeProject },
+    ], "Project actions");
+  }
+
+  async function clear() {
+    const res = await undoable(app, () => clearDone(slug), `Cleared ${plural(done.length, "done walk")}`);
+    if (res) {
+      app.refresh();
+    }
+  }
+
+  async function removeProject() {
+    view.refreshOnWalk = false;
+    const res = await undoable(app, () => deleteProject(slug), `Deleted ${project.label}`);
+    if (res) {
+      app.navigate("/panel");
+    } else {
+      view.refreshOnWalk = true;
+    }
+  }
+
+  async function saveName(value) {
+    const label = value.trim();
+    renaming = false;
+    if (!label || label === project.label) {
+      render();
+      return;
+    }
+    try {
+      const info = await renameProject(slug, label);
+      project.label = info.label;
+    } catch (err) {
+      app.toast(`Couldn't rename: ${err.message}`);
+    }
+    render();
+  }
+
+  function titleNode() {
+    if (!renaming) {
+      return h("h1", { class: "pn-context pn-title" }, project.label);
+    }
+    const input = h("input", {
+      class: "pn-title-input", value: project.label, maxlength: "60", "aria-label": "Project name",
+      on: {
+        keydown: (e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            e.target.blur();
+          } else if (e.key === "Escape") {
+            e.preventDefault();
+            e.stopPropagation();
+            renaming = false;
+            render();
+          }
+        },
+        blur: (e) => {
+          if (renaming) {
+            saveName(e.target.value);
+          }
+        },
+      },
+    });
+    queueMicrotask(() => { input.focus(); input.select(); });
+    return input;
+  }
+
+  function walkMenu(e, w) {
+    const anchor = e.currentTarget;
+    openMenu(anchor, [
+      {
+        label: "Move to...", disabled: !others.length,
+        onSelect: () => openMenu(anchor, others.map((p) => ({
+          label: p.label,
+          onSelect: async () => {
+            try {
+              await moveWalk(w.id, p.slug);
+              app.toast(`Moved to ${p.label}`);
+              app.refresh();
+            } catch (err) {
+              app.toast(`Couldn't move: ${err.message}`);
+            }
+          },
+        })), "Move to project"),
+      },
+      { label: "Delete walk", danger: true, onSelect: () => removeWalk(w) },
+    ], `Actions for ${w.title}`);
+  }
+
+  async function removeWalk(w) {
+    const res = await undoable(app, () => deleteWalk(w.id), `Deleted ${w.title}`);
+    if (res) {
+      app.refresh();
+    }
+  }
+
+  function walkRow(w, opts) {
+    const r = row(opts);
+    const btn = r.querySelector(".pn-row");
+    btn.addEventListener("keydown", (e) => {
+      if (e.key === "Backspace" || e.key === "Delete") {
+        e.preventDefault();
+        removeWalk(w);
+      }
+    });
+    const more = h("button", { class: "pn-row-more", "aria-label": `Actions for ${w.title}`, "aria-haspopup": "menu", on: { click: (e) => walkMenu(e, w) } }, icon("more"));
+    r.replaceChildren(h("div", { class: "pn-row-wrap" }, btn, more));
+    return r;
+  }
 
   const top = () => [
-    h("div", { class: "pn-top-row" }, homeButton(app), h("h1", { class: "pn-context pn-title" }, project.label)),
+    h("div", { class: "pn-top-row" }, homeButton(app), titleNode(),
+      h("button", { class: "pn-icon-btn", "aria-label": "Project actions", "aria-haspopup": "menu", on: { click: projectMenu } }, icon("more"))),
   ];
 
   function tabs() {
@@ -135,13 +277,13 @@ export async function projectView(slug, params, app) {
 
   function walksTab() {
     const open = (w) => () => app.navigate(`/panel/w/${w.id}`);
-    const inProgress = walks.filter((w) => w.status === "in_progress").map((w) => row({
+    const inProgress = walks.filter((w) => w.status === "in_progress").map((w) => walkRow(w, {
       title: w.title, meta: `step ${w.current + 1} of ${w.steps}`, bar: w.current / w.steps, onClick: open(w),
     }));
-    const fresh = walks.filter((w) => w.status === "waiting").map((w) => row({
+    const fresh = walks.filter((w) => w.status === "waiting").map((w) => walkRow(w, {
       title: w.title, meta: `${plural(w.steps, "step")}, ${w.minutes} min`, end: timeAgo(w.createdAt), stale: staleLabel(w), onClick: open(w),
     }));
-    const finished = done.map((w) => row({ title: w.title, meta: `Done · ${plural(w.steps, "step")}`, end: timeAgo(w.updatedAt), onClick: open(w) }));
+    const finished = done.map((w) => walkRow(w, { title: w.title, meta: `Done · ${plural(w.steps, "step")}`, end: timeAgo(w.updatedAt), onClick: open(w) }));
     if (!walks.length) {
       return h("div", { class: "pn-empty" }, h("p", {}, "No walks in this project yet."));
     }
@@ -199,5 +341,5 @@ export async function projectView(slug, params, app) {
   }
 
   render();
-  return {};
+  return view;
 }

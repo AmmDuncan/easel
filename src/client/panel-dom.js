@@ -38,6 +38,7 @@ const ICONS = {
   right: '<path d="M9 5l7 7-7 7"/>',
   close: '<path d="M6 6l12 12M18 6 6 18"/>',
   saved: '<circle cx="12" cy="12" r="9"/><path d="M7.5 12.5l3 3 6-6.5"/>',
+  more: '<circle cx="5.5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="18.5" cy="12" r="1.2"/>',
 };
 
 export function icon(name) {
@@ -71,7 +72,7 @@ function tokenCss() {
 }
 
 const CSP =
-  "default-src 'none'; img-src data: https:; style-src 'unsafe-inline' https://rsms.me; font-src https://rsms.me";
+  "default-src 'none'; img-src data:; style-src 'unsafe-inline' https://rsms.me; font-src https://rsms.me";
 
 /**
  * Render untrusted walk HTML: sandboxed without allow-scripts (nothing in it
@@ -142,4 +143,56 @@ export function timeAgo(ms) {
   }
   const days = Math.round(hours / 24);
   return days === 1 ? "yesterday" : `${days} days ago`;
+}
+
+let closeOpenMenu = null;
+
+/**
+ * Popover menu under `anchor`. items: { label, onSelect, disabled?, danger? }.
+ * Arrow keys move, Esc or an outside click closes and returns focus.
+ */
+export function openMenu(anchor, items, label) {
+  closeOpenMenu?.();
+  const buttons = items.map((it) => h("button", {
+    class: `pn-menu-item${it.danger ? " danger" : ""}`, role: "menuitem", disabled: it.disabled,
+    on: { click: () => { close(); it.onSelect(); } },
+  }, it.label));
+  const menu = h("div", { class: "pn pn-menu", role: "menu", "aria-label": label }, buttons);
+  const r = anchor.getBoundingClientRect();
+  menu.style.top = `${r.bottom + 6}px`;
+  menu.style.right = `${Math.max(8, window.innerWidth - r.right)}px`;
+  document.body.append(menu);
+  const enabled = () => buttons.filter((b) => !b.disabled);
+  enabled()[0]?.focus();
+  const onKey = (e) => {
+    const list = enabled();
+    const i = list.indexOf(document.activeElement);
+    if (e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
+      close();
+    } else if (e.key === "ArrowDown") {
+      e.preventDefault();
+      list[(i + 1) % list.length]?.focus();
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      list[(i - 1 + list.length) % list.length]?.focus();
+    }
+  };
+  const onDown = (e) => {
+    if (!menu.contains(e.target) && e.target !== anchor) {
+      close();
+    }
+  };
+  document.addEventListener("keydown", onKey, true);
+  document.addEventListener("pointerdown", onDown, true);
+  function close() {
+    document.removeEventListener("keydown", onKey, true);
+    document.removeEventListener("pointerdown", onDown, true);
+    menu.remove();
+    closeOpenMenu = null;
+    anchor.focus();
+  }
+  closeOpenMenu = close;
+  return close;
 }

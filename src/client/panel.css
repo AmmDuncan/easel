@@ -237,3 +237,43 @@ body.pn {
 }
 
 .pn-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ---------- ask ---------- */
+.pn-ask-input { resize: vertical; min-height: 64px; line-height: 1.5; }
+.pn-ask-error { margin-top: 10px; font-size: 14px; color: var(--ds-ink); padding: 10px 12px; border-radius: 8px; box-shadow: inset 3px 0 0 var(--ds-danger); background: var(--ds-surface-soft); }
+.pn-answer-block {
+  margin-top: 20px; padding: 14px 16px 16px; border-radius: 10px;
+  background: var(--ds-surface); border: 1px solid var(--ds-line);
+}
+.pn-answer-take { font-weight: 600; margin-bottom: 6px; }
+@media (max-width: 620px) {
+  .pn-bar .pn-btn:not(.primary) .pn-kbd { display: none; }
+  .pn-bar .pn-btn { padding: 0 12px; }
+}
+
+/* ---------- menu ---------- */
+.pn-menu {
+  position: fixed; z-index: 40; min-width: 200px; padding: 6px; border-radius: 10px;
+  background: var(--ds-surface); border: 1px solid var(--ds-line); box-shadow: var(--ds-shadow-md);
+  display: flex; flex-direction: column; animation: pn-in 140ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.pn-menu-item {
+  min-height: 40px; padding: 0 12px; border-radius: 6px; border: 0; background: none; cursor: pointer;
+  text-align: left; font-size: 15px; color: var(--ds-ink);
+}
+.pn-menu-item:hover, .pn-menu-item:focus-visible { background: var(--ds-surface-soft); }
+.pn-menu-item.danger { color: var(--ds-danger); }
+.pn-menu-item:disabled { color: var(--ds-ink-soft); cursor: default; background: none; }
+.pn-row-wrap { display: flex; align-items: stretch; gap: 6px; }
+.pn-row-wrap .pn-row { flex: 1; min-width: 0; }
+.pn-row-more {
+  flex: none; width: 44px; border-radius: 10px; border: 1px solid transparent; background: none; cursor: pointer;
+  color: var(--ds-ink-soft); font-size: 18px; line-height: 1;
+}
+.pn-row-more:hover { background: var(--ds-surface-soft); color: var(--ds-ink); }
+.pn-row-more svg { width: 20px; height: 20px; }
+.pn-btn svg { width: 18px; height: 18px; }
+.pn-title-input {
+  flex: 1; min-width: 0; height: 40px; padding: 0 10px; border-radius: 8px; font: 600 18px/1 inherit;
+  border: 1px solid var(--ds-ink-soft); background: var(--ds-surface); color: var(--ds-ink);
+}

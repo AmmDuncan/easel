@@ -1,6 +1,6 @@
 // Walk view: orient + pick -> steps -> check -> end (auto-saved to Keep).
 
-import { putProgress } from "./panel-api.js";
+import { askStep, putProgress } from "./panel-api.js";
 import { h, htmlFrame, icon, kbd, sourceList } from "./panel-dom.js";
 
 const STAGE_OF = { orient: "orient", check: "check", end: "done" };
@@ -34,13 +34,14 @@ function initialAt(params, progress, orderLength) {
 }
 
 export function walkView({ walk, progress }, params, app) {
+  const topSteps = () => walk.steps.filter((s) => !s.parent);
   const suggested = new Set(walk.orient.map.filter((m) => m.suggested).map((m) => m.stepId));
   const mapInfo = new Map(walk.orient.map.map((m) => [m.stepId, m]));
   const isSuggested = (id) => (mapInfo.has(id) ? suggested.has(id) : true);
 
-  let picked = progress.picked.length ? [...progress.picked] : walk.steps.filter((s) => isSuggested(s.id)).map((s) => s.id);
+  let picked = progress.picked.length ? [...progress.picked] : topSteps().filter((s) => isSuggested(s.id)).map((s) => s.id);
   if (!picked.length) {
-    picked = walk.steps.map((s) => s.id);
+    picked = topSteps().map((s) => s.id);
   }
   const statuses = { ...progress.steps };
   const checks = walk.check.map((_, i) => progress.checks[i] ?? { answer: "", mark: null });
@@ -49,9 +50,10 @@ export function walkView({ walk, progress }, params, app) {
   let startedAt = progress.startedAt;
   let layer = null;
   let overlay = null;
+  let ask = { open: false, busy: false, error: null, text: "" };
 
-  const order = () => walk.steps.filter((s) => picked.includes(s.id));
-  const minutesFor = (n) => Math.max(1, Math.round((walk.orient.minutes * n) / walk.steps.length));
+  const order = () => topSteps().filter((s) => picked.includes(s.id));
+  const minutesFor = (n) => Math.max(1, Math.round((walk.orient.minutes * n) / topSteps().length));
   let at = initialAt(params, progress, order().length);
 
   function stageOf(pos) {
@@ -77,6 +79,7 @@ export function walkView({ walk, progress }, params, app) {
   function go(pos) {
     at = pos;
     layer = null;
+    ask = { open: false, busy: false, error: null, text: "" };
     if (typeof pos === "number") {
       progress.current = pos;
     }
@@ -123,7 +126,7 @@ export function walkView({ walk, progress }, params, app) {
     if (!wasStarted) {
       startedAt = Date.now();
     }
-    for (const s of walk.steps) {
+    for (const s of topSteps()) {
       if (!picked.includes(s.id)) {
         statuses[s.id] = "skipped";
       } else if (statuses[s.id] === "skipped") {
@@ -143,7 +146,7 @@ export function walkView({ walk, progress }, params, app) {
       statuses[step.id] = layer;
       save();
     }
-    render();
+    render(true);
   }
 
   // ---------- top ----------
@@ -170,7 +173,7 @@ export function walkView({ walk, progress }, params, app) {
 
   // ---------- orient ----------
   function orientMain() {
-    const rows = walk.steps.map((s, i) => {
+    const rows = topSteps().map((s, i) => {
       const info = mapInfo.get(s.id);
       const on = picked.includes(s.id);
       return h("li", {},
@@ -178,7 +181,7 @@ export function walkView({ walk, progress }, params, app) {
           class: "pn-map-row", role: "checkbox", "aria-checked": String(on),
           on: {
             click: () => {
-              picked = on ? picked.filter((id) => id !== s.id) : walk.steps.map((x) => x.id).filter((id) => id === s.id || picked.includes(id));
+              picked = on ? picked.filter((id) => id !== s.id) : topSteps().map((x) => x.id).filter((id) => id === s.id || picked.includes(id));
               render();
             },
           },
@@ -188,7 +191,7 @@ export function walkView({ walk, progress }, params, app) {
           h("span", { class: "pn-map-name" }, h("span", { class: "pn-map-num" }, `${i + 1}`), info?.name ?? s.name),
           h("span", { class: "pn-map-take", style: "display:block" }, info?.takeaway ?? s.takeaway))));
     });
-    const meta = [h("b", {}, `${walk.steps.length} steps`), ` · about ${walk.orient.minutes} min`];
+    const meta = [h("b", {}, `${topSteps().length} steps`), ` · about ${walk.orient.minutes} min`];
     if (walk.example) {
       meta.push(" · example: ", h("b", {}, walk.example.name));
     }
@@ -225,7 +228,108 @@ export function walkView({ walk, progress }, params, app) {
         htmlFrame(step.example_html, "Example")));
     }
     parts.push(sourceList(step.sources));
-    return h("div", { class: "pn-step-enter" }, parts);
+    parts.push(...answers(step));
+    if (ask.open) {
+      parts.push(askBox(step));
+    }
+    return h("div", { class: layer || ask.open ? "" : "pn-step-enter" }, parts);
+  }
+
+  function questionsFor(stepId) {
+    return (walk.asks ?? []).filter((a) => a.stepId === stepId && a.outcome === "ok").map((a) => a.question);
+  }
+
+  function answers(step) {
+    const kids = walk.steps.filter((s) => s.parent === step.id);
+    const questions = questionsFor(step.id);
+    return kids.map((kid, i) => h("section", { class: "pn-answer-block", id: `ans-${kid.id}`, "aria-label": "Answer to your question" },
+      h("p", { class: "pn-layer-label" }, questions[i] ? `You asked: ${questions[i]}` : "You asked"),
+      h("p", { class: "pn-answer-take" }, kid.takeaway),
+      htmlFrame(kid.body_html, "Answer"),
+      sourceList(kid.sources)));
+  }
+
+  function askBox(step) {
+    const input = h("textarea", {
+      class: "pn-input pn-ask-input", rows: "2", maxlength: "500", "aria-label": "Your question about this step",
+      placeholder: "What do you want to know about this step?", disabled: ask.busy,
+      on: {
+        input: (e) => { ask.text = e.target.value; },
+        keydown: (e) => {
+          if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            sendAsk(step);
+          }
+        },
+      },
+    });
+    input.value = ask.text;
+    const status = ask.busy
+      ? h("p", { class: "pn-sub", role: "status" }, "Finding the answer in this walk's sources. Usually about 20 seconds.")
+      : null;
+    const error = ask.error
+      ? h("p", { class: "pn-ask-error", role: "alert" }, `Couldn't get an answer: ${ask.error.replace(/[.\s]+$/, "")}. Press Enter to try again.`)
+      : null;
+    const box = h("section", { class: "pn-layer pn-ask", "aria-label": "Ask about this step" },
+      h("p", { class: "pn-layer-label" }, "Ask about this step"),
+      input,
+      h("div", { class: "pn-reveal" },
+        h("button", { class: "pn-btn primary", disabled: ask.busy || !ask.text.trim(), on: { click: () => sendAsk(step) } }, ask.busy ? "Asking..." : "Ask"),
+        h("button", { class: "pn-btn quiet", disabled: ask.busy, on: { click: closeAsk } }, "Cancel")),
+      status, error);
+    queueMicrotask(() => {
+      if (!ask.busy) {
+        input.focus();
+      }
+    });
+    return box;
+  }
+
+  function openAsk() {
+    if (typeof at !== "number" || ask.busy) {
+      return;
+    }
+    ask.open = true;
+    render(true);
+    document.querySelector(".pn-ask")?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }
+
+  function closeAsk() {
+    if (ask.busy) {
+      return false;
+    }
+    if (ask.open) {
+      ask = { open: false, busy: false, error: null, text: "" };
+      render(true);
+      return true;
+    }
+    return false;
+  }
+
+  async function sendAsk(step) {
+    const question = ask.text.trim();
+    if (!question || ask.busy) {
+      return;
+    }
+    ask.busy = true;
+    ask.error = null;
+    render(true);
+    try {
+      const { step: answer } = await askStep(walk.id, step.id, question);
+      const lastKid = walk.steps.map((s) => s.id === step.id || s.parent === step.id).lastIndexOf(true);
+      walk.steps.splice(lastKid + 1, 0, answer);
+      walk.asks = [...(walk.asks ?? []), { stepId: step.id, question, outcome: "ok" }];
+      statuses[step.id] = statuses[step.id] === "got" ? "got" : "asked";
+      save();
+      ask = { open: false, busy: false, error: null, text: "" };
+      render(true);
+      document.getElementById(`ans-${answer.id}`)?.scrollIntoView({ block: "start", behavior: "smooth" });
+      app.announce(`Answer added: ${answer.takeaway}`);
+    } catch (err) {
+      ask.busy = false;
+      ask.error = err.message || "That didn't work.";
+      render(true);
+    }
   }
 
   function stepBar() {
@@ -234,6 +338,7 @@ export function walkView({ walk, progress }, params, app) {
       h("button", { class: "pn-btn quiet", on: { click: back } }, "Back", kbd("←")),
       h("button", { class: "pn-btn", "aria-pressed": String(layer === "slower"), on: { click: () => toggleLayer("slower") } }, "Slower", kbd("S")),
       h("button", { class: "pn-btn", "aria-pressed": String(layer === "why"), on: { click: () => toggleLayer("why") } }, "Why?", kbd("W")),
+      h("button", { class: "pn-btn", "aria-pressed": String(ask.open), on: { click: () => (ask.open ? closeAsk() : openAsk()) } }, "Ask", kbd("A")),
       h("span", { class: "pn-spacer" }),
       h("button", { class: "pn-btn primary", on: { click: next } }, last && !walk.check.length ? "Finish" : "Got it", kbd("→")),
     ];
@@ -375,7 +480,8 @@ export function walkView({ walk, progress }, params, app) {
   }
 
   // ---------- render ----------
-  function render() {
+  function render(keepScroll = false) {
+    const y = window.scrollY;
     if (at === "orient") {
       app.frame({ top: top(), main: orientMain(), bar: orientBar() });
     } else if (typeof at === "number") {
@@ -386,7 +492,7 @@ export function walkView({ walk, progress }, params, app) {
     } else {
       app.frame({ top: top(), main: endMain(), bar: endBar() });
     }
-    window.scrollTo(0, 0);
+    window.scrollTo(0, keepScroll ? y : 0);
   }
 
   render();
@@ -413,6 +519,10 @@ export function walkView({ walk, progress }, params, app) {
         toggleLayer("why");
         return true;
       }
+      if (k === "a") {
+        openAsk();
+        return true;
+      }
       if (k === "m" && at !== "orient") {
         if (!closeMap()) {
           openMap();
@@ -423,6 +533,9 @@ export function walkView({ walk, progress }, params, app) {
     },
     onEscape() {
       if (closeMap()) {
+        return true;
+      }
+      if (closeAsk()) {
         return true;
       }
       if (layer) {
