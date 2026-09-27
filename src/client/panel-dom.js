@@ -49,6 +49,17 @@ export function icon(name) {
   });
 }
 
+export function checkIcon() {
+  return h("span", {
+    class: "pn-check",
+    html: '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 6.2l2.6 2.6L10 3.4"/></svg>',
+  });
+}
+
+export function plural(n, word) {
+  return `${n} ${word}${n === 1 ? "" : "s"}`;
+}
+
 export function kbd(label) {
   return h("span", { class: "pn-kbd", "aria-hidden": "true" }, label);
 }
@@ -100,15 +111,16 @@ export function htmlFrame(html, title) {
     new ResizeObserver(fit).observe(doc.body);
     doc.fonts?.ready.then(fit);
     doc.addEventListener("click", (e) => {
-      const a = e.target.closest?.("a[href]");
-      if (!a) {
+      const link = e.target.closest?.("a, area");
+      if (!link) {
         return;
       }
       e.preventDefault();
-      if (/^https?:/i.test(a.href)) {
-        openExternal(a.href);
+      const raw = link.getAttribute("href") ?? link.getAttributeNS("http://www.w3.org/1999/xlink", "href") ?? "";
+      if (/^https?:/i.test(raw)) {
+        openExternal(raw);
       }
-    });
+    }, true);
   });
   return frame;
 }

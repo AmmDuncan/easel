@@ -1,16 +1,9 @@
 // Walk view: orient + pick -> steps -> check -> end (auto-saved to Keep).
 
 import { askStep, putProgress } from "./panel-api.js";
-import { h, htmlFrame, icon, kbd, sourceList } from "./panel-dom.js";
+import { checkIcon, h, htmlFrame, icon, kbd, plural, sourceList } from "./panel-dom.js";
 
 const STAGE_OF = { orient: "orient", check: "check", end: "done" };
-
-function checkIcon() {
-  return h("span", {
-    class: "pn-check",
-    html: '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 6.2l2.6 2.6L10 3.4"/></svg>',
-  });
-}
 
 function initialAt(params, progress, orderLength) {
   const at = params.get("at");
@@ -33,7 +26,16 @@ function initialAt(params, progress, orderLength) {
   return Math.min(progress.current, orderLength - 1);
 }
 
-export function walkView({ walk, progress }, params, app) {
+function progressText(at, steps) {
+  if (typeof at === "number") {
+    return [`${at + 1} of ${steps.length}`, ` · ${steps[at].name}`];
+  }
+  return [`${steps.length} of ${steps.length}`, at === "check" ? " · Say it back" : " · Done"];
+}
+
+export function walkView({ walk, progress, projectLabel }, params, app) {
+  const projectName = projectLabel ?? walk.project;
+  let destroyed = false;
   const topSteps = () => walk.steps.filter((s) => !s.parent);
   const suggested = new Set(walk.orient.map.filter((m) => m.suggested).map((m) => m.stepId));
   const mapInfo = new Map(walk.orient.map.map((m) => [m.stepId, m]));
@@ -67,7 +69,7 @@ export function walkView({ walk, progress }, params, app) {
         steps: statuses, checks, actionsDone, startedAt,
       });
     } catch {
-      app.toast("Couldn't save your place. It will retry on the next step.");
+      app.toast("Couldn't save your place. Easel tries again on your next move.");
     }
   }
 
@@ -151,8 +153,8 @@ export function walkView({ walk, progress }, params, app) {
 
   // ---------- top ----------
   function top() {
-    const home = h("button", { class: "pn-icon-btn", "aria-label": "Home (H)", on: { click: () => app.navigate("/panel") } }, icon("home"));
-    const ctx = h("div", { class: "pn-context" }, h("b", {}, walk.project), " · ", walk.title);
+    const home = h("button", { class: "pn-icon-btn", "aria-label": "All walks (H)", on: { click: () => app.navigate("/panel") } }, icon("home"));
+    const ctx = h("div", { class: "pn-context" }, h("b", {}, projectName), " · ", walk.title);
     const row = h("div", { class: "pn-top-row" }, home, ctx);
     if (at !== "orient") {
       row.append(h("button", { class: "pn-icon-btn", "aria-label": "Map of steps (M)", on: { click: openMap } }, icon("map"), "Map"));
@@ -163,9 +165,8 @@ export function walkView({ walk, progress }, params, app) {
       const idx = typeof at === "number" ? at : steps.length;
       const ticks = h("div", { class: "pn-ticks", "aria-hidden": "true" },
         steps.map((s, i) => h("span", { class: `pn-tick${i < idx ? " done" : ""}${i === at ? " current" : ""}` })));
-      const label = typeof at === "number"
-        ? h("div", { class: "pn-progress-label" }, h("b", {}, `${at + 1} of ${steps.length}`), ` · ${steps[at].name}`)
-        : h("div", { class: "pn-progress-label" }, h("b", {}, `${steps.length} of ${steps.length}`), at === "check" ? " · Say it back" : " · Done");
+      const [count, name] = progressText(at, steps);
+      const label = h("div", { class: "pn-progress-label" }, h("b", {}, count), name);
       nodes.push(h("div", { class: "pn-progress" }, ticks, label));
     }
     return nodes;
@@ -206,7 +207,8 @@ export function walkView({ walk, progress }, params, app) {
   function orientBar() {
     const n = picked.length;
     const resumed = startedAt !== null;
-    const label = n === 0 ? "Pick at least one step" : `${resumed ? "Continue" : "Start"} · ${n} ${n === 1 ? "step" : "steps"}, ${minutesFor(n)} min`;
+    const verb = resumed ? "Continue" : "Start";
+    const label = n === 0 ? "Pick at least one step" : `${verb} · ${plural(n, "step")}, ${minutesFor(n)} min`;
     return [h("span", { class: "pn-spacer" }),
       h("button", { class: "pn-btn primary", disabled: n === 0, on: { click: start } }, label, kbd("Enter"))];
   }
@@ -218,7 +220,7 @@ export function walkView({ walk, progress }, params, app) {
     const parts = [h("h1", { class: "pn-takeaway" }, step.takeaway)];
     if (layer) {
       parts.push(h("section", { class: "pn-layer", "aria-label": layer === "slower" ? "Slower" : "Why" },
-        h("p", { class: "pn-layer-label" }, layer === "slower" ? "Slower, with the example" : "Why this matters"),
+        h("p", { class: "pn-layer-label" }, layerLabel()),
         htmlFrame(layer === "slower" ? step.slower_html : step.why_html, layer)));
     }
     parts.push(h("div", { class: "pn-block" }, htmlFrame(body, step.name)));
@@ -233,6 +235,13 @@ export function walkView({ walk, progress }, params, app) {
       parts.push(askBox(step));
     }
     return h("div", { class: layer || ask.open ? "" : "pn-step-enter" }, parts);
+  }
+
+  function layerLabel() {
+    if (layer === "why") {
+      return "Why this matters";
+    }
+    return walk.example ? `Slower, with ${walk.example.name}` : "Slower";
   }
 
   function questionsFor(stepId) {
@@ -252,7 +261,7 @@ export function walkView({ walk, progress }, params, app) {
   function askBox(step) {
     const input = h("textarea", {
       class: "pn-input pn-ask-input", rows: "2", maxlength: "500", "aria-label": "Your question about this step",
-      placeholder: "What do you want to know about this step?", disabled: ask.busy,
+      placeholder: "Enter sends · Shift+Enter for a new line", disabled: ask.busy,
       on: {
         input: (e) => { ask.text = e.target.value; },
         keydown: (e) => {
@@ -265,7 +274,7 @@ export function walkView({ walk, progress }, params, app) {
     });
     input.value = ask.text;
     const status = ask.busy
-      ? h("p", { class: "pn-sub", role: "status" }, "Finding the answer in this walk's sources. Usually about 20 seconds.")
+      ? h("p", { class: "pn-sub", role: "status" }, "Finding the answer. This can take up to 90 seconds.")
       : null;
     const error = ask.error
       ? h("p", { class: "pn-ask-error", role: "alert" }, `Couldn't get an answer: ${ask.error.replace(/[.\s]+$/, "")}. Press Enter to try again.`)
@@ -327,7 +336,7 @@ export function walkView({ walk, progress }, params, app) {
       app.announce(`Answer added: ${answer.takeaway}`);
     } catch (err) {
       ask.busy = false;
-      ask.error = err.message || "That didn't work.";
+      ask.error = err.message || "no reply from easel";
       render(true);
     }
   }
@@ -415,7 +424,7 @@ export function walkView({ walk, progress }, params, app) {
       }, checkIcon(), h("span", {}, a)));
     });
     return h("div", { class: "pn-step-enter" },
-      h("p", { class: "pn-saved" }, icon("saved"), h("span", {}, "Saved to ", h("b", {}, walk.project), " · Keep")),
+      h("p", { class: "pn-saved" }, icon("saved"), h("span", {}, "Saved to ", h("b", {}, projectName), " · Keep")),
       h("h1", { class: "pn-answer", style: "margin-top:16px" }, walk.orient.answer),
       marked.length ? h("p", { class: "pn-meta" }, `Check: ${right} of ${marked.length} right`) : null,
       walk.recap.length ? h("h2", { class: "pn-section-title" }, "Recap") : null,
@@ -429,8 +438,8 @@ export function walkView({ walk, progress }, params, app) {
     return [
       h("button", { class: "pn-btn quiet", on: { click: back } }, "Back", kbd("←")),
       h("span", { class: "pn-spacer" }),
-      h("button", { class: "pn-btn", on: { click: () => app.navigate(`/panel/p/${walk.project}?tab=keep`) } }, `Open ${walk.project} Keep`),
-      h("button", { class: "pn-btn primary", on: { click: () => app.navigate("/panel") } }, "Home", kbd("H")),
+      h("button", { class: "pn-btn", on: { click: () => app.navigate(`/panel/p/${encodeURIComponent(walk.project)}?tab=keep`) } }, "Open in Keep"),
+      h("button", { class: "pn-btn primary", on: { click: () => app.navigate("/panel") } }, "All walks", kbd("H")),
     ];
   }
 
@@ -481,6 +490,9 @@ export function walkView({ walk, progress }, params, app) {
 
   // ---------- render ----------
   function render(keepScroll = false) {
+    if (destroyed) {
+      return;
+    }
     const y = window.scrollY;
     if (at === "orient") {
       app.frame({ top: top(), main: orientMain(), bar: orientBar() });
@@ -546,6 +558,7 @@ export function walkView({ walk, progress }, params, app) {
       return false;
     },
     destroy() {
+      destroyed = true;
       closeMap();
     },
   };

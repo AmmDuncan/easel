@@ -10,6 +10,7 @@ const mainEl = document.querySelector(".pn-main");
 const liveEl = document.querySelector(".pn-live");
 let barEl = null;
 let current = null;
+let routeSeq = 0;
 let toastTimer = null;
 
 const app = {
@@ -49,11 +50,12 @@ const app = {
 
 function errorView(err) {
   const missing = /^404/.test(err.message);
+  const copy = missing
+    ? { title: "Not found", body: "This walk or project no longer exists.", next: "It may have been deleted. Press H for all walks." }
+    : { title: "Couldn't load this", body: "Easel sent an error or no answer.", next: "Press R to try again. If it keeps failing, run `easel restart` in a terminal." };
   app.frame({
-    top: [h("div", { class: "pn-top-row" }, h("h1", { class: "pn-context" }, h("b", {}, missing ? "Not found" : "Can't reach easel")))],
-    main: h("div", { class: "pn-error" },
-      h("p", {}, missing ? "This walk or project no longer exists." : "The easel server did not answer."),
-      h("p", { class: "pn-sub" }, missing ? "It may have been deleted. Press H for all walks." : "Run `easel restart` in a terminal, then press R to retry.")),
+    top: [h("div", { class: "pn-top-row" }, h("h1", { class: "pn-context pn-title" }, copy.title))],
+    main: h("div", { class: "pn-error" }, h("p", {}, copy.body), h("p", { class: "pn-sub" }, copy.next)),
     bar: null,
   });
   return {};
@@ -62,18 +64,31 @@ function errorView(err) {
 async function route() {
   current?.destroy?.();
   current = null;
+  const seq = ++routeSeq;
+  const stale = () => seq !== routeSeq;
   const url = new URL(location.href);
   const [, kind, id] = url.pathname.split("/").filter(Boolean);
   try {
     if (kind === "w" && id) {
-      current = walkView(await getJson(`/api/walks/${encodeURIComponent(id)}`), url.searchParams, app);
+      const data = await getJson(`/api/walks/${encodeURIComponent(id)}`);
+      if (!stale()) {
+        current = walkView(data, url.searchParams, app);
+      }
     } else if (kind === "p" && id) {
-      current = await projectView(decodeURIComponent(id), url.searchParams, app);
+      const view = await projectView(decodeURIComponent(id), url.searchParams, app, stale);
+      if (!stale()) {
+        current = view;
+      }
     } else {
-      current = await homeView(app);
+      const view = await homeView(app, stale);
+      if (!stale()) {
+        current = view;
+      }
     }
   } catch (err) {
-    current = errorView(err);
+    if (!stale()) {
+      current = errorView(err);
+    }
   }
 }
 
@@ -132,7 +147,11 @@ async function boot() {
   } catch {
     /* keep defaults */
   }
-  await loadKit();
+  try {
+    await loadKit();
+  } catch {
+    /* step frames fall back to unstyled content */
+  }
   const refreshLists = () => {
     if (current?.refreshOnWalk) {
       route();

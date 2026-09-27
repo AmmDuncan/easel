@@ -1,7 +1,7 @@
 // Home (one queue across projects) and Project (Walks + Keep tabs).
 
 import { clearDone, deleteProject, deleteWalk, getJson, moveWalk, putProgress, renameProject, restoreTrash } from "./panel-api.js";
-import { h, icon, openMenu, timeAgo } from "./panel-dom.js";
+import { checkIcon, h, icon, openMenu, plural, timeAgo } from "./panel-dom.js";
 
 const STALE_MS = 14 * 24 * 60 * 60 * 1000;
 
@@ -26,7 +26,7 @@ function row({ title, meta, end, bar, onClick, stale }) {
 }
 
 /** Run a trash-backed action, then offer Undo for 10 s. */
-async function undoable(app, action, message) {
+async function undoable(app, action, message, verb) {
   try {
     const res = await action();
     const undo = res?.trashId
@@ -45,7 +45,7 @@ async function undoable(app, action, message) {
     app.toast(message, undo, 10000);
     return res;
   } catch (err) {
-    app.toast(`That didn't work: ${err.message}`);
+    app.toast(`Couldn't ${verb}: ${err.message}`);
     return null;
   }
 }
@@ -53,10 +53,6 @@ async function undoable(app, action, message) {
 function staleLabel(w) {
   const age = Date.now() - w.updatedAt;
   return w.status === "waiting" && age > STALE_MS ? `untouched for ${Math.floor(age / 86400000)} days` : null;
-}
-
-function plural(n, word) {
-  return `${n} ${word}${n === 1 ? "" : "s"}`;
 }
 
 function countsLine(p) {
@@ -73,13 +69,16 @@ function countsLine(p) {
   return parts.join(" · ") || "No walks";
 }
 
-export async function homeView(app) {
+export async function homeView(app, stale = () => false) {
   const projects = await getJson("/api/projects");
   const waiting = (await Promise.all(projects.filter((p) => p.waiting > 0).map((p) =>
     getJson(`/api/projects/${encodeURIComponent(p.slug)}/walks`).then((ws) =>
       ws.filter((w) => w.status === "waiting").map((w) => ({ ...w, project: p }))))))
     .flat()
     .sort((a, b) => b.createdAt - a.createdAt);
+  if (stale()) {
+    return {};
+  }
 
   const top = [h("div", { class: "pn-top-row" }, h("h1", { class: "pn-context pn-title" }, "All walks"))];
 
@@ -88,7 +87,7 @@ export async function homeView(app) {
       top,
       main: h("div", { class: "pn-empty" },
         h("p", { class: "pn-h1" }, "Nothing to walk yet"),
-        h("p", {}, "Ask Claude to walk you through a PRD, TRD, flow or report. It lands here, and a toast shows in the corner.")),
+        h("p", {}, "Ask Claude to walk you through a PRD, TRD, flow or research. New walks land here.")),
       bar: null,
     });
     return {};
@@ -127,7 +126,7 @@ export async function homeView(app) {
     top,
     main: h("div", { class: "pn-step-enter" },
       h("p", { class: "pn-sub" }, summary),
-      section("Continue", cont),
+      section("In progress", cont),
       section("New", fresh),
       section("Open actions", actions),
       section("Projects", all)),
@@ -136,18 +135,21 @@ export async function homeView(app) {
   return { refreshOnWalk: true };
 }
 
-export async function projectView(slug, params, app) {
+export async function projectView(slug, params, app, stale = () => false) {
   const [projects, walks] = await Promise.all([
     getJson("/api/projects"),
     getJson(`/api/projects/${encodeURIComponent(slug)}/walks`),
   ]);
+  if (stale()) {
+    return {};
+  }
   const project = projects.find((p) => p.slug === slug) ?? { slug, label: slug };
   let tab = params.get("tab") === "keep" ? "keep" : "walks";
   const done = walks.filter((w) => w.status === "done");
   let kept = null;
   let renaming = false;
   const others = projects.filter((p) => p.slug !== slug);
-  const view = { refreshOnWalk: true };
+  const view = { refreshOnWalk: true, destroy: () => { view.destroyed = true; } };
 
   function projectMenu(e) {
     openMenu(e.currentTarget, [
@@ -158,7 +160,7 @@ export async function projectView(slug, params, app) {
   }
 
   async function clear() {
-    const res = await undoable(app, () => clearDone(slug), `Cleared ${plural(done.length, "done walk")}`);
+    const res = await undoable(app, () => clearDone(slug), `Cleared ${plural(done.length, "done walk")}`, "clear done walks");
     if (res) {
       app.refresh();
     }
@@ -166,7 +168,8 @@ export async function projectView(slug, params, app) {
 
   async function removeProject() {
     view.refreshOnWalk = false;
-    const res = await undoable(app, () => deleteProject(slug), `Deleted ${project.label}`);
+    const total = (project.waiting ?? 0) + (project.inProgress ?? 0) + (project.done ?? 0);
+    const res = await undoable(app, () => deleteProject(slug), `Deleted ${project.label} and its ${plural(total, "walk")}`, "delete the project");
     if (res) {
       app.navigate("/panel");
     } else {
@@ -242,7 +245,7 @@ export async function projectView(slug, params, app) {
   }
 
   async function removeWalk(w) {
-    const res = await undoable(app, () => deleteWalk(w.id), `Deleted ${w.title}`);
+    const res = await undoable(app, () => deleteWalk(w.id), `Deleted ${w.title}`, "delete the walk");
     if (res) {
       app.refresh();
     }
@@ -299,8 +302,10 @@ export async function projectView(slug, params, app) {
     if (!kept) {
       Promise.all(done.map((w) => getJson(`/api/walks/${w.id}`))).then((list) => {
         kept = list;
-        render();
-      }).catch(() => app.toast("Couldn't load the Keep page. Press R to retry."));
+        if (!view.destroyed) {
+          render();
+        }
+      }).catch(() => app.toast("Couldn't load Keep. Press R to try again."));
       return h("p", { class: "pn-sub" }, "Loading...");
     }
     return h("div", {}, kept.map(({ walk, progress }) => {
@@ -310,19 +315,19 @@ export async function projectView(slug, params, app) {
           class: "pn-action", role: "checkbox", "aria-checked": String(isDone),
           on: {
             click: async () => {
-              progress.actionsDone = isDone ? progress.actionsDone.filter((x) => x !== i) : [...progress.actionsDone, i];
+              const before = progress.actionsDone;
+              progress.actionsDone = isDone ? before.filter((x) => x !== i) : [...before, i];
               render();
               try {
                 await putProgress(walk.id, { actionsDone: progress.actionsDone });
               } catch {
-                app.toast("Couldn't save that. Try again.");
+                progress.actionsDone = before;
+                render();
+                app.toast("Couldn't save that. It's back to how it was.");
               }
             },
           },
-        }, h("span", {
-          class: "pn-check",
-          html: '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 6.2l2.6 2.6L10 3.4"/></svg>',
-        }), h("span", {}, a)));
+        }, checkIcon(), h("span", {}, a)));
       });
       return h("section", { style: "margin-top:28px" },
         h("h2", { class: "pn-row-title", style: "font-size:17px" }, walk.title),
@@ -333,6 +338,9 @@ export async function projectView(slug, params, app) {
   }
 
   function render() {
+    if (view.destroyed) {
+      return;
+    }
     app.frame({
       top: top(),
       main: h("div", {}, h("p", { class: "pn-sub" }, countsLine(project)), tabs(), tab === "keep" ? keepTab() : walksTab()),
