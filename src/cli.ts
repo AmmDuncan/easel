@@ -1,6 +1,15 @@
 #!/usr/bin/env node
 import { spawn, spawnSync } from "node:child_process";
-import { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync, existsSync } from "node:fs";
+import {
+  copyFileSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+  existsSync,
+  chmodSync,
+} from "node:fs";
 import { dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { homedir } from "node:os";
@@ -315,6 +324,26 @@ function installSkill(): void {
     }
   }
   console.log(`  - using-easel skill installed to ${dest}`);
+  installWalkSkill(join(homedir(), ".claude", "skills", "walk"));
+}
+
+/** Copies the whole `skills/walk/` directory (SKILL.md + scripts) into `destDir`, made executable. */
+export function installWalkSkill(destDir: string): void {
+  const srcDir = resolve(PROJECT_ROOT, "skills", "walk");
+  if (!existsSync(srcDir)) {
+    console.warn(`[easel] walk skill source missing at ${srcDir} — skipping walk skill install`);
+    return;
+  }
+  mkdirSync(destDir, { recursive: true });
+  for (const name of readdirSync(srcDir)) {
+    const src = join(srcDir, name);
+    const dest = join(destDir, name);
+    copyFileSync(src, dest);
+    if (name.endsWith(".mjs")) {
+      chmodSync(dest, 0o755);
+    }
+  }
+  console.log(`  - walk skill installed to ${destDir}`);
 }
 
 function registerMcp(mcpEntry: string): void {

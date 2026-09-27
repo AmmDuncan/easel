@@ -1,0 +1,197 @@
+{
+  "title": "How walks work",
+  "kind": "trd",
+  "orient": {
+    "question": "What happens between Claude finishing research and you understanding it?",
+    "answer": "Claude sends a walk, a toast appears, you step through it and keep the recap.",
+    "minutes": 5,
+    "map": [
+      {
+        "stepId": "does-not-exist",
+        "name": "Arrives",
+        "takeaway": "A walk arrives as a corner toast, never a tab.",
+        "suggested": true
+      },
+      {
+        "stepId": "orient",
+        "name": "Orient",
+        "takeaway": "You see the answer and the size before you start.",
+        "suggested": true
+      },
+      {
+        "stepId": "pick",
+        "name": "Pick depth",
+        "takeaway": "You choose which parts to go deep on.",
+        "suggested": false
+      },
+      {
+        "stepId": "step",
+        "name": "One step",
+        "takeaway": "One idea per step, with Slower and Why ready.",
+        "suggested": true
+      },
+      {
+        "stepId": "ask",
+        "name": "Ask",
+        "takeaway": "Ask gets a fresh answer from the walk's own sources.",
+        "suggested": true
+      },
+      {
+        "stepId": "check",
+        "name": "Check",
+        "takeaway": "Saying it back shows you whether it stuck.",
+        "suggested": false
+      },
+      {
+        "stepId": "keep",
+        "name": "Keep",
+        "takeaway": "Recap and actions stay with the project.",
+        "suggested": true
+      }
+    ]
+  },
+  "example": {
+    "name": "Waivers TRD",
+    "line": "Claude has just finished reading the delinquency waivers TRD for dvla."
+  },
+  "steps": [
+    {
+      "id": "arrive",
+      "name": "Arrives",
+      "takeaway": "A walk arrives as a corner toast, never a tab.",
+      "body_html": "<p>When Claude finishes, it sends the walk to easel. easel files it under the project it came from and a small toast slides into the top-right corner.</p>",
+      "picture_html": "<div class=\"wk-screen\"><div class=\"wk-screen-term\"><span class=\"wk-caret\">$</span> npm run test<br><span class=\"wk-dim\">you keep typing here</span></div><div class=\"wk-toast\"><b>New walk</b><span>dvla · Waivers TRD</span></div></div>",
+      "example_html": "<p>You are mid-command in the terminal. The <b>Waivers TRD</b> toast appears; your next keystroke still lands in the terminal.</p>",
+      "slower_html": "<p>Nothing opens and nothing steals your keyboard. The toast stays for 8 seconds. If three walks arrive at once they stack; a fourth becomes \"+1 more\".</p>",
+      "why_html": "<p>A tab you have to find is the reason easel felt unnatural. A toast tells you something is ready without breaking what you are doing.</p>",
+      "sources": [
+        {
+          "label": "Spec, panel shell",
+          "ref": "docs/superpowers/specs/2026-09-27-walks-panel-design.md#3-the-panel-shell-easelpanelapp"
+        }
+      ]
+    },
+    {
+      "id": "orient",
+      "name": "Orient",
+      "takeaway": "You see the answer and the size before you start.",
+      "body_html": "<p>Opening a walk lands on Orient: the question it answers, the answer in one line, how long it takes, and a map of its parts.</p>",
+      "picture_html": "<div class=\"wk-stats\"><div class=\"wk-stat\"><b>1</b><span>line answer</span></div><div class=\"wk-stat\"><b>7</b><span>steps</span></div><div class=\"wk-stat\"><b>5 min</b><span>to walk</span></div></div>",
+      "example_html": "<p>Waivers TRD opens on: <i>\"A waiver is drafted by an officer, approved by a supervisor, then written to the ledger.\"</i> 6 steps, about 6 minutes.</p>",
+      "slower_html": "<p>You know the destination before the first step. If the one-line answer is all you needed, you can stop there.</p>",
+      "why_html": "<p>Not knowing where to start is the first thing that costs you time. The size and the map answer \"how big is this and what matters\" up front.</p>",
+      "sources": [
+        {
+          "label": "Spec, the flow",
+          "ref": "docs/superpowers/specs/2026-09-27-walks-panel-design.md#1-the-flow"
+        }
+      ]
+    },
+    {
+      "id": "pick",
+      "name": "Pick depth",
+      "takeaway": "You choose which parts to go deep on.",
+      "body_html": "<p>The map comes with a suggested path already ticked. Untick what you already know; those parts stay at their one-line takeaway.</p>",
+      "picture_html": "<ul class=\"wk-checklist\"><li class=\"on\">Arrives</li><li class=\"on\">Orient</li><li>Pick depth</li><li class=\"on\">One step</li><li class=\"on\">Ask</li><li>Check</li><li class=\"on\">Keep</li></ul>",
+      "example_html": "<p>You already know how the ledger works, so you untick <b>Ledger write</b>. The walk drops from 6 steps to 5.</p>",
+      "slower_html": "<p>Taking the suggested path is one key. Picking is optional, never required.</p>",
+      "why_html": "<p>Walking parts you already know is where focus drains. Skipping them keeps the walk short enough to finish.</p>",
+      "sources": [
+        {
+          "label": "Spec, the flow",
+          "ref": "docs/superpowers/specs/2026-09-27-walks-panel-design.md#1-the-flow"
+        }
+      ]
+    },
+    {
+      "id": "step",
+      "name": "One step",
+      "takeaway": "One idea per step, with Slower and Why ready.",
+      "body_html": "<p>Each step holds one idea: a takeaway line, a picture, and the running example applied to it. Slower and Why are written in advance, so they open instantly.</p>",
+      "picture_html": "<table class=\"wk-compare\"><thead><tr><th>Button</th><th>What happens</th><th>Waits on Claude?</th></tr></thead><tbody><tr><td>Got it</td><td>Next step</td><td>No</td></tr><tr><td>Slower</td><td>Plainer version with the example</td><td>No</td></tr><tr><td>Why?</td><td>The reason behind this step</td><td>No</td></tr><tr class=\"hl\"><td>Ask</td><td>Your own question answered</td><td>Yes, about 20 s</td></tr></tbody></table>",
+      "example_html": "<p>The Waivers step \"Supervisor approves\" shows a swimlane with one waiver moving from officer to supervisor.</p>",
+      "slower_html": "<p>If a step does not land, press S. You get the same idea in plainer words with the example worked through.</p>",
+      "why_html": "<p>One idea per step means you can stop anywhere and resume exactly there, which is what keeps focus from dropping midway.</p>",
+      "sources": [
+        {
+          "label": "Spec, the flow",
+          "ref": "docs/superpowers/specs/2026-09-27-walks-panel-design.md#1-the-flow"
+        }
+      ]
+    },
+    {
+      "id": "ask",
+      "name": "Ask",
+      "takeaway": "Ask gets a fresh answer from the walk's own sources.",
+      "body_html": "<p>Ask starts a fresh, read-only Claude call in the project folder with the walk and your question. The answer is inserted as a new step right after the one you were on.</p>",
+      "picture_html": "<ol class=\"wk-timeline\"><li><b>You ask</b><span>\"Can a supervisor approve their own waiver?\"</span></li><li><b>Claude reads</b><span>walk sources + project files, read-only</span></li><li><b>New step</b><span>inserted after this one, saved</span></li></ol>",
+      "example_html": "<p>On the approval step you ask whether a supervisor can approve their own waiver. About 20 seconds later a new step answers it, citing the TRD.</p>",
+      "slower_html": "<p>The session that made the walk can be closed. Ask does not need it.</p>",
+      "why_html": "<p>Your follow-up question is usually the thing that makes an idea stick. Answering it inside the walk keeps you in one place.</p>",
+      "sources": [
+        {
+          "label": "Spec, Ask",
+          "ref": "docs/superpowers/specs/2026-09-27-walks-panel-design.md#5-ask-fresh-claude-grounded-in-the-walk"
+        }
+      ]
+    },
+    {
+      "id": "check",
+      "name": "Check",
+      "takeaway": "Saying it back shows you whether it stuck.",
+      "body_html": "<p>At the end, up to three prompts. You type a one-line answer, the expected answer appears beside it, and you mark it right or not.</p>",
+      "picture_html": "<div class=\"wk-decision\"><div><small>You wrote</small><p>Supervisor signs it off</p></div><div><small>Expected</small><p>A supervisor approves it before the ledger is written</p></div></div>",
+      "example_html": "<p>\"Who approves a waiver?\" You write \"supervisor\". The expected answer agrees; you mark it right.</p>",
+      "slower_html": "<p>Check is optional. Skipping it still saves the recap.</p>",
+      "why_html": "<p>Reading something is not the same as being able to say it. Trying to recall it is what makes it stay.</p>",
+      "sources": [
+        {
+          "label": "Spec, the flow",
+          "ref": "docs/superpowers/specs/2026-09-27-walks-panel-design.md#1-the-flow"
+        }
+      ]
+    },
+    {
+      "id": "keep",
+      "name": "Keep",
+      "takeaway": "Recap and actions stay with the project.",
+      "body_html": "<p>Finishing a walk saves its recap lines and action items to the project's Keep page. Home shows every project and where you stopped in each.</p>",
+      "picture_html": "<div class=\"wk-stats\"><div class=\"wk-stat\"><b>dvla</b><span>1 waiting · 1 in progress</span></div><div class=\"wk-stat\"><b>easel</b><span>2 waiting</span></div><div class=\"wk-stat\"><b>gra</b><span>all done</span></div></div>",
+      "example_html": "<p>Next week, dvla's Keep page still has \"Supervisor approves before the ledger write\" and the action \"Read the waiver API contract\".</p>",
+      "slower_html": "<p>Walks belong to projects, not to Claude sessions, so closing a session never loses one.</p>",
+      "why_html": "<p>Juggling projects is easier when each one remembers what you learned and what you still owe it.</p>",
+      "sources": [
+        {
+          "label": "Spec, server changes",
+          "ref": "docs/superpowers/specs/2026-09-27-walks-panel-design.md#4-server-changes-easel"
+        }
+      ]
+    }
+  ],
+  "check": [
+    {
+      "prompt": "Where does a new walk show up first?",
+      "expected": "A small toast in the top-right corner"
+    },
+    {
+      "prompt": "Does Ask need the Claude session that made the walk?",
+      "expected": "No, it starts a fresh read-only call"
+    }
+  ],
+  "recap": [
+    "A walk arrives as a toast and never takes your keyboard.",
+    "Orient gives the answer and the size first.",
+    "Each step is one idea, with Slower and Why ready.",
+    "Ask answers from the walk's sources, even after the session closes.",
+    "Recaps and actions stay with the project."
+  ],
+  "actions": [
+    "Try the hotkey: Ctrl+Option+Space"
+  ],
+  "sources": [
+    {
+      "label": "Walks + panel spec",
+      "ref": "docs/superpowers/specs/2026-09-27-walks-panel-design.md"
+    }
+  ]
+}

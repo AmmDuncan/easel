@@ -1,0 +1,329 @@
+{
+  "title": "How walks work",
+  "kind": "trd",
+  "orient": {
+    "question": "What happens between Claude finishing research and you understanding it?",
+    "answer": "Claude sends a walk, a toast appears, you step through it and keep the recap.",
+    "minutes": 5,
+    "map": [
+      {
+        "stepId": "s1",
+        "name": "Step 1",
+        "takeaway": "t",
+        "suggested": false
+      },
+      {
+        "stepId": "s2",
+        "name": "Step 2",
+        "takeaway": "t",
+        "suggested": false
+      },
+      {
+        "stepId": "s3",
+        "name": "Step 3",
+        "takeaway": "t",
+        "suggested": false
+      },
+      {
+        "stepId": "s4",
+        "name": "Step 4",
+        "takeaway": "t",
+        "suggested": false
+      },
+      {
+        "stepId": "s5",
+        "name": "Step 5",
+        "takeaway": "t",
+        "suggested": false
+      },
+      {
+        "stepId": "s6",
+        "name": "Step 6",
+        "takeaway": "t",
+        "suggested": false
+      },
+      {
+        "stepId": "s7",
+        "name": "Step 7",
+        "takeaway": "t",
+        "suggested": false
+      },
+      {
+        "stepId": "s8",
+        "name": "Step 8",
+        "takeaway": "t",
+        "suggested": false
+      },
+      {
+        "stepId": "s9",
+        "name": "Step 9",
+        "takeaway": "t",
+        "suggested": false
+      },
+      {
+        "stepId": "s10",
+        "name": "Step 10",
+        "takeaway": "t",
+        "suggested": false
+      },
+      {
+        "stepId": "s11",
+        "name": "Step 11",
+        "takeaway": "t",
+        "suggested": false
+      },
+      {
+        "stepId": "s12",
+        "name": "Step 12",
+        "takeaway": "t",
+        "suggested": false
+      },
+      {
+        "stepId": "s13",
+        "name": "Step 13",
+        "takeaway": "t",
+        "suggested": false
+      }
+    ]
+  },
+  "example": {
+    "name": "Waivers TRD",
+    "line": "Claude has just finished reading the delinquency waivers TRD for dvla."
+  },
+  "steps": [
+    {
+      "id": "s1",
+      "name": "Step 1",
+      "takeaway": "A walk arrives as a corner toast, never a tab.",
+      "body_html": "<p>When Claude finishes, it sends the walk to easel. easel files it under the project it came from and a small toast slides into the top-right corner.</p>",
+      "picture_html": "<div class=\"wk-screen\"><div class=\"wk-screen-term\"><span class=\"wk-caret\">$</span> npm run test<br><span class=\"wk-dim\">you keep typing here</span></div><div class=\"wk-toast\"><b>New walk</b><span>dvla · Waivers TRD</span></div></div>",
+      "example_html": "<p>You are mid-command in the terminal. The <b>Waivers TRD</b> toast appears; your next keystroke still lands in the terminal.</p>",
+      "slower_html": "<p>Nothing opens and nothing steals your keyboard. The toast stays for 8 seconds. If three walks arrive at once they stack; a fourth becomes \"+1 more\".</p>",
+      "why_html": "<p>A tab you have to find is the reason easel felt unnatural. A toast tells you something is ready without breaking what you are doing.</p>",
+      "sources": [
+        {
+          "label": "Spec, panel shell",
+          "ref": "docs/superpowers/specs/2026-09-27-walks-panel-design.md#3-the-panel-shell-easelpanelapp"
+        }
+      ]
+    },
+    {
+      "id": "s2",
+      "name": "Step 2",
+      "takeaway": "A walk arrives as a corner toast, never a tab.",
+      "body_html": "<p>When Claude finishes, it sends the walk to easel. easel files it under the project it came from and a small toast slides into the top-right corner.</p>",
+      "picture_html": "<div class=\"wk-screen\"><div class=\"wk-screen-term\"><span class=\"wk-caret\">$</span> npm run test<br><span class=\"wk-dim\">you keep typing here</span></div><div class=\"wk-toast\"><b>New walk</b><span>dvla · Waivers TRD</span></div></div>",
+      "example_html": "<p>You are mid-command in the terminal. The <b>Waivers TRD</b> toast appears; your next keystroke still lands in the terminal.</p>",
+      "slower_html": "<p>Nothing opens and nothing steals your keyboard. The toast stays for 8 seconds. If three walks arrive at once they stack; a fourth becomes \"+1 more\".</p>",
+      "why_html": "<p>A tab you have to find is the reason easel felt unnatural. A toast tells you something is ready without breaking what you are doing.</p>",
+      "sources": [
+        {
+          "label": "Spec, panel shell",
+          "ref": "docs/superpowers/specs/2026-09-27-walks-panel-design.md#3-the-panel-shell-easelpanelapp"
+        }
+      ]
+    },
+    {
+      "id": "s3",
+      "name": "Step 3",
+      "takeaway": "A walk arrives as a corner toast, never a tab.",
+      "body_html": "<p>When Claude finishes, it sends the walk to easel. easel files it under the project it came from and a small toast slides into the top-right corner.</p>",
+      "picture_html": "<div class=\"wk-screen\"><div class=\"wk-screen-term\"><span class=\"wk-caret\">$</span> npm run test<br><span class=\"wk-dim\">you keep typing here</span></div><div class=\"wk-toast\"><b>New walk</b><span>dvla · Waivers TRD</span></div></div>",
+      "example_html": "<p>You are mid-command in the terminal. The <b>Waivers TRD</b> toast appears; your next keystroke still lands in the terminal.</p>",
+      "slower_html": "<p>Nothing opens and nothing steals your keyboard. The toast stays for 8 seconds. If three walks arrive at once they stack; a fourth becomes \"+1 more\".</p>",
+      "why_html": "<p>A tab you have to find is the reason easel felt unnatural. A toast tells you something is ready without breaking what you are doing.</p>",
+      "sources": [
+        {
+          "label": "Spec, panel shell",
+          "ref": "docs/superpowers/specs/2026-09-27-walks-panel-design.md#3-the-panel-shell-easelpanelapp"
+        }
+      ]
+    },
+    {
+      "id": "s4",
+      "name": "Step 4",
+      "takeaway": "A walk arrives as a corner toast, never a tab.",
+      "body_html": "<p>When Claude finishes, it sends the walk to easel. easel files it under the project it came from and a small toast slides into the top-right corner.</p>",
+      "picture_html": "<div class=\"wk-screen\"><div class=\"wk-screen-term\"><span class=\"wk-caret\">$</span> npm run test<br><span class=\"wk-dim\">you keep typing here</span></div><div class=\"wk-toast\"><b>New walk</b><span>dvla · Waivers TRD</span></div></div>",
+      "example_html": "<p>You are mid-command in the terminal. The <b>Waivers TRD</b> toast appears; your next keystroke still lands in the terminal.</p>",
+      "slower_html": "<p>Nothing opens and nothing steals your keyboard. The toast stays for 8 seconds. If three walks arrive at once they stack; a fourth becomes \"+1 more\".</p>",
+      "why_html": "<p>A tab you have to find is the reason easel felt unnatural. A toast tells you something is ready without breaking what you are doing.</p>",
+      "sources": [
+        {
+          "label": "Spec, panel shell",
+          "ref": "docs/superpowers/specs/2026-09-27-walks-panel-design.md#3-the-panel-shell-easelpanelapp"
+        }
+      ]
+    },
+    {
+      "id": "s5",
+      "name": "Step 5",
+      "takeaway": "A walk arrives as a corner toast, never a tab.",
+      "body_html": "<p>When Claude finishes, it sends the walk to easel. easel files it under the project it came from and a small toast slides into the top-right corner.</p>",
+      "picture_html": "<div class=\"wk-screen\"><div class=\"wk-screen-term\"><span class=\"wk-caret\">$</span> npm run test<br><span class=\"wk-dim\">you keep typing here</span></div><div class=\"wk-toast\"><b>New walk</b><span>dvla · Waivers TRD</span></div></div>",
+      "example_html": "<p>You are mid-command in the terminal. The <b>Waivers TRD</b> toast appears; your next keystroke still lands in the terminal.</p>",
+      "slower_html": "<p>Nothing opens and nothing steals your keyboard. The toast stays for 8 seconds. If three walks arrive at once they stack; a fourth becomes \"+1 more\".</p>",
+      "why_html": "<p>A tab you have to find is the reason easel felt unnatural. A toast tells you something is ready without breaking what you are doing.</p>",
+      "sources": [
+        {
+          "label": "Spec, panel shell",
+          "ref": "docs/superpowers/specs/2026-09-27-walks-panel-design.md#3-the-panel-shell-easelpanelapp"
+        }
+      ]
+    },
+    {
+      "id": "s6",
+      "name": "Step 6",
+      "takeaway": "A walk arrives as a corner toast, never a tab.",
+      "body_html": "<p>When Claude finishes, it sends the walk to easel. easel files it under the project it came from and a small toast slides into the top-right corner.</p>",
+      "picture_html": "<div class=\"wk-screen\"><div class=\"wk-screen-term\"><span class=\"wk-caret\">$</span> npm run test<br><span class=\"wk-dim\">you keep typing here</span></div><div class=\"wk-toast\"><b>New walk</b><span>dvla · Waivers TRD</span></div></div>",
+      "example_html": "<p>You are mid-command in the terminal. The <b>Waivers TRD</b> toast appears; your next keystroke still lands in the terminal.</p>",
+      "slower_html": "<p>Nothing opens and nothing steals your keyboard. The toast stays for 8 seconds. If three walks arrive at once they stack; a fourth becomes \"+1 more\".</p>",
+      "why_html": "<p>A tab you have to find is the reason easel felt unnatural. A toast tells you something is ready without breaking what you are doing.</p>",
+      "sources": [
+        {
+          "label": "Spec, panel shell",
+          "ref": "docs/superpowers/specs/2026-09-27-walks-panel-design.md#3-the-panel-shell-easelpanelapp"
+        }
+      ]
+    },
+    {
+      "id": "s7",
+      "name": "Step 7",
+      "takeaway": "A walk arrives as a corner toast, never a tab.",
+      "body_html": "<p>When Claude finishes, it sends the walk to easel. easel files it under the project it came from and a small toast slides into the top-right corner.</p>",
+      "picture_html": "<div class=\"wk-screen\"><div class=\"wk-screen-term\"><span class=\"wk-caret\">$</span> npm run test<br><span class=\"wk-dim\">you keep typing here</span></div><div class=\"wk-toast\"><b>New walk</b><span>dvla · Waivers TRD</span></div></div>",
+      "example_html": "<p>You are mid-command in the terminal. The <b>Waivers TRD</b> toast appears; your next keystroke still lands in the terminal.</p>",
+      "slower_html": "<p>Nothing opens and nothing steals your keyboard. The toast stays for 8 seconds. If three walks arrive at once they stack; a fourth becomes \"+1 more\".</p>",
+      "why_html": "<p>A tab you have to find is the reason easel felt unnatural. A toast tells you something is ready without breaking what you are doing.</p>",
+      "sources": [
+        {
+          "label": "Spec, panel shell",
+          "ref": "docs/superpowers/specs/2026-09-27-walks-panel-design.md#3-the-panel-shell-easelpanelapp"
+        }
+      ]
+    },
+    {
+      "id": "s8",
+      "name": "Step 8",
+      "takeaway": "A walk arrives as a corner toast, never a tab.",
+      "body_html": "<p>When Claude finishes, it sends the walk to easel. easel files it under the project it came from and a small toast slides into the top-right corner.</p>",
+      "picture_html": "<div class=\"wk-screen\"><div class=\"wk-screen-term\"><span class=\"wk-caret\">$</span> npm run test<br><span class=\"wk-dim\">you keep typing here</span></div><div class=\"wk-toast\"><b>New walk</b><span>dvla · Waivers TRD</span></div></div>",
+      "example_html": "<p>You are mid-command in the terminal. The <b>Waivers TRD</b> toast appears; your next keystroke still lands in the terminal.</p>",
+      "slower_html": "<p>Nothing opens and nothing steals your keyboard. The toast stays for 8 seconds. If three walks arrive at once they stack; a fourth becomes \"+1 more\".</p>",
+      "why_html": "<p>A tab you have to find is the reason easel felt unnatural. A toast tells you something is ready without breaking what you are doing.</p>",
+      "sources": [
+        {
+          "label": "Spec, panel shell",
+          "ref": "docs/superpowers/specs/2026-09-27-walks-panel-design.md#3-the-panel-shell-easelpanelapp"
+        }
+      ]
+    },
+    {
+      "id": "s9",
+      "name": "Step 9",
+      "takeaway": "A walk arrives as a corner toast, never a tab.",
+      "body_html": "<p>When Claude finishes, it sends the walk to easel. easel files it under the project it came from and a small toast slides into the top-right corner.</p>",
+      "picture_html": "<div class=\"wk-screen\"><div class=\"wk-screen-term\"><span class=\"wk-caret\">$</span> npm run test<br><span class=\"wk-dim\">you keep typing here</span></div><div class=\"wk-toast\"><b>New walk</b><span>dvla · Waivers TRD</span></div></div>",
+      "example_html": "<p>You are mid-command in the terminal. The <b>Waivers TRD</b> toast appears; your next keystroke still lands in the terminal.</p>",
+      "slower_html": "<p>Nothing opens and nothing steals your keyboard. The toast stays for 8 seconds. If three walks arrive at once they stack; a fourth becomes \"+1 more\".</p>",
+      "why_html": "<p>A tab you have to find is the reason easel felt unnatural. A toast tells you something is ready without breaking what you are doing.</p>",
+      "sources": [
+        {
+          "label": "Spec, panel shell",
+          "ref": "docs/superpowers/specs/2026-09-27-walks-panel-design.md#3-the-panel-shell-easelpanelapp"
+        }
+      ]
+    },
+    {
+      "id": "s10",
+      "name": "Step 10",
+      "takeaway": "A walk arrives as a corner toast, never a tab.",
+      "body_html": "<p>When Claude finishes, it sends the walk to easel. easel files it under the project it came from and a small toast slides into the top-right corner.</p>",
+      "picture_html": "<div class=\"wk-screen\"><div class=\"wk-screen-term\"><span class=\"wk-caret\">$</span> npm run test<br><span class=\"wk-dim\">you keep typing here</span></div><div class=\"wk-toast\"><b>New walk</b><span>dvla · Waivers TRD</span></div></div>",
+      "example_html": "<p>You are mid-command in the terminal. The <b>Waivers TRD</b> toast appears; your next keystroke still lands in the terminal.</p>",
+      "slower_html": "<p>Nothing opens and nothing steals your keyboard. The toast stays for 8 seconds. If three walks arrive at once they stack; a fourth becomes \"+1 more\".</p>",
+      "why_html": "<p>A tab you have to find is the reason easel felt unnatural. A toast tells you something is ready without breaking what you are doing.</p>",
+      "sources": [
+        {
+          "label": "Spec, panel shell",
+          "ref": "docs/superpowers/specs/2026-09-27-walks-panel-design.md#3-the-panel-shell-easelpanelapp"
+        }
+      ]
+    },
+    {
+      "id": "s11",
+      "name": "Step 11",
+      "takeaway": "A walk arrives as a corner toast, never a tab.",
+      "body_html": "<p>When Claude finishes, it sends the walk to easel. easel files it under the project it came from and a small toast slides into the top-right corner.</p>",
+      "picture_html": "<div class=\"wk-screen\"><div class=\"wk-screen-term\"><span class=\"wk-caret\">$</span> npm run test<br><span class=\"wk-dim\">you keep typing here</span></div><div class=\"wk-toast\"><b>New walk</b><span>dvla · Waivers TRD</span></div></div>",
+      "example_html": "<p>You are mid-command in the terminal. The <b>Waivers TRD</b> toast appears; your next keystroke still lands in the terminal.</p>",
+      "slower_html": "<p>Nothing opens and nothing steals your keyboard. The toast stays for 8 seconds. If three walks arrive at once they stack; a fourth becomes \"+1 more\".</p>",
+      "why_html": "<p>A tab you have to find is the reason easel felt unnatural. A toast tells you something is ready without breaking what you are doing.</p>",
+      "sources": [
+        {
+          "label": "Spec, panel shell",
+          "ref": "docs/superpowers/specs/2026-09-27-walks-panel-design.md#3-the-panel-shell-easelpanelapp"
+        }
+      ]
+    },
+    {
+      "id": "s12",
+      "name": "Step 12",
+      "takeaway": "A walk arrives as a corner toast, never a tab.",
+      "body_html": "<p>When Claude finishes, it sends the walk to easel. easel files it under the project it came from and a small toast slides into the top-right corner.</p>",
+      "picture_html": "<div class=\"wk-screen\"><div class=\"wk-screen-term\"><span class=\"wk-caret\">$</span> npm run test<br><span class=\"wk-dim\">you keep typing here</span></div><div class=\"wk-toast\"><b>New walk</b><span>dvla · Waivers TRD</span></div></div>",
+      "example_html": "<p>You are mid-command in the terminal. The <b>Waivers TRD</b> toast appears; your next keystroke still lands in the terminal.</p>",
+      "slower_html": "<p>Nothing opens and nothing steals your keyboard. The toast stays for 8 seconds. If three walks arrive at once they stack; a fourth becomes \"+1 more\".</p>",
+      "why_html": "<p>A tab you have to find is the reason easel felt unnatural. A toast tells you something is ready without breaking what you are doing.</p>",
+      "sources": [
+        {
+          "label": "Spec, panel shell",
+          "ref": "docs/superpowers/specs/2026-09-27-walks-panel-design.md#3-the-panel-shell-easelpanelapp"
+        }
+      ]
+    },
+    {
+      "id": "s13",
+      "name": "Step 13",
+      "takeaway": "A walk arrives as a corner toast, never a tab.",
+      "body_html": "<p>When Claude finishes, it sends the walk to easel. easel files it under the project it came from and a small toast slides into the top-right corner.</p>",
+      "picture_html": "<div class=\"wk-screen\"><div class=\"wk-screen-term\"><span class=\"wk-caret\">$</span> npm run test<br><span class=\"wk-dim\">you keep typing here</span></div><div class=\"wk-toast\"><b>New walk</b><span>dvla · Waivers TRD</span></div></div>",
+      "example_html": "<p>You are mid-command in the terminal. The <b>Waivers TRD</b> toast appears; your next keystroke still lands in the terminal.</p>",
+      "slower_html": "<p>Nothing opens and nothing steals your keyboard. The toast stays for 8 seconds. If three walks arrive at once they stack; a fourth becomes \"+1 more\".</p>",
+      "why_html": "<p>A tab you have to find is the reason easel felt unnatural. A toast tells you something is ready without breaking what you are doing.</p>",
+      "sources": [
+        {
+          "label": "Spec, panel shell",
+          "ref": "docs/superpowers/specs/2026-09-27-walks-panel-design.md#3-the-panel-shell-easelpanelapp"
+        }
+      ]
+    }
+  ],
+  "check": [
+    {
+      "prompt": "Where does a new walk show up first?",
+      "expected": "A small toast in the top-right corner"
+    },
+    {
+      "prompt": "Does Ask need the Claude session that made the walk?",
+      "expected": "No, it starts a fresh read-only call"
+    }
+  ],
+  "recap": [
+    "A walk arrives as a toast and never takes your keyboard.",
+    "Orient gives the answer and the size first.",
+    "Each step is one idea, with Slower and Why ready.",
+    "Ask answers from the walk's sources, even after the session closes.",
+    "Recaps and actions stay with the project."
+  ],
+  "actions": [
+    "Try the hotkey: Ctrl+Option+Space"
+  ],
+  "sources": [
+    {
+      "label": "Walks + panel spec",
+      "ref": "docs/superpowers/specs/2026-09-27-walks-panel-design.md"
+    }
+  ]
+}
