@@ -6,7 +6,7 @@ export function slugify(label: string): string {
   return label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "misc";
 }
 
-function expandHome(p: string, home: string): string {
+export function expandHome(p: string, home: string): string {
   return p.startsWith("~") ? join(home, p.slice(1)) : p;
 }
 

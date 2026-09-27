@@ -4,7 +4,7 @@ import { mkdtempSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
-import { ASK_ARGS, buildAskPrompt, parseAskOutput, runAsk } from "../../dist/walk-ask.js";
+import { ASK_ARGS, buildAskPrompt, parseAskOutput, resolveAskCwd, runAsk } from "../../dist/walk-ask.js";
 import { sampleWalk } from "./walk-validate.test.mjs";
 
 const FAKE_CLAUDE = fileURLToPath(new URL("../fixtures/fake-claude.mjs", import.meta.url));
@@ -157,4 +157,36 @@ test("EPIPE from a huge prompt against a binary that ignores stdin resolves ok:f
   const bigPrompt = "z".repeat(200000);
   const r = await runAsk({ bin: "/usr/bin/true", cwd: process.cwd(), prompt: bigPrompt, timeoutMs: 5000 });
   assert.equal(r.ok, false);
+});
+
+test("resolveAskCwd: home is refused, falls back to tmpdir", () => {
+  const exists = () => true;
+  const r = resolveAskCwd("/home/amm", null, ["/home/amm/work"], "/home/amm", exists);
+  assert.equal(r, tmpdir());
+});
+
+test("resolveAskCwd: root / is refused, falls back to tmpdir", () => {
+  const exists = () => true;
+  const r = resolveAskCwd("/", null, ["/home/amm/work"], "/home/amm", exists);
+  assert.equal(r, tmpdir());
+});
+
+test("resolveAskCwd: a path inside a project root is used as-is", () => {
+  const exists = () => true;
+  const r = resolveAskCwd("/home/amm/work/studios/dvla", null, ["/home/amm/work"], "/home/amm", exists);
+  assert.equal(r, "/home/amm/work/studios/dvla");
+});
+
+test("resolveAskCwd: a path outside every root falls back to tmpdir", () => {
+  const exists = () => true;
+  const r = resolveAskCwd("/etc/victim", null, ["/home/amm/work"], "/home/amm", exists);
+  assert.equal(r, tmpdir());
+});
+
+test("resolveAskCwd: falls through to projectPath, then tmpdir, honoring exists()", () => {
+  const exists = (p) => p === "/home/amm/work/proj";
+  const r = resolveAskCwd(null, "/home/amm/work/proj", ["/home/amm/work"], "/home/amm", exists);
+  assert.equal(r, "/home/amm/work/proj");
+  const r2 = resolveAskCwd(null, "/home/amm/work/gone", ["/home/amm/work"], "/home/amm", exists);
+  assert.equal(r2, tmpdir());
 });

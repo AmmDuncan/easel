@@ -1,6 +1,6 @@
 import express, { type Request, type Response, type NextFunction } from "express";
 import { existsSync, readFileSync } from "node:fs";
-import { homedir, tmpdir } from "node:os";
+import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -23,7 +23,7 @@ import { createWalk, findWalk, listProjects, listWalks, saveProgress, saveWalk, 
 import { parseWalkInput, type WalkAsk, type WalkStep } from "./walk-types.js";
 import { resolveProject } from "./project.js";
 import { isAllowedOrigin, readOrCreateToken } from "./token.js";
-import { buildAskPrompt, parseAskOutput, runAsk } from "./walk-ask.js";
+import { buildAskPrompt, parseAskOutput, resolveAskCwd, runAsk } from "./walk-ask.js";
 import { clearDone, moveWalk, renameProject, restoreTrash, sweepWalks, trashProject, trashWalk } from "./walk-cleanup.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -429,9 +429,7 @@ export function startHttpServer(): void {
     try {
       const bin = process.env.EASEL_CLAUDE_BIN || "claude";
       const projectPath = walkProjectPath(WALKS_DIR, found.walk.project);
-      const cwd = (found.walk.cwd && existsSync(found.walk.cwd))
-        ? found.walk.cwd
-        : (projectPath && existsSync(projectPath) ? projectPath : tmpdir());
+      const cwd = resolveAskCwd(found.walk.cwd, projectPath, readPanelProjectRoots(), homedir(), existsSync);
       const prompt = buildAskPrompt(found.walk, step, q);
       const startedAt = Date.now();
       const result = await runAsk({ bin, cwd, prompt, timeoutMs: 90_000 });

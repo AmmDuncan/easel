@@ -1,4 +1,7 @@
 import { spawn } from "node:child_process";
+import { tmpdir } from "node:os";
+import { relative, resolve, sep } from "node:path";
+import { expandHome } from "./project.js";
 import type { Walk, WalkSource, WalkStep } from "./walk-types.js";
 
 /**
@@ -127,6 +130,46 @@ export function parseAskOutput(
       )
     : [];
   return { takeaway: answer.takeaway, body_html: answer.body_html, sources };
+}
+
+function isInsideRoot(target: string, root: string): boolean {
+  const rel = relative(root, target);
+  return rel === "" || (!rel.startsWith("..") && !rel.startsWith(sep));
+}
+
+/**
+ * Picks a safe cwd for the ask child: `walkCwd` if it exists, sits inside one
+ * of the (tilde-expanded) project roots, and isn't `home` or `/`; else the
+ * same rule applied to `projectPath`; else the OS temp dir.
+ */
+export function resolveAskCwd(
+  walkCwd: string | null,
+  projectPath: string | null,
+  roots: string[],
+  home: string,
+  exists: (p: string) => boolean,
+): string {
+  const expandedRoots = roots.map((r) => resolve(expandHome(r, home)));
+  const forbidden = new Set([resolve(home), "/"]);
+
+  const isSafe = (candidate: string | null): candidate is string => {
+    if (!candidate || !exists(candidate)) {
+      return false;
+    }
+    const abs = resolve(candidate);
+    if (forbidden.has(abs)) {
+      return false;
+    }
+    return expandedRoots.some((root) => isInsideRoot(abs, root));
+  };
+
+  if (isSafe(walkCwd)) {
+    return resolve(walkCwd);
+  }
+  if (isSafe(projectPath)) {
+    return resolve(projectPath);
+  }
+  return tmpdir();
 }
 
 export type RunAskResult =
