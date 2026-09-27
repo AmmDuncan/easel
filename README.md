@@ -104,7 +104,7 @@ A **walk** is a guided, step-by-step explanation of something big (research, a r
 - **Each step** is one idea with a picture and a running example. `S` Slower, `W` Why, `A` Ask (a fresh, read-only Claude answer from the walk's sources, added under the step), `Enter` Got it, `M` map, `H` all walks, `Esc` hide.
 - **Say it back** (optional) and **Keep**: finishing saves the recap and actions to the project.
 - **Home** is one queue across projects: Continue, New, Open actions, Projects. Walks belong to projects, not sessions: the project is the folder directly under `~/work/studios` or `~/work/tools` (config `panel.projectRoots`), else the git top level.
-- **Cleanup**: delete, move, rename, clear done walks, delete a project; every one has a 10 s Undo and a 7-day trash. Done walks expire after 90 days.
+- **Cleanup**: delete, move, rename, clear done walks, delete a project; every one has a 10 s Undo and a 7-day trash. Walks never expire; done walks stay in Keep until you delete them.
 
 Build the native panel once with `easel panel build` (Swift command-line tools, no Xcode), then `easel panel open`. Without it, walks open at `localhost:7878/panel` in the browser. Hotkey: `panel.hotkey` in `~/.easel/config.json`.
 

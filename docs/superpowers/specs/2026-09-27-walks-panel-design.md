@@ -123,7 +123,7 @@ Thin. All navigation lives in the web app above; Swift only owns the window.
 
 - **Walk store:** `~/.easel/walks/<project-slug>/<walk-id>.json` (content) and `<walk-id>.progress.json` (per-step status: unseen / got / slower / why / asked, current step, check answers, ticked actions). Needed because sessions are deleted after idling (`SESSION_IDLE_TTL_MS`, `src/session-store.ts:153`); walks must outlive them.
 - **Which project a walk belongs to** (matches how Ammiel groups folders): if the MCP's cwd is inside a configured workspace root (`panel.projectRoots`, default `["~/work/studios", "~/work/tools"]`), the project is the folder directly under that root. So `~/work/studios/dvla`, `.../dvla/dvla-self-service` and `.../dvla/dvla-payment-system` are all "dvla". Outside the roots: git top level, else the cwd. Label = folder name, renameable.
-- **Retention:** in-progress and waiting walks never auto-delete. Done walks kept 90 days. Keep entries never auto-delete. Everything else is Ammiel's call through the cleanup paths in section 4a.
+- **Retention:** in-progress and waiting walks never auto-delete. Done walks never auto-delete (Ammiel, 2026-09-27), so Keep entries never auto-delete. Everything else is Ammiel's call through the cleanup paths in section 4a.
 - **`GET /events`:** global SSE, emits `walk` events `{ project, walkId, title }` (plus existing push events with `kind`). Implemented by letting `broadcast()` (`src/http-server.ts:34`) also write to clients registered with `sessionId: "*"`.
 - **Panel routes:** `/panel`, `/panel/p/:project`, `/panel/w/:walkId` (+ `?step=`). Static client in `src/client/panel.*`.
 - **API:** `GET /api/projects`, `GET /api/projects/:slug/walks`, `GET /api/walks/:id`, `PUT /api/walks/:id/progress`, `POST /api/walks/:id/ask`.
@@ -141,7 +141,7 @@ Nothing piles up silently, and nothing is lost to one wrong click.
 - **Keep:** each recap or action can be removed; ticked actions fold under "Done".
 - **Undo, not confirm dialogs:** every delete and clear shows an `Undo` toast for 10 s, and deleted items go to `~/.easel/walks/.trash/` for 7 days before the sweeper purges them. No browser confirm dialogs anywhere.
 - **Keys in lists:** `Backspace` deletes (undoable).
-- **Retention:** done walks auto-expire after 90 days (section 4).
+- **Retention:** walks never auto-expire; only trash is purged after 7 days (section 4).
 
 ## 5. Ask (fresh Claude, grounded in the walk)
 

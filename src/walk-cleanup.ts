@@ -4,7 +4,6 @@ import { findWalk, projectDirs, readJson, walkStatus, writeJson } from "./walk-s
 import type { ProjectInfo, Walk } from "./walk-types.js";
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
-const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
 
 const SLUG_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
 const TRASH_ID_RE = /^t_[a-z0-9]+$/;
@@ -186,9 +185,9 @@ export function trashProject(root: string, slug: string): string | null {
   return trashId;
 }
 
-export type SweepResult = { purgedTrash: number; expiredWalks: number };
+export type SweepResult = { purgedTrash: number };
 
-/** Purges trash older than 7 days and deletes done walks untouched for 90 days. Never touches waiting/in-progress walks. */
+/** Purges trash older than 7 days. Walks themselves never auto-delete, done ones included. */
 export function sweepWalks(root: string, now: number = Date.now()): SweepResult {
   let purgedTrash = 0;
   const tdir = trashRoot(root);
@@ -203,28 +202,5 @@ export function sweepWalks(root: string, now: number = Date.now()): SweepResult 
     }
   }
 
-  let expiredWalks = 0;
-  for (const slug of projectDirs(root)) {
-    const dir = join(root, slug);
-    for (const file of readdirSync(dir)) {
-      if (!/^w_[a-z0-9]+\.json$/.test(file)) {
-        continue;
-      }
-      const id = file.replace(/\.json$/, "");
-      const found = findWalk(root, id);
-      if (!found) {
-        continue;
-      }
-      if (walkStatus(found.progress) === "done" && now - found.progress.updatedAt > NINETY_DAYS_MS) {
-        rmSync(join(dir, file));
-        const progressFile = join(dir, `${id}.progress.json`);
-        if (existsSync(progressFile)) {
-          rmSync(progressFile);
-        }
-        expiredWalks++;
-      }
-    }
-  }
-
-  return { purgedTrash, expiredWalks };
+  return { purgedTrash };
 }

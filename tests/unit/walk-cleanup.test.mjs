@@ -130,7 +130,7 @@ test("trashProject removes the project from listProjects; restore brings it back
   assert.equal(listProjects(root).some((p) => p.slug === "dvla"), true);
 });
 
-test("sweepWalks purges a stale trash entry, expires a 91-day-done walk, keeps a 91-day-waiting walk", () => {
+test("sweepWalks purges a stale trash entry and never deletes walks, done or waiting", () => {
   const root = freshRoot();
   const done = createWalk(root, sampleWalk(), proj, meta);
   const waiting = createWalk(root, sampleWalk(), proj, meta);
@@ -156,8 +156,7 @@ test("sweepWalks purges a stale trash entry, expires a 91-day-done walk, keeps a
 
   const result = sweepWalks(root, now);
   assert.equal(result.purgedTrash, 1);
-  assert.equal(result.expiredWalks, 1);
-  assert.equal(existsSync(join(root, "dvla", `${done.id}.json`)), false);
+  assert.equal(existsSync(join(root, "dvla", `${done.id}.json`)), true);
   assert.equal(existsSync(join(root, "dvla", `${waiting.id}.json`)), true);
   assert.equal(existsSync(join(root, ".trash", trashId)), false);
 });

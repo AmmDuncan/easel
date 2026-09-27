@@ -64,4 +64,3 @@ The c36be19 wren P2s on hierarchy, cards, type ramp, accent, Back slot, map curr
 - src/client/panel.css: Check "I had it"/"Not quite" pressed state carried by border only; End source filename 12px mono breaks mid-token at 420; Project row time column jumps ~10px between sections; Projects dividers show at 1024 only. (wren)
 - src/client/panel-walk.js: End "Saved to dvla · Keep" looks like a link and duplicates "Open in Keep". (wren)
 - src/client/panel-home.js: Keep loading state is text "Loading..." (skeleton exists); Keep section titles do not link back to their walk. (wren)
-- docs/superpowers/specs/2026-09-27-walks-panel-design.md: retention conflict. "Done walks kept 90 days" vs "Keep entries never auto-delete", but Keep is built from done walks, so expiry deletes Keep entries. Cleanup still measures from last activity (`updatedAt`); decide before relying on Keep long term.
