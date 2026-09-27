@@ -51,3 +51,12 @@ export function resolvePort(): number {
     DEFAULT_PORT
   );
 }
+
+/** Walks: one folder per project, outliving sessions. */
+export const WALKS_DIR = join(DATA_ROOT, "walks");
+
+/** Local secret guarding walk writes (mode 0600). */
+export const TOKEN_FILE = join(DATA_ROOT, "token");
+
+/** Folders whose direct children are projects. Override: config `panel.projectRoots`. */
+export const DEFAULT_PROJECT_ROOTS = ["~/work/studios", "~/work/tools"];
