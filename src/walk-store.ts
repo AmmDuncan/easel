@@ -4,7 +4,7 @@ import type {
   ProjectInfo, ProjectSummary, Walk, WalkInput, WalkProgress, WalkStatus, WalkSummary,
 } from "./walk-types.js";
 
-function readJson<T>(path: string): T | null {
+export function readJson<T>(path: string): T | null {
   try {
     return JSON.parse(readFileSync(path, "utf-8")) as T;
   } catch {
@@ -12,7 +12,7 @@ function readJson<T>(path: string): T | null {
   }
 }
 
-function writeJson(path: string, data: unknown): void {
+export function writeJson(path: string, data: unknown): void {
   writeFileSync(path, JSON.stringify(data, null, 2));
 }
 
@@ -53,7 +53,7 @@ export function createWalk(
   return walk;
 }
 
-function projectDirs(root: string): string[] {
+export function projectDirs(root: string): string[] {
   if (!existsSync(root)) {
     return [];
   }

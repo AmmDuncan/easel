@@ -24,6 +24,7 @@ import { parseWalkInput, type WalkAsk, type WalkStep } from "./walk-types.js";
 import { resolveProject } from "./project.js";
 import { isAllowedOrigin, readOrCreateToken } from "./token.js";
 import { buildAskPrompt, parseAskOutput, runAsk } from "./walk-ask.js";
+import { clearDone, moveWalk, renameProject, restoreTrash, sweepWalks, trashProject, trashWalk } from "./walk-cleanup.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const CLIENT_DIR = resolve(__dirname, "client");
@@ -480,6 +481,78 @@ export function startHttpServer(): void {
     }
   });
 
+  app.delete("/api/walks/:id", requireWalkToken, (req, res) => {
+    const trashId = trashWalk(WALKS_DIR, String(req.params.id));
+    if (!trashId) {
+      res.status(404).json({ error: "unknown walk" });
+      return;
+    }
+    broadcastGlobal("changed", { walkId: String(req.params.id) });
+    res.json({ trashId });
+  });
+
+  app.post("/api/trash/:trashId/restore", requireWalkToken, (req, res) => {
+    const result = restoreTrash(WALKS_DIR, String(req.params.trashId));
+    if (result === "not-found") {
+      res.status(404).json({ error: "unknown trash entry" });
+      return;
+    }
+    if (result === "conflict") {
+      res.status(409).json({ error: "a restore target already exists" });
+      return;
+    }
+    broadcastGlobal("changed", {});
+    res.json(result);
+  });
+
+  app.post("/api/walks/:id/move", requireWalkToken, (req, res) => {
+    const { project } = req.body ?? {};
+    const result = moveWalk(WALKS_DIR, String(req.params.id), String(project));
+    if (result === "unknown-walk" || result === "unknown-project") {
+      res.status(404).json({ error: result });
+      return;
+    }
+    broadcastGlobal("changed", { walkId: String(req.params.id), project: result.project });
+    res.json(result);
+  });
+
+  app.patch("/api/projects/:slug", requireWalkToken, (req, res) => {
+    const { label } = req.body ?? {};
+    const result = renameProject(WALKS_DIR, String(req.params.slug), label);
+    if (result === "invalid") {
+      res.status(400).json({ error: "label must be 1..60 characters" });
+      return;
+    }
+    if (result === "unknown") {
+      res.status(404).json({ error: "unknown project" });
+      return;
+    }
+    broadcastGlobal("changed", { project: result.slug });
+    res.json(result);
+  });
+
+  app.post("/api/projects/:slug/clear-done", requireWalkToken, (req, res) => {
+    const slug = String(req.params.slug);
+    if (!existsSync(join(WALKS_DIR, slug))) {
+      res.status(404).json({ error: "unknown project" });
+      return;
+    }
+    const result = clearDone(WALKS_DIR, slug);
+    broadcastGlobal("changed", { project: slug });
+    res.json(result);
+  });
+
+  app.delete("/api/projects/:slug", requireWalkToken, (req, res) => {
+    const slug = String(req.params.slug);
+    const trashId = trashProject(WALKS_DIR, slug);
+    if (!trashId) {
+      res.status(404).json({ error: "unknown project" });
+      return;
+    }
+    broadcastGlobal("changed", { project: slug });
+    res.json({ trashId });
+  });
+
   const server = app.listen(port, "127.0.0.1", () => {
     writeLock(port);
     sweepIdleSessions();
@@ -491,6 +564,7 @@ export function startHttpServer(): void {
   const sweepTimer = setInterval(() => {
     try {
       sweepIdleSessions();
+      sweepWalks(WALKS_DIR);
     } catch {
       /* swallow */
     }
