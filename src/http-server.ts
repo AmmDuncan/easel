@@ -138,6 +138,14 @@ function renderPanelHtml(port: number, token: string): string {
 export function startHttpServer(): void {
   const port = resolvePort();
   const app = express();
+  const allowedHosts = new Set([`localhost:${port}`, `127.0.0.1:${port}`, `[::1]:${port}`]);
+  app.use((req, res, next) => {
+    if (!allowedHosts.has(req.get("host") ?? "")) {
+      res.status(403).json({ error: "forbidden host" });
+      return;
+    }
+    next();
+  });
   app.use(express.json({ limit: "8mb" }));
   app.use(
     "/static",
@@ -331,6 +339,7 @@ export function startHttpServer(): void {
   };
 
   app.get(["/panel", "/panel/p/:slug", "/panel/w/:id"], (_req, res) => {
+    res.set({ "Content-Security-Policy": "frame-ancestors 'none'", "X-Frame-Options": "DENY" });
     res.type("html").send(renderPanelHtml(port, walkToken));
   });
 

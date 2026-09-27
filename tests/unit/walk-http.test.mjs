@@ -124,3 +124,24 @@ test("PUT progress rejects an unknown extra field (.strict())", async () => {
   });
   assert.equal(put.status, 400);
 });
+
+test("a forged Host header is refused with 403", async () => {
+  // fetch()/undici silently drops a manually-set Host header, so hit the
+  // socket directly with node:http to actually forge it.
+  const { request } = await import("node:http");
+  const status = await new Promise((resolvePromise, reject) => {
+    const req = request(
+      { host: "127.0.0.1", port, path: "/health", method: "GET", headers: { Host: "evil.example" } },
+      (res) => resolvePromise(res.statusCode),
+    );
+    req.on("error", reject);
+    req.end();
+  });
+  assert.equal(status, 403);
+});
+
+test("/panel sets frame-ancestors none and X-Frame-Options DENY", async () => {
+  const r = await fetch(`${base}/panel`);
+  assert.equal(r.headers.get("content-security-policy"), "frame-ancestors 'none'");
+  assert.equal(r.headers.get("x-frame-options"), "DENY");
+});
