@@ -37,11 +37,21 @@ export function readConfig(): DisplayConfig {
   }
 }
 
+function readRaw(): Record<string, unknown> {
+  try {
+    const raw = JSON.parse(readFileSync(CONFIG_PATH, "utf-8"));
+    return raw && typeof raw === "object" ? raw : {};
+  } catch {
+    return {};
+  }
+}
+
+/** Keys other than preset/theme/density (e.g. `panel`) are preserved on write. */
 export function writeConfig(patch: Partial<DisplayConfig>): DisplayConfig {
   const current = readConfig();
   const next = coerce({ ...current, ...patch });
   mkdirSync(dirname(CONFIG_PATH), { recursive: true });
-  writeFileSync(CONFIG_PATH, JSON.stringify(next, null, 2));
+  writeFileSync(CONFIG_PATH, JSON.stringify({ ...readRaw(), ...next }, null, 2));
   return next;
 }
 
