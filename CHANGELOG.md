@@ -4,6 +4,18 @@ All notable changes to easel. This project adheres to [Semantic Versioning](http
 
 ## Unreleased
 
+## 0.9.0 - 2026-09-27
+
+### Added
+- **Walks: take in big information one idea at a time.** Say "walk me through X" (or ask for research, a PRD/TRD, a flow explanation) in any session and Claude sends a walk through the new `walk` MCP tool. It is filed under the project it came from (dash-prefixed folders group under their sibling, so every `dvla-*` folder is one `dvla` project) and announced with a corner toast that never takes focus.
+- **Native floating panel (`easel panel build`, `easel panel open`, hotkey Ctrl+Option+Space).** A Swift panel docked to the right of the screen hosts the walks app: Home is one queue across projects (in progress, new, open actions, projects); Orient gives the answer, size and suggested path; each step has Slower (S), Why (W), Ask (A), Map (M) and Got it (Enter); an optional Say it back check; recap and actions saved to the project's Keep tab.
+- **Ask.** A question on any step starts a fresh, read-only `claude -p` call (`--restricted`, Read/Grep/Glob only) in the project folder, up to 90 seconds; the answer is inserted under the step. You can keep reading while it runs.
+- **Cleanup.** Rename, clear done and delete a project; move and delete a walk. Every action has a 10 second Undo and a 7 day trash. Walks never expire.
+- **`walk` skill** installed by `easel setup`, with a lint for walk JSON.
+
+### Fixed
+- Saving config no longer drops keys easel does not know about.
+
 ## 0.8.0 — 2026-08-08
 
 ### Added
