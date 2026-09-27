@@ -75,6 +75,32 @@ export const WalkInputSchema = z.object({
   sources: z.array(Source),
 });
 
+export const ProgressPatchSchema = z
+  .object({
+    stage: z.enum(["orient", "pick", "walk", "check", "keep", "done"]).optional(),
+    picked: z.array(z.string()).max(12).optional(),
+    current: z.number().int().min(0).optional(),
+    steps: z.record(z.enum(["unseen", "got", "slower", "why", "asked", "skipped"])).optional(),
+    checks: z
+      .array(z.object({ answer: z.string().max(500), mark: z.enum(["right", "wrong"]).nullable() }))
+      .max(3)
+      .optional(),
+    actionsDone: z.array(z.number().int().min(0)).max(20).optional(),
+    startedAt: z.number().nullable().optional(),
+  })
+  .strict();
+
+export function parseProgressPatch(
+  raw: unknown,
+): { ok: true; patch: z.infer<typeof ProgressPatchSchema> } | { ok: false; error: string } {
+  const parsed = ProgressPatchSchema.safeParse(raw);
+  if (!parsed.success) {
+    const first = parsed.error.issues[0];
+    return { ok: false, error: `${first.path.join(".") || "progress"}: ${first.message}` };
+  }
+  return { ok: true, patch: parsed.data };
+}
+
 export function parseWalkInput(raw: unknown): { ok: true; walk: WalkInput } | { ok: false; error: string } {
   const parsed = WalkInputSchema.safeParse(raw);
   if (!parsed.success) {

@@ -20,7 +20,7 @@ import { clearLockIfMine, writeLock } from "./server-manager.js";
 import { DATA_ROOT, DEFAULT_PROJECT_ROOTS, TOKEN_FILE, WALKS_DIR, resolvePort } from "./paths.js";
 import { inlineRemoteImages, inlineWalkHtml } from "./inline-images.js";
 import { createWalk, findWalk, listProjects, listWalks, saveProgress, saveWalk, walkProjectPath } from "./walk-store.js";
-import { parseWalkInput, type WalkAsk, type WalkStep } from "./walk-types.js";
+import { parseProgressPatch, parseWalkInput, type WalkAsk, type WalkStep } from "./walk-types.js";
 import { resolveProject } from "./project.js";
 import { isAllowedOrigin, readOrCreateToken } from "./token.js";
 import { buildAskPrompt, parseAskOutput, resolveAskCwd, runAsk } from "./walk-ask.js";
@@ -408,8 +408,13 @@ export function startHttpServer(): void {
   });
 
   app.put("/api/walks/:id/progress", requireWalkToken, (req, res) => {
-    const { walkId: _ignored, ...patch } = req.body ?? {};
-    const next = saveProgress(WALKS_DIR, String(req.params.id), patch);
+    const { walkId: _ignored, ...body } = req.body ?? {};
+    const parsed = parseProgressPatch(body);
+    if (!parsed.ok) {
+      res.status(400).json({ error: parsed.error });
+      return;
+    }
+    const next = saveProgress(WALKS_DIR, String(req.params.id), parsed.patch);
     if (!next) {
       res.status(404).json({ error: "unknown walk" });
       return;

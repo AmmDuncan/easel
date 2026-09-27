@@ -102,3 +102,25 @@ test("global /events clients are not counted as session tabs by /api/push", asyn
   assert.equal(j.otherTabs, 0);
   ctrl.abort();
 });
+
+test("PUT progress with a malformed patch is 400 and the server stays up", async () => {
+  const r = await post({ walk: sampleWalk() });
+  const { id } = await r.json();
+  const put = await fetch(`${base}/api/walks/${id}/progress`, {
+    method: "PUT", headers: { "content-type": "application/json", "x-easel-token": token },
+    body: JSON.stringify({ actionsDone: null, stage: "done", startedAt: 1 }),
+  });
+  assert.equal(put.status, 400);
+  const stillUp = await fetch(`${base}/api/projects`);
+  assert.equal(stillUp.status, 200);
+});
+
+test("PUT progress rejects an unknown extra field (.strict())", async () => {
+  const r = await post({ walk: sampleWalk() });
+  const { id } = await r.json();
+  const put = await fetch(`${base}/api/walks/${id}/progress`, {
+    method: "PUT", headers: { "content-type": "application/json", "x-easel-token": token },
+    body: JSON.stringify({ current: 1, evil: "haxx" }),
+  });
+  assert.equal(put.status, 400);
+});
