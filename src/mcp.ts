@@ -383,7 +383,7 @@ export async function main() {
       {
         name: TOOL_WALK,
         description:
-          "Send a WALK: a guided, step-by-step explanation Ammiel navigates in the easel panel (Orient -> pick depth -> steps with slower/why layers -> check -> keep). Stored per project; arrives as a corner toast. Use via the `walk` skill. Ceilings: 12 steps, 12 map items, 3 check prompts, 5 recap lines, 20 actions.",
+          "Send a WALK: a guided, step-by-step explanation Ammiel navigates in the easel panel (Orient -> pick steps -> steps with Slower/Why/Ask -> check -> Keep). Stored per project; arrives as a corner toast. Use via the `walk` skill. Ceilings: 12 steps, 12 map items, 3 check prompts, 5 recap lines, 20 actions.",
         inputSchema: walkInputSchema,
       },
     ],

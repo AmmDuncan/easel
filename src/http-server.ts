@@ -408,7 +408,7 @@ export function startHttpServer(): void {
   app.get("/api/projects/:slug/walks", (req, res) => {
     const list = listWalks(WALKS_DIR, String(req.params.slug));
     if (!list) {
-      res.status(404).json({ error: "unknown project" });
+      res.status(404).json({ error: "that project no longer exists" });
       return;
     }
     res.json(list);
@@ -417,7 +417,7 @@ export function startHttpServer(): void {
   app.get("/api/walks/:id", (req, res) => {
     const found = findWalk(WALKS_DIR, String(req.params.id));
     if (!found) {
-      res.status(404).json({ error: "unknown walk" });
+      res.status(404).json({ error: "that walk no longer exists" });
       return;
     }
     const info = readJson<ProjectInfo>(join(WALKS_DIR, found.walk.project, "project.json"));
@@ -434,7 +434,7 @@ export function startHttpServer(): void {
     }
     const next = saveProgress(WALKS_DIR, String(req.params.id), parsed.patch);
     if (!next) {
-      res.status(404).json({ error: "unknown walk" });
+      res.status(404).json({ error: "that walk no longer exists" });
       return;
     }
     broadcastGlobal("progress", { walkId: next.walkId });
@@ -445,7 +445,7 @@ export function startHttpServer(): void {
     const walkId = String(req.params.id);
     const found = findWalk(WALKS_DIR, walkId);
     if (!found) {
-      res.status(404).json({ error: "unknown walk" });
+      res.status(404).json({ error: "that walk no longer exists" });
       return;
     }
     const { stepId, question } = req.body ?? {};
@@ -502,7 +502,7 @@ export function startHttpServer(): void {
       const parsed = parseAskOutput(result.stdout);
       if (!parsed) {
         logAsk("error", "unparseable output");
-        res.status(502).json({ error: "unparseable output" });
+        res.status(502).json({ error: "the reply was not in the expected format" });
         return;
       }
 
@@ -547,7 +547,7 @@ export function startHttpServer(): void {
     }
     const trashId = trashWalk(WALKS_DIR, String(req.params.id));
     if (!trashId) {
-      res.status(404).json({ error: "unknown walk" });
+      res.status(404).json({ error: "that walk no longer exists" });
       return;
     }
     broadcastGlobal("changed", { walkId: String(req.params.id) });
@@ -557,11 +557,11 @@ export function startHttpServer(): void {
   app.post("/api/trash/:trashId/restore", requireWalkToken, (req, res) => {
     const result = restoreTrash(WALKS_DIR, String(req.params.trashId));
     if (result === "not-found") {
-      res.status(404).json({ error: "unknown trash entry" });
+      res.status(404).json({ error: "the undo window has passed" });
       return;
     }
     if (result === "conflict") {
-      res.status(409).json({ error: "a restore target already exists" });
+      res.status(409).json({ error: "something with the same name exists again" });
       return;
     }
     broadcastGlobal("changed", {});
@@ -575,8 +575,12 @@ export function startHttpServer(): void {
     }
     const { project } = req.body ?? {};
     const result = moveWalk(WALKS_DIR, String(req.params.id), String(project));
-    if (result === "unknown-walk" || result === "unknown-project") {
-      res.status(404).json({ error: result });
+    if (result === "unknown-walk") {
+      res.status(404).json({ error: "that walk no longer exists" });
+      return;
+    }
+    if (result === "unknown-project") {
+      res.status(404).json({ error: "that project no longer exists" });
       return;
     }
     broadcastGlobal("changed", { walkId: String(req.params.id), project: result.project });
@@ -591,7 +595,7 @@ export function startHttpServer(): void {
       return;
     }
     if (result === "unknown") {
-      res.status(404).json({ error: "unknown project" });
+      res.status(404).json({ error: "that project no longer exists" });
       return;
     }
     broadcastGlobal("changed", { project: result.slug });
@@ -606,7 +610,7 @@ export function startHttpServer(): void {
     }
     const result = clearDone(WALKS_DIR, slug);
     if (result === "unknown") {
-      res.status(404).json({ error: "unknown project" });
+      res.status(404).json({ error: "that project no longer exists" });
       return;
     }
     broadcastGlobal("changed", { project: slug });
@@ -621,7 +625,7 @@ export function startHttpServer(): void {
     }
     const trashId = trashProject(WALKS_DIR, slug);
     if (!trashId) {
-      res.status(404).json({ error: "unknown project" });
+      res.status(404).json({ error: "that project no longer exists" });
       return;
     }
     broadcastGlobal("changed", { project: slug });

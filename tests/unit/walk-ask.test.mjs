@@ -190,3 +190,22 @@ test("resolveAskCwd: falls through to projectPath, then tmpdir, honoring exists(
   const r2 = resolveAskCwd(null, "/home/amm/work/gone", ["/home/amm/work"], "/home/amm", exists);
   assert.equal(r2, tmpdir());
 });
+
+test("close with a non-zero exit code carries a first-stderr-line copy suffix", async () => {
+  const r = await withFakeClaudeMode("fail", () =>
+    runAsk({ bin: FAKE_CLAUDE, cwd: process.cwd(), prompt: "hi", timeoutMs: 5000 }));
+  assert.equal(r.ok, false);
+  assert.equal(r.error, "claude stopped with an error (code 1): boom");
+});
+
+test("a nonexistent binary reports the claude-not-found copy", async () => {
+  const r = await runAsk({ bin: "/definitely/not/a/real/path/claude", cwd: process.cwd(), prompt: "hi", timeoutMs: 5000 });
+  assert.equal(r.ok, false);
+  assert.equal(r.error, "the claude command was not found");
+});
+
+test("a timeout reports the seconds-based copy", async () => {
+  const r = await withFakeClaudeMode("hang", () =>
+    runAsk({ bin: FAKE_CLAUDE, cwd: process.cwd(), prompt: "hi", timeoutMs: 300 }));
+  assert.equal(r.error, "no answer after 0 seconds");
+});

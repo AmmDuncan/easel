@@ -202,7 +202,7 @@ export function runAsk(opts: {
       }
       settled = true;
       child.kill("SIGKILL");
-      resolvePromise({ ok: false, error: "timed out", timeout: true });
+      resolvePromise({ ok: false, error: `no answer after ${Math.round(opts.timeoutMs / 1000)} seconds`, timeout: true });
     }, opts.timeoutMs);
 
     child.stdout.on("data", (chunk) => {
@@ -211,13 +211,14 @@ export function runAsk(opts: {
     child.stderr.on("data", (chunk) => {
       stderr += chunk;
     });
-    child.on("error", (err) => {
+    child.on("error", (err: NodeJS.ErrnoException) => {
       if (settled) {
         return;
       }
       settled = true;
       clearTimeout(timer);
-      resolvePromise({ ok: false, error: err.message });
+      const message = err.code === "ENOENT" ? "the claude command was not found" : err.message;
+      resolvePromise({ ok: false, error: message });
     });
     child.on("close", (code) => {
       if (settled) {
@@ -226,7 +227,9 @@ export function runAsk(opts: {
       settled = true;
       clearTimeout(timer);
       if (code !== 0) {
-        resolvePromise({ ok: false, error: stderr.slice(-300) });
+        const firstLine = stderr.trim().split("\n")[0]?.slice(0, 120) ?? "";
+        const suffix = firstLine ? `: ${firstLine}` : "";
+        resolvePromise({ ok: false, error: `claude stopped with an error (code ${code})${suffix}` });
         return;
       }
       if (stdinError) {
