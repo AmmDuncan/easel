@@ -39,6 +39,8 @@ Usage:
   easel mcp             run the stdio MCP server in the foreground (used by clients)
   easel restart         kill the running HTTP server and respawn it (picks up new builds/paths)
   easel server          run the HTTP server in the foreground (debug)
+  easel panel build     compile panel/EaselPanel.swift into ~/.easel/EaselPanel.app
+  easel panel open      open the built EaselPanel.app (background, no Dock icon)
   easel version
 `);
 }
@@ -477,6 +479,55 @@ function cmdVersion() {
   console.log(pkg.version);
 }
 
+function cmdPanelBuild() {
+  const buildScript = resolve(PROJECT_ROOT, "panel", "build.sh");
+  const outRoot = join(homedir(), ".easel");
+  const result = spawnSync(buildScript, [outRoot], { stdio: "inherit" });
+  if (result.status !== 0) {
+    process.exitCode = result.status ?? 1;
+    return;
+  }
+  console.log(`easel panel built: ${join(outRoot, "EaselPanel.app")}`);
+}
+
+function cmdPanelOpen() {
+  const appPath = join(homedir(), ".easel", "EaselPanel.app");
+  if (!existsSync(appPath)) {
+    console.error(
+      `[easel] ${appPath} not found — run \`easel panel build\` first`,
+    );
+    process.exitCode = 1;
+    return;
+  }
+  spawnSync("open", ["-g", appPath], { stdio: "inherit" });
+}
+
+function cmdPanel(rest: string[]) {
+  const sub = rest[0];
+  switch (sub) {
+    case "build":
+      cmdPanelBuild();
+      return;
+    case "open":
+      cmdPanelOpen();
+      return;
+    default:
+      console.log(
+        [
+          "easel panel — build/open the native EaselPanel.app.",
+          "",
+          "Usage:",
+          "  easel panel build   compile panel/EaselPanel.swift into ~/.easel/EaselPanel.app",
+          "  easel panel open    open the built EaselPanel.app (background, no Dock icon)",
+        ].join("\n"),
+      );
+      if (sub !== undefined && sub !== "help" && sub !== "--help" && sub !== "-h") {
+        process.exitCode = 1;
+      }
+      return;
+  }
+}
+
 async function main() {
   const [, , cmd, ...rest] = process.argv;
   switch (cmd) {
@@ -549,6 +600,9 @@ async function main() {
       return;
     case "restart":
       await cmdRestart();
+      return;
+    case "panel":
+      cmdPanel(rest);
       return;
     case "version":
     case "--version":
