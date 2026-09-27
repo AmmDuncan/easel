@@ -109,8 +109,9 @@ function summaries(root: string, slug: string): WalkSummary[] {
     .filter((x): x is { walk: Walk; progress: WalkProgress } => x !== null)
     .map(({ walk, progress }) => ({
       id: walk.id, title: walk.title, kind: walk.kind, createdAt: walk.createdAt,
-      updatedAt: progress.updatedAt, steps: walk.steps.length, minutes: walk.orient.minutes,
+      updatedAt: progress.updatedAt, steps: progress.picked.length || walk.steps.length, minutes: walk.orient.minutes,
       status: walkStatus(progress), current: progress.current,
+      openActions: walkStatus(progress) === "done" ? walk.actions.length - progress.actionsDone.length : 0,
     }))
     .sort((a, b) => b.updatedAt - a.updatedAt);
 }
@@ -132,6 +133,7 @@ export function listProjects(root: string): ProjectSummary[] {
         ...info,
         waiting: count("waiting"), inProgress: count("in_progress"), done: count("done"),
         lastActivity: walks[0]?.updatedAt ?? 0,
+        openActions: walks.reduce((n, w) => n + w.openActions, 0),
         resume: walks.filter((w) => w.status === "in_progress")
           .map((w) => ({ walkId: w.id, title: w.title, step: w.current, total: w.steps })),
       };

@@ -32,11 +32,11 @@ export type WalkProgress = {
 export type WalkStatus = "waiting" | "in_progress" | "done";
 export type WalkSummary = {
   id: string; title: string; kind: WalkKind; createdAt: number; updatedAt: number;
-  steps: number; minutes: number; status: WalkStatus; current: number;
+  steps: number; minutes: number; status: WalkStatus; current: number; openActions: number;
 };
 export type ProjectInfo = { slug: string; label: string; path: string };
 export type ProjectSummary = ProjectInfo & {
-  waiting: number; inProgress: number; done: number; lastActivity: number;
+  waiting: number; inProgress: number; done: number; lastActivity: number; openActions: number;
   resume: { walkId: string; title: string; step: number; total: number }[];
 };
 

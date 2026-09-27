@@ -58,3 +58,20 @@ test("store root does not live under sessions (sweeper cannot reach it)", () => 
   createWalk(root, sampleWalk(), proj, meta);
   assert.ok(existsSync(join(root, "dvla", "project.json")));
 });
+
+test("resume total counts only picked steps; open actions count done walks' unticked actions", () => {
+  const root = mkdtempSync(join(tmpdir(), "walks-"));
+  const w = sampleWalk(5);
+  w.actions = ["a", "b", "c"];
+  const inProg = createWalk(root, w, proj, meta);
+  const finished = createWalk(root, w, proj, meta);
+  saveProgress(root, inProg.id, { stage: "walk", startedAt: 1, current: 1, picked: ["s1", "s3"] });
+  saveProgress(root, finished.id, { stage: "done", startedAt: 1, actionsDone: [0] });
+  const [s] = listProjects(root);
+  assert.deepEqual(s.resume.map((r) => [r.step, r.total]), [[1, 2]]);
+  assert.equal(s.openActions, 2);
+  const summaries = listWalks(root, "dvla");
+  assert.equal(summaries.find((x) => x.id === inProg.id).steps, 2);
+  assert.equal(summaries.find((x) => x.id === finished.id).openActions, 2);
+  assert.equal(summaries.find((x) => x.id === inProg.id).openActions, 0);
+});
