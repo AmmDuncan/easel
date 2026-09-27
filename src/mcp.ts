@@ -6,8 +6,15 @@ import {
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import { spawn } from "node:child_process";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { ensureHttpServer } from "./server-manager.js";
 import { resolveClaudeSessionId } from "./session-id.js";
+import { DATA_ROOT, TOKEN_FILE } from "./paths.js";
+import { readOrCreateToken } from "./token.js";
+import { walkOpenAction } from "./walk-open.js";
+
+export { walkOpenAction } from "./walk-open.js";
 
 function openUrlInBrowser(url: string): void {
   const platform = process.platform;
@@ -25,6 +32,88 @@ const TOOL_PUSH = "push";
 const TOOL_OPEN = "open";
 const TOOL_CONFIG = "config";
 const TOOL_LABEL = "label";
+const TOOL_WALK = "walk";
+
+const walkSourceSchema = {
+  type: "object" as const,
+  properties: {
+    label: { type: "string" as const },
+    ref: { type: "string" as const },
+  },
+  required: ["label", "ref"],
+  additionalProperties: false,
+};
+
+const walkStepSchema = {
+  type: "object" as const,
+  properties: {
+    id: { type: "string" as const },
+    name: { type: "string" as const },
+    takeaway: { type: "string" as const },
+    body_html: { type: "string" as const },
+    picture_html: { type: "string" as const },
+    example_html: { type: "string" as const },
+    slower_html: { type: "string" as const },
+    why_html: { type: "string" as const },
+    sources: { type: "array" as const, items: walkSourceSchema },
+    asked: { type: "boolean" as const },
+  },
+  required: ["id", "name", "takeaway", "body_html", "slower_html", "why_html", "sources"],
+  additionalProperties: false,
+};
+
+const walkInputSchema = {
+  type: "object" as const,
+  properties: {
+    title: { type: "string" as const },
+    kind: { type: "string" as const, enum: ["prd", "trd", "flow", "research", "mixed"] },
+    orient: {
+      type: "object" as const,
+      properties: {
+        question: { type: "string" as const },
+        answer: { type: "string" as const },
+        minutes: { type: "number" as const },
+        map: {
+          type: "array" as const,
+          items: {
+            type: "object" as const,
+            properties: {
+              stepId: { type: "string" as const },
+              name: { type: "string" as const },
+              takeaway: { type: "string" as const },
+              suggested: { type: "boolean" as const },
+            },
+            required: ["stepId", "name", "takeaway", "suggested"],
+            additionalProperties: false,
+          },
+        },
+      },
+      required: ["question", "answer", "minutes", "map"],
+      additionalProperties: false,
+    },
+    example: {
+      type: "object" as const,
+      properties: { name: { type: "string" as const }, line: { type: "string" as const } },
+      required: ["name", "line"],
+      additionalProperties: false,
+    },
+    steps: { type: "array" as const, items: walkStepSchema },
+    check: {
+      type: "array" as const,
+      items: {
+        type: "object" as const,
+        properties: { prompt: { type: "string" as const }, expected: { type: "string" as const } },
+        required: ["prompt", "expected"],
+        additionalProperties: false,
+      },
+    },
+    recap: { type: "array" as const, items: { type: "string" as const } },
+    actions: { type: "array" as const, items: { type: "string" as const } },
+    sources: { type: "array" as const, items: walkSourceSchema },
+  },
+  required: ["title", "kind", "orient", "steps", "check", "recap", "actions", "sources"],
+  additionalProperties: false,
+};
 
 // When EASEL_SUPPRESS_SESSION=1 (set by automated/headless consumers like the
 // ammiels-bot dispatcher tick), easel loads normally but registers NO switcher
@@ -291,6 +380,12 @@ export async function main() {
           additionalProperties: false,
         },
       },
+      {
+        name: TOOL_WALK,
+        description:
+          "Send a WALK: a guided, step-by-step explanation Ammiel navigates in the easel panel (Orient -> pick depth -> steps with slower/why layers -> check -> keep). Stored per project; arrives as a corner toast. Use via the `walk` skill. Ceilings: 12 steps, 12 map items, 3 check prompts, 5 recap lines, 20 actions.",
+        inputSchema: walkInputSchema,
+      },
     ],
   }));
 
@@ -366,6 +461,55 @@ export async function main() {
           {
             type: "text" as const,
             text: `display config now ${JSON.stringify(data.config)}`,
+          },
+        ],
+      };
+    }
+
+    if (req.params.name === TOOL_WALK) {
+      const walk = req.params.arguments ?? {};
+      const r = await fetch(`http://127.0.0.1:${port}/api/walks`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-easel-token": readOrCreateToken(TOKEN_FILE),
+        },
+        body: JSON.stringify({ sessionId, cwd: process.cwd(), walk }),
+      });
+      if (!r.ok) {
+        const body = (await r.json().catch(() => ({}))) as { error?: string };
+        throw new Error(`easel.walk: ${body.error ?? r.statusText}`);
+      }
+      const created = (await r.json()) as {
+        id: string;
+        project: string;
+        url: string;
+        globalClients: number;
+      };
+      const walkUrl = `http://localhost:${port}${created.url}`;
+      const panelAppPath = join(DATA_ROOT, "EaselPanel.app");
+      const action = walkOpenAction(created.globalClients, existsSync(panelAppPath));
+      if (action === "launch-panel") {
+        try {
+          const child = spawn("open", ["-g", panelAppPath], { stdio: "ignore", detached: true });
+          child.unref();
+        } catch {
+          /* swallow */
+        }
+      } else if (action === "open-browser") {
+        openUrlInBrowser(walkUrl);
+      }
+      const title = typeof (walk as { title?: unknown }).title === "string"
+        ? (walk as { title: string }).title
+        : "";
+      const steps = Array.isArray((walk as { steps?: unknown }).steps)
+        ? (walk as { steps: unknown[] }).steps.length
+        : 0;
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: `walk sent: ${created.project} . ${title}, ${steps} steps -> ${walkUrl}`,
           },
         ],
       };
