@@ -1,13 +1,22 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-preset="paper" data-theme="light">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="easel-port" content="__PORT__" />
   <meta name="easel-token" content="__TOKEN__" />
   <title>easel walks</title>
+  <link rel="preconnect" href="https://rsms.me/" />
+  <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+  <link rel="stylesheet" href="/static/viewer.css" />
+  <link rel="stylesheet" href="/static/panel.css" />
 </head>
-<body>
-  <main id="app">Walks panel loading...</main>
+<body class="pn">
+  <div class="pn-app">
+    <header class="pn-top"></header>
+    <main class="pn-main no-bar"></main>
+  </div>
+  <div class="pn-live pn-sr" aria-live="polite"></div>
+  <script type="module" src="/static/panel.js"></script>
 </body>
 </html>

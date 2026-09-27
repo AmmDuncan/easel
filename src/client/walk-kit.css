@@ -1,0 +1,108 @@
+/* Walk step content kit. Injected into each sandboxed step frame after the
+   resolved --ds-* tokens, so authors write semantic wk-* markup only. */
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: transparent; }
+body {
+  font: 400 16px/1.6 Inter, -apple-system, system-ui, sans-serif;
+  font-feature-settings: "cv11", "ss01";
+  color: var(--ds-ink);
+  overflow: hidden;
+}
+p { margin: 0 0 12px; }
+p:last-child { margin-bottom: 0; }
+b, strong { font-weight: 600; }
+small { font-size: 13px; color: var(--ds-ink-soft); letter-spacing: 0.01em; }
+a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+.wk-dim { color: var(--ds-ink-soft); }
+
+/* Stat tiles: numbers that matter. */
+.wk-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; }
+.wk-stat {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 16px; border-radius: 10px;
+  background: var(--ds-surface); border: 1px solid var(--ds-line);
+}
+.wk-stat b { font-size: 22px; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.wk-stat span { font-size: 14px; color: var(--ds-ink-soft); }
+
+/* Timeline: steps in order. */
+.wk-timeline { list-style: none; margin: 0; padding: 0; counter-reset: wk; }
+.wk-timeline li {
+  counter-increment: wk; position: relative;
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 0 0 20px 44px;
+}
+.wk-timeline li:last-child { padding-bottom: 0; }
+.wk-timeline li::before {
+  content: counter(wk); position: absolute; left: 0; top: 0;
+  width: 28px; height: 28px; border-radius: 50%;
+  display: grid; place-items: center;
+  font-size: 13px; font-weight: 600;
+  background: var(--ds-surface); border: 1.5px solid var(--ds-ink-soft);
+}
+.wk-timeline li:not(:last-child)::after {
+  content: ""; position: absolute; left: 13.25px; top: 32px; bottom: 4px;
+  width: 1.5px; background: var(--ds-line);
+}
+.wk-timeline span { color: var(--ds-ink-soft); font-size: 15px; }
+
+/* Compare table: things side by side; .hl marks the row that matters. */
+.wk-compare { width: 100%; border-collapse: collapse; font-size: 15px; }
+.wk-compare th {
+  text-align: left; font-weight: 600; font-size: 13px; color: var(--ds-ink-soft);
+  padding: 8px 12px; border-bottom: 1px solid var(--ds-line);
+}
+.wk-compare td { padding: 10px 12px; border-bottom: 1px solid var(--ds-line-soft); vertical-align: top; }
+.wk-compare tr.hl td { background: var(--ds-accent-soft); font-weight: 600; }
+.wk-compare tr.hl td:first-child { box-shadow: inset 3px 0 0 var(--ds-accent); }
+
+/* Checklist: ticked vs not, never colour alone. */
+.wk-checklist { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.wk-checklist li {
+  display: flex; align-items: center; gap: 10px; font-size: 15px; color: var(--ds-ink-soft);
+}
+.wk-checklist li::before {
+  content: ""; flex: none; width: 18px; height: 18px; border-radius: 5px;
+  border: 1.5px solid var(--ds-ink-soft);
+}
+.wk-checklist li.on { color: var(--ds-ink); font-weight: 500; }
+.wk-checklist li.on::before {
+  background: var(--ds-ink) no-repeat center / 12px
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2 6.2l2.6 2.6L10 3.4' fill='none' stroke='white' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  border-color: var(--ds-ink);
+}
+
+/* Decision / side-by-side pair. */
+.wk-decision { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.wk-decision > div {
+  padding: 14px 16px; border-radius: 10px;
+  background: var(--ds-surface); border: 1px solid var(--ds-line);
+}
+.wk-decision > div p { margin-top: 4px; }
+@media (max-width: 420px) { .wk-decision { grid-template-columns: 1fr; } }
+
+/* Flagged card: risks and open questions. */
+.wk-risk {
+  padding: 12px 16px; border-radius: 10px; border: 1px solid var(--ds-line);
+  box-shadow: inset 3px 0 0 var(--ds-danger); background: var(--ds-surface);
+}
+
+/* Screen sketch: a tiny desktop with the terminal and a toast. */
+.wk-screen {
+  position: relative; height: 150px; border-radius: 10px; overflow: hidden;
+  background: var(--ds-surface-soft); border: 1px solid var(--ds-line);
+}
+.wk-screen-term {
+  position: absolute; left: 16px; bottom: 16px; width: 60%; padding: 12px 14px;
+  border-radius: 8px; background: var(--ds-code-bg); color: var(--ds-code-ink);
+  font: 13px/1.6 ui-monospace, "SF Mono", Menlo, monospace;
+}
+.wk-screen-term .wk-dim { color: var(--ds-code-ink); opacity: 0.72; }
+.wk-caret { opacity: 0.72; margin-right: 6px; }
+.wk-toast {
+  position: absolute; top: 12px; right: 12px; display: flex; flex-direction: column; gap: 2px;
+  padding: 10px 14px; border-radius: 10px; font-size: 13px;
+  background: var(--ds-surface); border: 1px solid var(--ds-line); box-shadow: var(--ds-shadow-md);
+}
+.wk-toast span { color: var(--ds-ink-soft); }
