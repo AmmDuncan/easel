@@ -1,7 +1,7 @@
 // Walks panel router: /panel, /panel/p/:slug, /panel/w/:id.
 
 import { getJson, hidePanel, onEvents } from "./panel-api.js";
-import { h, loadKit } from "./panel-dom.js";
+import { h, icon, kbd, loadKit } from "./panel-dom.js";
 import { homeView, projectView } from "./panel-home.js";
 import { walkView } from "./panel-walk.js";
 
@@ -11,6 +11,9 @@ const liveEl = document.querySelector(".pn-live");
 let barEl = null;
 let current = null;
 let routeSeq = 0;
+const barObserver = new ResizeObserver(([entry]) => {
+  document.documentElement.style.setProperty("--pn-bar-h", `${Math.ceil(entry.target.offsetHeight)}px`);
+});
 let toastTimer = null;
 
 const app = {
@@ -20,9 +23,13 @@ const app = {
     mainEl.classList.toggle("no-bar", !bar);
     barEl?.remove();
     barEl = null;
+    barObserver.disconnect();
     if (bar) {
       barEl = h("footer", { class: "pn-bar" }, bar);
       document.querySelector(".pn-app").append(barEl);
+      barObserver.observe(barEl);
+    } else {
+      document.documentElement.style.setProperty("--pn-bar-h", "0px");
     }
   },
   announce(text) {
@@ -54,8 +61,13 @@ function errorView(err) {
     ? { title: "Not found", body: "This walk or project no longer exists.", next: "It may have been deleted. Press H for all walks." }
     : { title: "Couldn't load this", body: "Easel sent an error or no answer.", next: "Press R to try again. If it keeps failing, run `easel restart` in a terminal." };
   app.frame({
-    top: [h("div", { class: "pn-top-row" }, h("h1", { class: "pn-context pn-title" }, copy.title))],
-    main: h("div", { class: "pn-error" }, h("p", {}, copy.body), h("p", { class: "pn-sub" }, copy.next)),
+    top: [h("div", { class: "pn-top-row" },
+      h("button", { class: "pn-icon-btn", "aria-label": "All walks (H)", on: { click: () => app.navigate("/panel") } }, icon("home")),
+      h("h1", { class: "pn-context pn-title" }, copy.title))],
+    main: h("div", { class: "pn-error" }, h("p", {}, copy.body), h("p", { class: "pn-sub" }, copy.next),
+      h("div", { class: "pn-reveal" },
+        h("button", { class: "pn-btn primary", on: { click: () => app.navigate("/panel") } }, "All walks", kbd("H")),
+        h("button", { class: "pn-btn", on: { click: () => route() } }, "Try again", kbd("R")))),
     bar: null,
   });
   return {};

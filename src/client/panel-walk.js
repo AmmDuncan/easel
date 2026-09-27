@@ -53,6 +53,8 @@ export function walkView({ walk, progress, projectLabel }, params, app) {
   let layer = null;
   let overlay = null;
   let ask = { open: false, busy: false, error: null, text: "" };
+  let focusHeading = false;
+  let mapOpener = null;
 
   const order = () => topSteps().filter((s) => picked.includes(s.id));
   const minutesFor = (n) => Math.max(1, Math.round((walk.orient.minutes * n) / topSteps().length));
@@ -82,6 +84,7 @@ export function walkView({ walk, progress, projectLabel }, params, app) {
     at = pos;
     layer = null;
     ask = { open: false, busy: false, error: null, text: "" };
+    focusHeading = true;
     if (typeof pos === "number") {
       progress.current = pos;
     }
@@ -164,7 +167,7 @@ export function walkView({ walk, progress, projectLabel }, params, app) {
       const steps = order();
       const idx = typeof at === "number" ? at : steps.length;
       const ticks = h("div", { class: "pn-ticks", "aria-hidden": "true" },
-        steps.map((s, i) => h("span", { class: `pn-tick${i < idx ? " done" : ""}${i === at ? " current" : ""}` })));
+        steps.map((s, i) => h("span", { class: `pn-tick${statuses[s.id] === "got" && i !== at ? " done" : ""}${i === at ? " current" : ""}` })));
       const [count, name] = progressText(at, steps);
       const label = h("div", { class: "pn-progress-label" }, h("b", {}, count), name);
       nodes.push(h("div", { class: "pn-progress" }, ticks, label));
@@ -198,7 +201,7 @@ export function walkView({ walk, progress, projectLabel }, params, app) {
     }
     return h("div", { class: "pn-step-enter" },
       h("p", { class: "pn-question" }, walk.orient.question),
-      h("h1", { class: "pn-answer" }, walk.orient.answer),
+      h("h1", { class: "pn-answer", tabindex: "-1" }, walk.orient.answer),
       h("p", { class: "pn-meta" }, ...meta),
       h("h2", { class: "pn-section-title" }, "Your path. Untick what you already know."),
       h("ul", { class: "pn-map", "aria-label": "Steps to walk" }, rows));
@@ -217,7 +220,7 @@ export function walkView({ walk, progress, projectLabel }, params, app) {
   function stepMain() {
     const step = order()[at];
     const body = [step.body_html, step.picture_html ? `<div style="margin-top:20px">${step.picture_html}</div>` : ""].join("");
-    const parts = [h("h1", { class: "pn-takeaway" }, step.takeaway)];
+    const parts = [h("h1", { class: "pn-takeaway", tabindex: "-1" }, step.takeaway)];
     if (layer) {
       parts.push(h("section", { class: "pn-layer", "aria-label": layer === "slower" ? "Slower" : "Why" },
         h("p", { class: "pn-layer-label" }, layerLabel()),
@@ -283,7 +286,7 @@ export function walkView({ walk, progress, projectLabel }, params, app) {
       h("p", { class: "pn-layer-label" }, "Ask about this step"),
       input,
       h("div", { class: "pn-reveal" },
-        h("button", { class: "pn-btn primary", disabled: ask.busy || !ask.text.trim(), on: { click: () => sendAsk(step) } }, ask.busy ? "Asking..." : "Ask"),
+        h("button", { class: "pn-btn primary", disabled: ask.busy || !ask.text.trim(), on: { click: () => sendAsk(step) } }, ask.busy ? "Sending..." : "Send question"),
         h("button", { class: "pn-btn quiet", disabled: ask.busy, on: { click: closeAsk } }, "Cancel")),
       status, error);
     queueMicrotask(() => {
@@ -344,12 +347,12 @@ export function walkView({ walk, progress, projectLabel }, params, app) {
   function stepBar() {
     const last = at === order().length - 1;
     return [
-      h("button", { class: "pn-btn quiet", on: { click: back } }, "Back", kbd("←")),
-      h("button", { class: "pn-btn", "aria-pressed": String(layer === "slower"), on: { click: () => toggleLayer("slower") } }, "Slower", kbd("S")),
-      h("button", { class: "pn-btn", "aria-pressed": String(layer === "why"), on: { click: () => toggleLayer("why") } }, "Why?", kbd("W")),
-      h("button", { class: "pn-btn", "aria-pressed": String(ask.open), on: { click: () => (ask.open ? closeAsk() : openAsk()) } }, "Ask", kbd("A")),
+      h("button", { class: "pn-btn quiet", "data-k": "back", on: { click: back } }, "Back", kbd("←")),
+      h("button", { class: "pn-btn", "data-k": "slower", "aria-pressed": String(layer === "slower"), on: { click: () => toggleLayer("slower") } }, "Slower", kbd("S")),
+      h("button", { class: "pn-btn", "data-k": "why", "aria-pressed": String(layer === "why"), on: { click: () => toggleLayer("why") } }, "Why?", kbd("W")),
+      h("button", { class: "pn-btn", "data-k": "ask", "aria-pressed": String(ask.open), on: { click: () => (ask.open ? closeAsk() : openAsk()) } }, "Ask", kbd("A")),
       h("span", { class: "pn-spacer" }),
-      h("button", { class: "pn-btn primary", on: { click: next } }, last && !walk.check.length ? "Finish" : "Got it", kbd("→")),
+      h("button", { class: ask.open ? "pn-btn" : "pn-btn primary", "data-k": "next", on: { click: next } }, last && !walk.check.length ? "Finish" : "Got it", kbd("Enter")),
     ];
   }
 
@@ -381,7 +384,7 @@ export function walkView({ walk, progress, projectLabel }, params, app) {
       return item;
     });
     return h("div", { class: "pn-step-enter" },
-      h("h1", { class: "pn-takeaway" }, "Say it back"),
+      h("h1", { class: "pn-takeaway", tabindex: "-1" }, "Say it back"),
       h("p", { class: "pn-sub" }, "Optional. Answer from memory, then reveal and mark yourself."),
       items);
   }
@@ -425,7 +428,7 @@ export function walkView({ walk, progress, projectLabel }, params, app) {
     });
     return h("div", { class: "pn-step-enter" },
       h("p", { class: "pn-saved" }, icon("saved"), h("span", {}, "Saved to ", h("b", {}, projectName), " · Keep")),
-      h("h1", { class: "pn-answer", style: "margin-top:16px" }, walk.orient.answer),
+      h("h1", { class: "pn-answer", style: "margin-top:16px", tabindex: "-1" }, walk.orient.answer),
       marked.length ? h("p", { class: "pn-meta" }, `Check: ${right} of ${marked.length} right`) : null,
       walk.recap.length ? h("h2", { class: "pn-section-title" }, "Recap") : null,
       walk.recap.length ? h("ul", { class: "pn-list" }, walk.recap.map((r) => h("li", {}, r))) : null,
@@ -470,22 +473,31 @@ export function walkView({ walk, progress, projectLabel }, params, app) {
     }
     extra.push(h("li", {}, h("button", { class: "pn-row", on: { click: () => { closeMap(); go("orient"); } } },
       h("span", { class: "pn-row-main" }, h("span", { class: "pn-row-title" }, "Change your path"), h("span", { class: "pn-row-meta" }, "Back to the overview")))));
-    overlay = h("div", { class: "pn pn-overlay", role: "dialog", "aria-modal": "true", "aria-label": "Map of steps" },
+    mapOpener = document.activeElement;
+    overlay = h("dialog", { class: "pn pn-overlay", "aria-label": "Map of steps" },
       h("div", { class: "pn-top" }, h("div", { class: "pn-top-row" },
         h("div", { class: "pn-context" }, h("b", {}, "Map"), ` · ${walk.title}`),
         h("button", { class: "pn-icon-btn", "aria-label": "Close map (Esc)", on: { click: closeMap } }, icon("close"), "Close"))),
       h("div", { class: "pn-overlay-inner" }, h("ul", { class: "pn-rows" }, rows, extra)));
     document.body.append(overlay);
+    overlay.addEventListener("cancel", (e) => {
+      e.preventDefault();
+      closeMap();
+    });
+    overlay.showModal();
     (overlay.querySelector('[aria-current="step"]') ?? overlay.querySelector("button"))?.focus();
   }
 
   function closeMap() {
-    if (overlay) {
-      overlay.remove();
-      overlay = null;
-      return true;
+    if (!overlay) {
+      return false;
     }
-    return false;
+    overlay.close();
+    overlay.remove();
+    overlay = null;
+    const target = mapOpener?.isConnected ? mapOpener : document.querySelector(".pn-main h1");
+    target?.focus({ preventScroll: true });
+    return true;
   }
 
   // ---------- render ----------
@@ -494,6 +506,7 @@ export function walkView({ walk, progress, projectLabel }, params, app) {
       return;
     }
     const y = window.scrollY;
+    const activeKey = document.activeElement?.dataset?.k;
     if (at === "orient") {
       app.frame({ top: top(), main: orientMain(), bar: orientBar() });
     } else if (typeof at === "number") {
@@ -505,16 +518,26 @@ export function walkView({ walk, progress, projectLabel }, params, app) {
       app.frame({ top: top(), main: endMain(), bar: endBar() });
     }
     window.scrollTo(0, keepScroll ? y : 0);
+    if (focusHeading) {
+      focusHeading = false;
+      document.querySelector(".pn-main h1")?.focus({ preventScroll: true });
+    } else if (activeKey) {
+      document.querySelector(`.pn-bar [data-k="${activeKey}"]`)?.focus({ preventScroll: true });
+    }
   }
 
   render();
-  if (at === "end" && progress.stage !== "done") {
-    save();
-  }
 
   return {
     onKey(e) {
       const k = e.key.toLowerCase();
+      if (overlay) {
+        if (k === "m") {
+          closeMap();
+          return true;
+        }
+        return false;
+      }
       if (k === "enter" || e.key === "ArrowRight") {
         next();
         return true;

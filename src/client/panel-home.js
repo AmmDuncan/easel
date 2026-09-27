@@ -147,6 +147,7 @@ export async function projectView(slug, params, app, stale = () => false) {
   let tab = params.get("tab") === "keep" ? "keep" : "walks";
   const done = walks.filter((w) => w.status === "done");
   let kept = null;
+  let keepError = false;
   let renaming = false;
   const others = projects.filter((p) => p.slug !== slug);
   const view = { refreshOnWalk: true, destroy: () => { view.destroyed = true; } };
@@ -299,14 +300,22 @@ export async function projectView(slug, params, app, stale = () => false) {
         h("p", { class: "pn-h1" }, "Nothing kept yet"),
         h("p", {}, `Finish a walk in ${project.label} and its recap and actions land here.`));
     }
+    if (keepError) {
+      return h("div", { class: "pn-error", style: "margin-top:24px" },
+        h("p", {}, "Couldn't load Keep."),
+        h("div", { class: "pn-reveal" }, h("button", { class: "pn-btn", on: { click: () => { keepError = false; render(); } } }, "Try again")));
+    }
     if (!kept) {
       Promise.all(done.map((w) => getJson(`/api/walks/${w.id}`))).then((list) => {
         kept = list;
+      }).catch(() => {
+        keepError = true;
+      }).finally(() => {
         if (!view.destroyed) {
           render();
         }
-      }).catch(() => app.toast("Couldn't load Keep. Press R to try again."));
-      return h("p", { class: "pn-sub" }, "Loading...");
+      });
+      return h("p", { class: "pn-sub", style: "margin-top:24px" }, "Loading...");
     }
     return h("div", {}, kept.map(({ walk, progress }) => {
       const actions = walk.actions.map((a, i) => {

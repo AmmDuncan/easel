@@ -98,10 +98,20 @@ export function htmlFrame(html, title) {
     `<style>${tokenCss()}${kitCss}</style></head><body>${html}</body></html>`;
   const fit = () => {
     const doc = frame.contentDocument;
-    if (doc?.documentElement) {
-      frame.style.height = `${doc.documentElement.scrollHeight}px`;
+    if (!doc?.documentElement) {
+      return;
     }
+    frame.style.height = "0px";
+    frame.style.height = `${doc.documentElement.scrollHeight}px`;
   };
+  let lastWidth = 0;
+  new ResizeObserver(([entry]) => {
+    const width = Math.round(entry.contentRect.width);
+    if (width !== lastWidth) {
+      lastWidth = width;
+      fit();
+    }
+  }).observe(frame);
   frame.addEventListener("load", () => {
     const doc = frame.contentDocument;
     if (!doc) {
