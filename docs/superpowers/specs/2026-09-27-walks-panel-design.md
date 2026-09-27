@@ -32,11 +32,12 @@ A walk: a guided, navigable process that takes him from "what is this" to "I can
 
 | Stage | What Ammiel sees | Fixes |
 |---|---|---|
-| **Orient** (30 s) | The one question this answers, the answer in one line, size ("7 steps, about 6 min"), a map of the parts with a one-line takeaway each, my suggested path highlighted | Don't know where to start |
-| **Pick depth** | Tick the parts to walk; the rest stay at takeaway level. "Take the suggested path" is one key | Don't know where to start, lose focus |
+| **Orient + pick** (one screen, 30 s) | The one question this answers, the answer in one line, size ("7 steps, about 6 min"), the map with the suggested path pre-ticked; unticked rows still show their takeaway; toggle rows in place; one primary `Start . 6 min` (Enter) | Don't know where to start |
 | **Walk** | One idea per step: takeaway line, a picture, the running example applied to it. Buttons: `Got it` (next), `Slower / example`, `Why?`, `Ask...` | Lose focus |
-| **Check** (optional) | 2-3 prompts; he types a one-line answer, then the expected answer is revealed beside it and he marks it right or not | Doesn't stick |
-| **Keep** | Recap lines + action items saved to the project's Keep page; actions can be ticked | Doesn't stick, juggling |
+| **Check** (last step, skippable with one key) | 2-3 prompts; he types a one-line answer, then the expected answer is revealed beside it and he marks it right or not | Doesn't stick |
+| **Keep** (automatic) | Reaching the end saves recap + actions to the project's Keep tab; the end screen says "Saved to dvla . Keep" | Doesn't stick, juggling |
+
+Done = reached the last step (Check skipped or not). *(Changed after wren SHAPE, 2026-09-27: Orient and Pick merged, Check moved to the end, Keep made automatic.)*
 
 Rules inside a walk:
 
@@ -80,11 +81,16 @@ Prose only for "why". Section recipes per content type decide the default step o
 +-----------------+---------------------------------------------------+
 ```
 
-- **Home:** every project, with counts for waiting / in progress, and a "Continue" row per in-progress walk showing its resume step. Most recent activity first.
-- **Project:** its walks (waiting, in progress, done) and its Keep page.
-- **Walk:** map strip across the top (done / current / skipped), the step, the buttons, progress "step N of M".
-- **Keys:** `Enter` or `->` Got it, `<-` back, `S` slower, `W` why, `A` ask, `M` map, `H` home, `Esc` hide panel.
-- **Narrow (under 720 px):** the project list collapses to a "Projects" button; the map strip scrolls sideways.
+*(Reshaped after wren SHAPE, 2026-09-27. The default frame is about 576 px, under the 720 px breakpoint, so the design is single-column first; the sidebar drawing above only applies when the panel is widened past 720 px.)*
+
+- **Home = one queue across all projects,** in this order: **Continue** (in-progress walks with their resume step), **New** (arrived, unopened; so a missed toast is never a lost walk), **Open actions** (count per project), then **Projects** (secondary list with counts). Home shows the total waiting count.
+- **The hotkey reopens exactly where he was** (the last walk and step), never Home. `H` goes Home.
+- **Project:** tabs `Walks` and `Keep`; one overflow menu in the header for project actions (section 4a).
+- **Walk:** a top line `dvla . Waivers TRD`, a segmented progress bar (one tick per step, 12 max) with "3 of 7 . How"; `M` opens the full map as an overlay list. No sideways-scrolling map strip.
+- **Step body:** takeaway, picture, running example; scrolls. `Slower` and `Why` expand inline directly under the takeaway; the same key collapses them.
+- **Bottom bar, always visible:** `Got it` is the one primary. At about 570 px `Slower`, `Why?`, `Ask...` sit beside it; at about 420 px they drop to a second row of equal-weight buttons, never an overflow menu.
+- **Ask answers inline** under the current step and are saved as step "3a". The count never changes mid-walk ("3 of 7" stays "3 of 7").
+- **Keys:** `Enter` or `->` Got it, `<-` back, `S` slower, `W` why, `A` ask, `M` map, `H` home, `Esc` hide panel. Single-letter keys are off while the Ask or Check input has focus.
 - **Volume ceilings (Rule 79),** each rendered at zero, one and the ceiling: projects 12, walks per project 30 (older done walks fold under "Done"), steps 12, map strip 12, check prompts 3, Keep actions 20.
 
 ## 3. The panel shell (`EaselPanel.app`)
@@ -115,13 +121,15 @@ Thin. All navigation lives in the web app above; Swift only owns the window.
 
 Nothing piles up silently, and nothing is lost to one wrong click.
 
-- **Per walk:** `Archive` (off the lists, still searchable under Done) and `Delete`. Also `Move to project` for a walk filed in the wrong place.
-- **Per project:** `Clear done` (archives every done walk at once), `Rename`, `Merge into...` (moves all walks and Keep entries into another project, for when grouping changes later), `Delete project`.
-- **Stale walks:** a waiting walk untouched for 14 days moves into a "Stale" group on its project with one `Clear stale` button. Home shows the stale count so the inbox never grows unseen.
+*(Trimmed after wren SHAPE, 2026-09-27: Archive, Merge, the Stale group and the bulk CLI are cut from v1; Delete project kept because Ammiel asked for a cleanup path.)*
+
+- **Per walk:** `Delete` and `Move to project` (for a walk filed in the wrong place).
+- **Per project** (one overflow menu in the Project header): `Clear done` (deletes every done walk at once), `Rename`, `Delete project`.
+- **Stale walks:** a waiting walk untouched for 14 days carries a "14 days untouched" label on its row; Home shows the stale count so the queue never grows unseen.
 - **Keep:** each recap or action can be removed; ticked actions fold under "Done".
-- **Undo, not confirm dialogs:** every delete, clear and merge shows an `Undo` toast for 10 s, and deleted items go to `~/.easel/walks/.trash/` for 7 days before the sweeper purges them. No browser confirm dialogs anywhere.
-- **CLI for bulk work:** `easel walks ls [project]`, `easel walks archive --done --older 30d [project]`, `easel walks rm <walk-id>`, `easel walks trash --empty`. Every command without `--yes` prints what it would do and changes nothing (dry run by default).
-- **Keys in lists:** `E` archive, `Backspace` delete (both undoable).
+- **Undo, not confirm dialogs:** every delete and clear shows an `Undo` toast for 10 s, and deleted items go to `~/.easel/walks/.trash/` for 7 days before the sweeper purges them. No browser confirm dialogs anywhere.
+- **Keys in lists:** `Backspace` deletes (undoable).
+- **Retention:** done walks auto-expire after 90 days (section 4).
 
 ## 5. Ask (fresh Claude, grounded in the walk)
 
