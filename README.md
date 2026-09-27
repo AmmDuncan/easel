@@ -126,7 +126,7 @@ Build the native panel once with `easel panel build` (Swift command-line tools, 
 
 ## Tool surface
 
-The MCP exposes one server (`easel`) with four tools. HTML is rendered in a sandboxed iframe (`sandbox="allow-scripts"`) with a baseline design system injected — off-white / charcoal, Inter, presentation-scale typography — so plain `<h1>/<h2>/<p>` markup looks right without extra CSS. Authors can also write a full `<!DOCTYPE html>` document and take ownership of styling.
+The MCP exposes one server (`easel`) with five tools. HTML is rendered in a sandboxed iframe (`sandbox="allow-scripts"`) with a baseline design system injected — off-white / charcoal, Inter, presentation-scale typography — so plain `<h1>/<h2>/<p>` markup looks right without extra CSS. Authors can also write a full `<!DOCTYPE html>` document and take ownership of styling.
 
 Inside pushed HTML, semantic chips are available out of the box:
 
