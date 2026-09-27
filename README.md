@@ -91,8 +91,22 @@ Setup runs `npm link`, so bare `easel` works from any shell afterwards.
 | `open()` | Force-open a fresh browser tab for the current session |
 | `config({ preset?, theme?, density? })` | Switch palette / mode / layout live across every tab |
 | `label({ label })` | Name the session so it's findable in the switcher |
+| `walk({ title, kind, orient, steps, check, recap, actions, sources })` | Send a guided walk to the panel (see Walks) |
 
 Agents invoke them as `mcp__easel__push`, `mcp__easel__open`, etc.
+
+## Walks and the panel
+
+A **walk** is a guided, step-by-step explanation of something big (research, a report, a PRD, TRD or project flow) that you take in one idea at a time. The `walk` skill decides how to explain; the `walk` tool sends it.
+
+- **Arrives as a corner toast**, never a tab, and never takes your keyboard. `Ctrl+Option+Space` opens the panel where you left off.
+- **Orient** shows the question, the one-line answer, the size, and your path (suggested steps pre-ticked; untick what you know).
+- **Each step** is one idea with a picture and a running example. `S` Slower, `W` Why, `A` Ask (a fresh, read-only Claude answer from the walk's sources, added under the step), `Enter` Got it, `M` map, `H` all walks, `Esc` hide.
+- **Say it back** (optional) and **Keep**: finishing saves the recap and actions to the project.
+- **Home** is one queue across projects: Continue, New, Open actions, Projects. Walks belong to projects, not sessions: the project is the folder directly under `~/work/studios` or `~/work/tools` (config `panel.projectRoots`), else the git top level.
+- **Cleanup**: delete, move, rename, clear done walks, delete a project; every one has a 10 s Undo and a 7-day trash. Done walks expire after 90 days.
+
+Build the native panel once with `easel panel build` (Swift command-line tools, no Xcode), then `easel panel open`. Without it, walks open at `localhost:7878/panel` in the browser. Hotkey: `panel.hotkey` in `~/.easel/config.json`.
 
 ## Theming
 
@@ -138,6 +152,8 @@ easel setup --client <name>    register the MCP in another client (cursor, claud
 easel restart                  kill + respawn the HTTP server (handy after a build)
 easel update                   clone installs: git pull + build + setup · npm installs: npm install -g @latest + setup
 easel server                   run the HTTP server in the foreground (debug)
+easel panel build              compile the native floating panel into ~/.easel/EaselPanel.app
+easel panel open               launch the panel (hidden until a walk arrives or the hotkey)
 easel version
 ```
 
