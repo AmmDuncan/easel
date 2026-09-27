@@ -120,6 +120,7 @@ struct WalkEvent {
     let project: String
     let walkId: String
     let title: String
+    let label: String?
 }
 
 final class ToastManager {
@@ -182,7 +183,7 @@ final class ToastManager {
         titleLabel.font = .boldSystemFont(ofSize: 13)
         titleLabel.frame = NSRect(x: 14, y: 40, width: toastWidth - 28, height: 18)
 
-        let subtitleLabel = NSTextField(labelWithString: "\(event.project) . \(event.title)")
+        let subtitleLabel = NSTextField(labelWithString: "\(event.label ?? event.project) \u{b7} \(event.title)")
         subtitleLabel.font = .systemFont(ofSize: 12)
         subtitleLabel.textColor = .secondaryLabelColor
         subtitleLabel.lineBreakMode = .byTruncatingTail
@@ -347,7 +348,8 @@ final class EventStream: NSObject, URLSessionDataDelegate {
         else {
             return
         }
-        let event = WalkEvent(project: project, walkId: walkId, title: title)
+        let label = obj["label"] as? String
+        let event = WalkEvent(project: project, walkId: walkId, title: title, label: label)
         DispatchQueue.main.async { [weak self] in
             self?.onWalkEvent?(event)
         }
@@ -387,12 +389,62 @@ final class PanelBridge: NSObject, WKScriptMessageHandler {
     }
 }
 
+// MARK: - Web view navigation policy
+
+/// Keeps the panel's WKWebView locked to the local easel server: main-frame
+/// navigations must stay on localhost/127.0.0.1 at the configured port,
+/// subframe navigations may only be about:srcdoc/about:blank. External links
+/// (window.open) are handed to the default browser instead of loaded in-panel.
+final class PanelWebViewPolicy: NSObject, WKNavigationDelegate, WKUIDelegate {
+    func webView(
+        _ webView: WKWebView,
+        decidePolicyFor navigationAction: WKNavigationAction,
+        decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
+    ) {
+        guard let url = navigationAction.request.url else {
+            decisionHandler(.cancel)
+            return
+        }
+
+        if navigationAction.targetFrame?.isMainFrame == true {
+            if url.host == "localhost" || url.host == "127.0.0.1", url.port == Config.port {
+                decisionHandler(.allow)
+            } else {
+                decisionHandler(.cancel)
+            }
+            return
+        }
+
+        // Subframe: only allow inert content, never a live navigation.
+        if url.absoluteString == "about:srcdoc" || url.absoluteString == "about:blank" {
+            decisionHandler(.allow)
+        } else {
+            decisionHandler(.cancel)
+        }
+    }
+
+    func webView(
+        _ webView: WKWebView,
+        createWebViewWith configuration: WKWebViewConfiguration,
+        for navigationAction: WKNavigationAction,
+        windowFeatures: WKWindowFeatures
+    ) -> WKWebView? {
+        if let url = navigationAction.request.url, let scheme = url.scheme?.lowercased(),
+            scheme == "http" || scheme == "https"
+        {
+            NSWorkspace.shared.open(url)
+        }
+        return nil
+    }
+}
+
 // MARK: - App delegate
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var panel: EaselMainPanel!
     private var webView: WKWebView!
     private var bridge = PanelBridge()
+    private var webViewPolicy = PanelWebViewPolicy()
     private var eventStream = EventStream()
     private var toastManager = ToastManager()
     private var hotKeyRef: EventHotKeyRef?
@@ -436,6 +488,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         config.userContentController = contentController
 
         webView = WKWebView(frame: .zero, configuration: config)
+        webView.navigationDelegate = webViewPolicy
+        webView.uiDelegate = webViewPolicy
         webView.load(URLRequest(url: Config.panelURL))
 
         panel = EaselMainPanel(
@@ -498,8 +552,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func navigate(to path: String) {
-        guard let base = URL(string: "http://localhost:\(Config.port)") else { return }
-        let url = URL(string: path, relativeTo: base) ?? Config.panelURL
+        // Only accept a bare path under /panel: no scheme, no "//" (which
+        // URL(string:relativeTo:) can resolve as an absolute/protocol-relative
+        // URL and let a malicious page escape the local panel origin).
+        guard
+            path.hasPrefix("/panel"),
+            !path.hasPrefix("//"),
+            !path.contains("://")
+        else {
+            return
+        }
+        guard let url = URL(string: "http://localhost:\(Config.port)\(path)") else { return }
         webView.load(URLRequest(url: url))
     }
 
