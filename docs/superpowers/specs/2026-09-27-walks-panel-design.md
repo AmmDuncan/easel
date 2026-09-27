@@ -86,12 +86,23 @@ Prose only for "why". Section recipes per content type decide the default step o
 - **Home = one queue across all projects,** in this order: **Continue** (in-progress walks with their resume step), **New** (arrived, unopened; so a missed toast is never a lost walk), **Open actions** (count per project), then **Projects** (secondary list with counts). Home shows the total waiting count.
 - **The hotkey reopens exactly where he was** (the last walk and step), never Home. `H` goes Home.
 - **Project:** tabs `Walks` and `Keep`; one overflow menu in the header for project actions (section 4a).
-- **Walk:** a top line `dvla . Waivers TRD`, a segmented progress bar (one tick per step, 12 max) with "3 of 7 . How"; `M` opens the full map as an overlay list. No sideways-scrolling map strip.
+- **Walk:** a top line `dvla . Waivers TRD` with `Map M` on the right; in the page, "Step 3 of 7 . How" with the time left from the picked steps, over one thin continuous bar. `M` opens the full map as an overlay list. No sideways-scrolling map strip. Past 720 px the picked steps also show as a rail on the left.
 - **Step body:** takeaway, picture, running example; scrolls. `Slower` and `Why` expand inline directly under the takeaway; the same key collapses them.
-- **Bottom bar, always visible:** `Got it` is the one primary. At about 570 px `Slower`, `Why?`, `Ask...` sit beside it; at about 420 px they drop to a second row of equal-weight buttons, never an overflow menu.
+- **Bottom bar, always visible:** `Back` always far left, then `Slower`, `Why`, `Ask` as quiet buttons, then `Got it` as the one primary. Below 480 px the key hints and the Back label drop and the bar stays one row, never an overflow menu. While the Ask box is open, `Send question` is the primary and `Got it` goes quiet.
 - **Ask answers inline** under the current step and are saved as step "3a". The count never changes mid-walk ("3 of 7" stays "3 of 7").
 - **Keys:** `Enter` or `->` Got it, `<-` back, `S` slower, `W` why, `A` ask, `M` map, `H` home, `Esc` hide panel. Single-letter keys are off while the Ask or Check input has focus.
 - **Volume ceilings (Rule 79),** each rendered at zero, one and the ceiling: projects 12, walks per project 30 (older done walks fold under "Done"), steps 12, map strip 12, check prompts 3, Keep actions 20.
+
+## 2a. Visual design (picked 2026-09-27, direction B)
+
+Picked by Ammiel from a direction-axes sheet (voice x Home grouping x progress), reviewed by wren and copy first. The panel code (`src/client/panel.css`, `walk-kit.css`) is the source of truth; this is the summary.
+
+- **Voice: editorial.** Headlines that carry meaning (Orient answer, step takeaway, Say it back, End answer) are the system serif (`ui-serif`, New York in the panel) at 28 px / 500. Section names and the Home hero title are the serif at 20 px. Everything you operate (rows, buttons, meta, labels) is Inter.
+- **Type ramp:** 12 / 14 / 16 / 20 / 28, nothing else. Kickers are sentence case 14 / 600.
+- **Colour:** the accent means progress only (bars and the live Ask dot). One ink-filled primary per screen; easel's paper accent fails 4.5:1 with white text, so primaries are never accent.
+- **Surfaces:** no card per row; rows are hairline-separated with a hover tint. Section names sit over a 1 px ink rule with a count. Pictures and Slower/Why sit in a tinted well; the example and Ask answers are white cards with a hairline. Top and bottom bars are opaque.
+- **Home (status):** Continue (or Up next) hero with the one primary, then Also in progress, New (5, then Show N more), Open actions, Projects. Past 720 px Projects move to a left rail.
+- **Focus:** 2 px ink ring. **Targets:** 44 px minimum.
 
 ## 3. The panel shell (`EaselPanel.app`)
 
@@ -136,7 +147,7 @@ Nothing piles up silently, and nothing is lost to one wrong click.
 - `POST /api/walks/:id/ask { stepId, question }` spawns `claude -p --model sonnet --output-format json --allowedTools Read,Grep,Glob` with cwd = the project directory. Read-only tools only: the question is typed text and must never meet a tool that writes or runs commands.
 - Prompt = the walk (orient, steps, sources) + the current step + the question + "answer as ONE step: takeaway, body, optional picture, sources".
 - The answer is inserted after the current step, marked `asked`, and saved into the walk so it survives.
-- One ask per walk at a time; spinner while running; 90 s timeout; failure shows the error and a Retry button. Each ask is logged in the walk file (question, duration, outcome) for later review.
+- One ask per walk at a time; 90 s timeout. In the box, Enter adds a line and Command+Enter sends. While it runs, the question is echoed with three live steps and you can keep reading; the answer is saved under its step when ready and a toast offers to show it if you moved on. There is no Cancel: closing the request does not stop the Claude call, so the answer still lands. Failure shows an alert, keeps the question and offers Try again. Each ask is logged in the walk file (question, duration, outcome) for later review.
 
 ## 6. The `walk` MCP tool and `walk` skill
 

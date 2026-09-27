@@ -2,8 +2,10 @@
 
 import { askStep, putProgress } from "./panel-api.js";
 import { checkIcon, h, htmlFrame, icon, kbd, plural, sourceList } from "./panel-dom.js";
+import { KIND_LABEL as KIND, defaultPicked, minutesFor, pickedOrder, topSteps } from "./walk-nav.js";
 
 const STAGE_OF = { orient: "orient", check: "check", end: "done" };
+const CLOSED_ASK = { open: false, busy: false, error: null, text: "", question: "" };
 
 function initialAt(params, progress, orderLength) {
   const at = params.get("at");
@@ -26,25 +28,12 @@ function initialAt(params, progress, orderLength) {
   return Math.min(progress.current, orderLength - 1);
 }
 
-function progressText(at, steps) {
-  if (typeof at === "number") {
-    return [`${at + 1} of ${steps.length}`, ` · ${steps[at].name}`];
-  }
-  return [`${steps.length} of ${steps.length}`, at === "check" ? " · Say it back" : " · Done"];
-}
-
 export function walkView({ walk, progress, projectLabel }, params, app) {
   const projectName = projectLabel ?? walk.project;
   let destroyed = false;
-  const topSteps = () => walk.steps.filter((s) => !s.parent);
-  const suggested = new Set(walk.orient.map.filter((m) => m.suggested).map((m) => m.stepId));
   const mapInfo = new Map(walk.orient.map.map((m) => [m.stepId, m]));
-  const isSuggested = (id) => (mapInfo.has(id) ? suggested.has(id) : true);
 
-  let picked = progress.picked.length ? [...progress.picked] : topSteps().filter((s) => isSuggested(s.id)).map((s) => s.id);
-  if (!picked.length) {
-    picked = topSteps().map((s) => s.id);
-  }
+  let picked = progress.picked.length ? [...progress.picked] : defaultPicked(walk);
   const statuses = { ...progress.steps };
   const checks = walk.check.map((_, i) => progress.checks[i] ?? { answer: "", mark: null });
   const revealed = new Set(checks.map((c, i) => (c.mark ? i : -1)).filter((i) => i >= 0));
@@ -52,12 +41,11 @@ export function walkView({ walk, progress, projectLabel }, params, app) {
   let startedAt = progress.startedAt;
   let layer = null;
   let overlay = null;
-  let ask = { open: false, busy: false, error: null, text: "" };
+  let ask = { ...CLOSED_ASK };
   let focusHeading = false;
   let mapOpener = null;
 
-  const order = () => topSteps().filter((s) => picked.includes(s.id));
-  const minutesFor = (n) => Math.max(1, Math.round((walk.orient.minutes * n) / topSteps().length));
+  const order = () => pickedOrder(walk, picked);
   let at = initialAt(params, progress, order().length);
 
   function stageOf(pos) {
@@ -83,7 +71,7 @@ export function walkView({ walk, progress, projectLabel }, params, app) {
   function go(pos) {
     at = pos;
     layer = null;
-    ask = { open: false, busy: false, error: null, text: "" };
+    ask = ask.busy ? { ...ask, open: false } : { ...CLOSED_ASK };
     focusHeading = true;
     if (typeof pos === "number") {
       progress.current = pos;
@@ -131,7 +119,7 @@ export function walkView({ walk, progress, projectLabel }, params, app) {
     if (!wasStarted) {
       startedAt = Date.now();
     }
-    for (const s of topSteps()) {
+    for (const s of topSteps(walk)) {
       if (!picked.includes(s.id)) {
         statuses[s.id] = "skipped";
       } else if (statuses[s.id] === "skipped") {
@@ -160,24 +148,30 @@ export function walkView({ walk, progress, projectLabel }, params, app) {
     const ctx = h("div", { class: "pn-context" }, h("b", {}, projectName), " · ", walk.title);
     const row = h("div", { class: "pn-top-row" }, home, ctx);
     if (at !== "orient") {
-      row.append(h("button", { class: "pn-icon-btn", "aria-label": "Map of steps (M)", on: { click: openMap } }, icon("map"), "Map"));
+      row.append(h("button", { class: "pn-icon-btn", "aria-label": "Map of steps (M)", on: { click: openMap } }, icon("map"), "Map", kbd("M")));
     }
-    const nodes = [row];
-    if (at !== "orient") {
-      const steps = order();
-      const idx = typeof at === "number" ? at : steps.length;
-      const ticks = h("div", { class: "pn-ticks", "aria-hidden": "true" },
-        steps.map((s, i) => h("span", { class: `pn-tick${statuses[s.id] === "got" && i !== at ? " done" : ""}${i === at ? " current" : ""}` })));
-      const [count, name] = progressText(at, steps);
-      const label = h("div", { class: "pn-progress-label" }, h("b", {}, count), name);
-      nodes.push(h("div", { class: "pn-progress" }, ticks, label));
-    }
-    return nodes;
+    return [row];
+  }
+
+  function progressBlock() {
+    const steps = order();
+    const n = at + 1;
+    return h("div", { class: "pn-progress" },
+      h("div", { class: "pn-progress-label" },
+        h("span", {}, h("b", {}, `Step ${n} of ${steps.length}`), ` · ${steps[at].name}`),
+        h("span", {}, `about ${minutesFor(walk, steps.length - at)} min left`)),
+      h("div", { class: "pn-meter", role: "img", "aria-label": `Step ${n} of ${steps.length}` }, h("i", { style: `width:${Math.round((n / steps.length) * 100)}%` })));
+  }
+
+  function stepRail() {
+    return h("aside", { class: "pn-step-rail", "aria-label": "Steps" }, h("ol", {}, order().map((s, i) => h("li", {
+      "aria-current": i === at ? "step" : false,
+    }, h("span", { class: "n" }, statuses[s.id] === "got" && i !== at ? "✓" : String(i + 1)), s.name))));
   }
 
   // ---------- orient ----------
   function orientMain() {
-    const rows = topSteps().map((s, i) => {
+    const rows = topSteps(walk).map((s, i) => {
       const info = mapInfo.get(s.id);
       const on = picked.includes(s.id);
       return h("li", {},
@@ -185,59 +179,62 @@ export function walkView({ walk, progress, projectLabel }, params, app) {
           class: "pn-map-row", role: "checkbox", "aria-checked": String(on),
           on: {
             click: () => {
-              picked = on ? picked.filter((id) => id !== s.id) : topSteps().map((x) => x.id).filter((id) => id === s.id || picked.includes(id));
-              render();
+              picked = on ? picked.filter((id) => id !== s.id) : topSteps(walk).map((x) => x.id).filter((id) => id === s.id || picked.includes(id));
+              render(true);
             },
           },
         },
         checkIcon(),
         h("span", {},
           h("span", { class: "pn-map-name" }, h("span", { class: "pn-map-num" }, `${i + 1}`), info?.name ?? s.name),
-          h("span", { class: "pn-map-take", style: "display:block" }, info?.takeaway ?? s.takeaway))));
+          h("span", { class: "pn-map-take" }, info?.takeaway ?? s.takeaway))));
     });
-    const meta = [h("b", {}, `${topSteps().length} steps`), ` · about ${walk.orient.minutes} min`];
+    const total = topSteps(walk).length;
+    const facts = [h("span", {}, h("b", {}, KIND[walk.kind] ?? "Walk")), h("span", {}, h("b", {}, String(total)), " steps"), h("span", {}, "about ", h("b", {}, `${walk.orient.minutes} min`))];
     if (walk.example) {
-      meta.push(" · example: ", h("b", {}, walk.example.name));
+      facts.push(h("span", {}, "Example: ", h("b", {}, walk.example.name)));
     }
-    return h("div", { class: "pn-step-enter" },
+    return h("div", { class: "pn-step-enter pn-col" },
       h("p", { class: "pn-question" }, walk.orient.question),
       h("h1", { class: "pn-answer", tabindex: "-1" }, walk.orient.answer),
-      h("p", { class: "pn-meta" }, ...meta),
-      h("h2", { class: "pn-section-title" }, "Your path. Untick what you already know."),
+      h("div", { class: "pn-facts" }, facts),
+      h("div", { class: "pn-path-h" }, h("h2", {}, "Your path"), h("span", {}, `${picked.length} of ${total} steps · about ${minutesFor(walk, picked.length)} min`)),
+      h("p", { class: "pn-hint" }, "Suggested steps are on. Turn off what you already know."),
       h("ul", { class: "pn-map", "aria-label": "Steps to walk" }, rows));
   }
 
   function orientBar() {
     const n = picked.length;
-    const resumed = startedAt !== null;
-    const verb = resumed ? "Continue" : "Start";
-    const label = n === 0 ? "Pick at least one step" : `${verb} · ${plural(n, "step")}, ${minutesFor(n)} min`;
+    const verb = startedAt !== null ? "Continue" : "Start";
+    const label = n === 0 ? "Pick at least one step" : `${verb} · ${plural(n, "step")}`;
     return [h("span", { class: "pn-spacer" }),
-      h("button", { class: "pn-btn primary", disabled: n === 0, on: { click: start } }, label, kbd("Enter"))];
+      h("button", { class: "pn-btn primary", disabled: n === 0, on: { click: start } }, label, kbd("⏎"))];
   }
 
   // ---------- step ----------
   function stepMain() {
     const step = order()[at];
-    const body = [step.body_html, step.picture_html ? `<div style="margin-top:20px">${step.picture_html}</div>` : ""].join("");
-    const parts = [h("h1", { class: "pn-takeaway", tabindex: "-1" }, step.takeaway)];
+    const parts = [progressBlock(), h("h1", { class: "pn-takeaway", tabindex: "-1" }, step.takeaway)];
     if (layer) {
-      parts.push(h("section", { class: "pn-layer", "aria-label": layer === "slower" ? "Slower" : "Why" },
-        h("p", { class: "pn-layer-label" }, layerLabel()),
+      parts.push(h("section", { class: "pn-layer pn-well", "aria-label": layer === "slower" ? "Slower" : "Why" },
+        h("p", { class: "pn-kicker" }, layerLabel()),
         htmlFrame(layer === "slower" ? step.slower_html : step.why_html, layer)));
     }
-    parts.push(h("div", { class: "pn-block" }, htmlFrame(body, step.name)));
+    parts.push(h("div", { class: "pn-prose" }, htmlFrame(step.body_html, step.name)));
+    if (step.picture_html) {
+      parts.push(h("div", { class: "pn-well" }, htmlFrame(step.picture_html, `${step.name} picture`)));
+    }
     if (step.example_html) {
-      parts.push(h("div", { class: "pn-example" },
-        h("p", { class: "pn-example-label" }, walk.example ? `Example: ${walk.example.name}` : "Example"),
-        htmlFrame(step.example_html, "Example")));
+      parts.push(h("div", { class: "pn-card" },
+        h("p", { class: "pn-kicker" }, walk.example ? `Example · ${walk.example.name}` : "Example"),
+        htmlFrame(step.example_html, "Example", "wk-example")));
+    }
+    parts.push(...answers(step));
+    if (ask.open || waitingHere()) {
+      parts.push(askBlock(step));
     }
     parts.push(sourceList(step.sources));
-    parts.push(...answers(step));
-    if (ask.open) {
-      parts.push(askBox(step));
-    }
-    return h("div", { class: layer || ask.open ? "" : "pn-step-enter" }, parts);
+    return h("div", { class: layer || ask.open ? "pn-step-split" : "pn-step-enter pn-step-split" }, stepRail(), h("div", {}, parts));
   }
 
   function layerLabel() {
@@ -254,21 +251,33 @@ export function walkView({ walk, progress, projectLabel }, params, app) {
   function answers(step) {
     const kids = walk.steps.filter((s) => s.parent === step.id);
     const questions = questionsFor(step.id);
-    return kids.map((kid, i) => h("section", { class: "pn-answer-block", id: `ans-${kid.id}`, "aria-label": "Answer to your question" },
-      h("p", { class: "pn-layer-label" }, questions[i] ? `You asked: ${questions[i]}` : "You asked"),
+    return kids.map((kid, i) => h("section", { class: "pn-card", id: `ans-${kid.id}`, "aria-label": "Answer to your question" },
+      h("p", { class: "pn-kicker" }, questions[i] ? `You asked: ${questions[i]}` : "You asked"),
       h("p", { class: "pn-answer-take" }, kid.takeaway),
       htmlFrame(kid.body_html, "Answer"),
       sourceList(kid.sources)));
   }
 
-  function askBox(step) {
+  function waitingHere() {
+    return ask.busy && ask.origin === at;
+  }
+
+  function askBlock(step) {
+    if (waitingHere()) {
+      return h("section", { class: "pn-ask", role: "status", "aria-label": "Asking" },
+        h("p", {}, "You asked: ", h("b", {}, ask.question)),
+        h("ol", { class: "pn-ask-steps" },
+          h("li", { class: "ok" }, h("span", { class: "dot" }), "Question sent"),
+          h("li", { class: "now" }, h("span", { class: "dot" }), "Reading the walk's sources, usually about 20 seconds"),
+          h("li", {}, h("span", { class: "dot" }), "Answer added under this step")),
+        h("p", { class: "pn-sub", style: "margin-top:12px" }, "You can keep reading. The answer is saved under this step when it's ready."));
+    }
     const input = h("textarea", {
-      class: "pn-input pn-ask-input", rows: "2", maxlength: "500", "aria-label": "Your question about this step",
-      placeholder: "Enter sends · Shift+Enter for a new line", disabled: ask.busy,
+      id: "pn-ask-q", class: "pn-input pn-ask-input", rows: "3", maxlength: "500", placeholder: "Ask about this step",
       on: {
         input: (e) => { ask.text = e.target.value; },
         keydown: (e) => {
-          if (e.key === "Enter" && !e.shiftKey) {
+          if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
             e.preventDefault();
             sendAsk(step);
           }
@@ -276,29 +285,26 @@ export function walkView({ walk, progress, projectLabel }, params, app) {
       },
     });
     input.value = ask.text;
-    const status = ask.busy
-      ? h("p", { class: "pn-sub", role: "status" }, "Finding the answer. This can take up to 90 seconds.")
-      : null;
     const error = ask.error
-      ? h("p", { class: "pn-ask-error", role: "alert" }, `Couldn't get an answer: ${ask.error.replace(/[.\s]+$/, "")}. Press Enter to try again.`)
+      ? h("div", { class: "pn-alert", role: "alert" }, icon("warn"),
+        h("span", {}, h("b", {}, "No answer this time"), `${ask.error.replace(/[.\s]+$/, "")}. Your question is kept.`))
       : null;
-    const box = h("section", { class: "pn-layer pn-ask", "aria-label": "Ask about this step" },
-      h("p", { class: "pn-layer-label" }, "Ask about this step"),
+    queueMicrotask(() => input.focus());
+    return h("section", { class: "pn-ask", "aria-label": "Ask about this step" },
+      error,
+      h("label", { for: "pn-ask-q" }, "Your question"),
       input,
-      h("div", { class: "pn-reveal" },
-        h("button", { class: "pn-btn primary", disabled: ask.busy || !ask.text.trim(), on: { click: () => sendAsk(step) } }, ask.busy ? "Sending..." : "Send question"),
-        h("button", { class: "pn-btn quiet", disabled: ask.busy, on: { click: closeAsk } }, "Cancel")),
-      status, error);
-    queueMicrotask(() => {
-      if (!ask.busy) {
-        input.focus();
-      }
-    });
-    return box;
+      h("div", { class: "pn-ask-row" },
+        h("span", {}, "Answered from the walk's sources, usually in about 20 seconds."),
+        h("button", { class: "pn-btn primary", on: { click: () => sendAsk(step) } }, ask.error ? "Try again" : "Send question", kbd("⌘⏎"))));
   }
 
   function openAsk() {
-    if (typeof at !== "number" || ask.busy) {
+    if (typeof at !== "number") {
+      return;
+    }
+    if (ask.busy) {
+      app.toast(`One question at a time. Step ${ask.origin + 1}'s answer is still coming.`);
       return;
     }
     ask.open = true;
@@ -307,15 +313,12 @@ export function walkView({ walk, progress, projectLabel }, params, app) {
   }
 
   function closeAsk() {
-    if (ask.busy) {
+    if (ask.busy || !ask.open) {
       return false;
     }
-    if (ask.open) {
-      ask = { open: false, busy: false, error: null, text: "" };
-      render(true);
-      return true;
-    }
-    return false;
+    ask = { ...CLOSED_ASK };
+    render(true);
+    return true;
   }
 
   async function sendAsk(step) {
@@ -323,8 +326,8 @@ export function walkView({ walk, progress, projectLabel }, params, app) {
     if (!question || ask.busy) {
       return;
     }
-    ask.busy = true;
-    ask.error = null;
+    const origin = at;
+    ask = { ...ask, busy: true, error: null, question, origin };
     render(true);
     try {
       const { step: answer } = await askStep(walk.id, step.id, question);
@@ -333,34 +336,52 @@ export function walkView({ walk, progress, projectLabel }, params, app) {
       walk.asks = [...(walk.asks ?? []), { stepId: step.id, question, outcome: "ok" }];
       statuses[step.id] = statuses[step.id] === "got" ? "got" : "asked";
       save();
-      ask = { open: false, busy: false, error: null, text: "" };
+      ask = { ...CLOSED_ASK };
+      if (destroyed) {
+        return;
+      }
       render(true);
-      document.getElementById(`ans-${answer.id}`)?.scrollIntoView({ block: "start", behavior: "smooth" });
+      if (at === origin) {
+        document.getElementById(`ans-${answer.id}`)?.scrollIntoView({ block: "start", behavior: "smooth" });
+      } else {
+        app.toast(`Answer ready on step ${origin + 1}`, { label: "Show", onClick: () => go(origin) });
+      }
       app.announce(`Answer added: ${answer.takeaway}`);
     } catch (err) {
-      ask.busy = false;
-      ask.error = err.message || "no reply from easel";
-      render(true);
+      const raw = err.message || "no reply from easel";
+      const message = raw.charAt(0).toUpperCase() + raw.slice(1);
+      if (at === origin && !destroyed) {
+        ask = { ...CLOSED_ASK, open: true, error: message, text: question };
+        render(true);
+      } else {
+        ask = { ...CLOSED_ASK };
+        app.toast(`Ask on step ${origin + 1} didn't finish: ${message}`);
+      }
     }
   }
 
   function stepBar() {
     const last = at === order().length - 1;
+    const typing = ask.open && !ask.busy;
+    const nextLabel = last && !walk.check.length ? "Finish" : "Got it";
     return [
-      h("button", { class: "pn-btn quiet", "data-k": "back", on: { click: back } }, "Back", kbd("←")),
-      h("button", { class: "pn-btn", "data-k": "slower", "aria-pressed": String(layer === "slower"), on: { click: () => toggleLayer("slower") } }, "Slower", kbd("S")),
-      h("button", { class: "pn-btn", "data-k": "why", "aria-pressed": String(layer === "why"), on: { click: () => toggleLayer("why") } }, "Why?", kbd("W")),
-      h("button", { class: "pn-btn", "data-k": "ask", "aria-pressed": String(ask.open), on: { click: () => (ask.open ? closeAsk() : openAsk()) } }, "Ask", kbd("A")),
+      h("button", { class: "pn-btn quiet", "data-k": "back", "aria-label": "Back", on: { click: back } }, icon("left"), h("span", { class: "pn-label-wide" }, "Back")),
       h("span", { class: "pn-spacer" }),
-      h("button", { class: ask.open ? "pn-btn" : "pn-btn primary", "data-k": "next", on: { click: next } }, last && !walk.check.length ? "Finish" : "Got it", kbd("Enter")),
+      h("button", { class: "pn-btn quiet", "data-k": "slower", "aria-pressed": String(layer === "slower"), on: { click: () => toggleLayer("slower") } }, "Slower", kbd("S")),
+      h("button", { class: "pn-btn quiet", "data-k": "why", "aria-pressed": String(layer === "why"), on: { click: () => toggleLayer("why") } }, "Why", kbd("W")),
+      h("button", { class: "pn-btn quiet", "data-k": "ask", "aria-pressed": String(ask.open || waitingHere()), on: { click: () => (ask.open ? closeAsk() : openAsk()) } }, "Ask", kbd("A")),
+      typing
+        ? h("button", { class: "pn-btn quiet", "data-k": "next", on: { click: next } }, nextLabel)
+        : h("button", { class: "pn-btn primary", "data-k": "next", on: { click: next } }, nextLabel, kbd("⏎")),
     ];
   }
 
   // ---------- check ----------
   function checkMain() {
     const items = walk.check.map((c, i) => {
+      const id = `pn-check-${i}`;
       const input = h("input", {
-        class: "pn-input", type: "text", value: checks[i].answer, "aria-label": c.prompt, placeholder: "Your answer, from memory",
+        id, class: "pn-input", type: "text", value: checks[i].answer, placeholder: "Your answer, from memory",
         on: {
           input: (e) => { checks[i].answer = e.target.value; },
           keydown: (e) => {
@@ -371,7 +392,7 @@ export function walkView({ walk, progress, projectLabel }, params, app) {
           },
         },
       });
-      const item = h("div", { class: "pn-check-item" }, h("p", { class: "pn-check-prompt" }, `${i + 1}. ${c.prompt}`), input);
+      const item = h("div", { class: "pn-check-item" }, h("label", { class: "pn-check-prompt", for: id }, `${i + 1}. ${c.prompt}`), input);
       if (revealed.has(i)) {
         item.append(
           h("div", { class: "pn-expected" }, h("small", {}, "Expected"), c.expected),
@@ -383,8 +404,8 @@ export function walkView({ walk, progress, projectLabel }, params, app) {
       }
       return item;
     });
-    return h("div", { class: "pn-step-enter" },
-      h("h1", { class: "pn-takeaway", tabindex: "-1" }, "Say it back"),
+    return h("div", { class: "pn-step-enter pn-col" },
+      h("h1", { class: "pn-takeaway", style: "margin-top:16px", tabindex: "-1" }, "Say it back"),
       h("p", { class: "pn-sub" }, "Optional. Answer from memory, then reveal and mark yourself."),
       items);
   }
@@ -392,21 +413,21 @@ export function walkView({ walk, progress, projectLabel }, params, app) {
   function reveal(i) {
     revealed.add(i);
     save();
-    render();
+    render(true);
   }
 
   function mark(i, value) {
     checks[i].mark = checks[i].mark === value ? null : value;
     save();
-    render();
+    render(true);
+  }
+
+  function backButton() {
+    return h("button", { class: "pn-btn quiet", "aria-label": "Back", on: { click: back } }, icon("left"), h("span", { class: "pn-label-wide" }, "Back"));
   }
 
   function checkBar() {
-    return [
-      h("button", { class: "pn-btn quiet", on: { click: back } }, "Back", kbd("←")),
-      h("span", { class: "pn-spacer" }),
-      h("button", { class: "pn-btn primary", on: { click: next } }, "Finish", kbd("Enter")),
-    ];
+    return [backButton(), h("span", { class: "pn-spacer" }), h("button", { class: "pn-btn primary", on: { click: next } }, "Finish", kbd("⏎"))];
   }
 
   // ---------- end ----------
@@ -421,25 +442,25 @@ export function walkView({ walk, progress, projectLabel }, params, app) {
           click: () => {
             actionsDone = done ? actionsDone.filter((x) => x !== i) : [...actionsDone, i];
             save();
-            render();
+            render(true);
           },
         },
       }, checkIcon(), h("span", {}, a)));
     });
-    return h("div", { class: "pn-step-enter" },
+    const sec = (title, count, body) => h("section", { class: "pn-sec" },
+      h("div", { class: "pn-sec-h" }, h("h2", {}, title), h("span", { class: "pn-n" }, String(count))), body);
+    return h("div", { class: "pn-step-enter pn-col" },
       h("p", { class: "pn-saved" }, icon("saved"), h("span", {}, "Saved to ", h("b", {}, projectName), " · Keep")),
-      h("h1", { class: "pn-answer", style: "margin-top:16px", tabindex: "-1" }, walk.orient.answer),
-      marked.length ? h("p", { class: "pn-meta" }, `Check: ${right} of ${marked.length} right`) : null,
-      walk.recap.length ? h("h2", { class: "pn-section-title" }, "Recap") : null,
-      walk.recap.length ? h("ul", { class: "pn-list" }, walk.recap.map((r) => h("li", {}, r))) : null,
-      walk.actions.length ? h("h2", { class: "pn-section-title" }, "Actions") : null,
-      walk.actions.length ? h("ul", { class: "pn-rows", style: "gap:0" }, actions) : null,
+      h("h1", { class: "pn-answer", style: "margin-top:12px", tabindex: "-1" }, walk.orient.answer),
+      marked.length ? h("p", { class: "pn-meta", style: "margin-top:12px" }, `Say it back: ${right} of ${marked.length} right`) : null,
+      walk.recap.length ? sec("Recap", walk.recap.length, h("ul", { class: "pn-list" }, walk.recap.map((r) => h("li", {}, r)))) : null,
+      walk.actions.length ? sec("Actions", walk.actions.length, h("ul", { class: "pn-rows" }, actions)) : null,
       sourceList(walk.sources));
   }
 
   function endBar() {
     return [
-      h("button", { class: "pn-btn quiet", on: { click: back } }, "Back", kbd("←")),
+      backButton(),
       h("span", { class: "pn-spacer" }),
       h("button", { class: "pn-btn", on: { click: () => app.navigate(`/panel/p/${encodeURIComponent(walk.project)}?tab=keep`) } }, "Open in Keep"),
       h("button", { class: "pn-btn primary", on: { click: () => app.navigate("/panel") } }, "All walks", kbd("H")),
@@ -460,7 +481,7 @@ export function walkView({ walk, progress, projectLabel }, params, app) {
       return "Not yet";
     };
     const rows = steps.map((s, i) => h("li", {}, h("button", {
-      class: "pn-row", "aria-current": i === at ? "step" : false, on: { click: () => { closeMap(); go(i); } },
+      class: `pn-row${i === at ? " here" : ""}`, "aria-current": i === at ? "step" : false, on: { click: () => { closeMap(); go(i); } },
     },
     h("span", { class: "pn-row-main" },
       h("span", { class: "pn-row-title" }, `${i + 1}. ${s.name}`),
@@ -468,7 +489,7 @@ export function walkView({ walk, progress, projectLabel }, params, app) {
     h("span", { class: "pn-row-end" }, statusText(s, i)))));
     const extra = [];
     if (walk.check.length) {
-      extra.push(h("li", {}, h("button", { class: "pn-row", "aria-current": at === "check" ? "step" : false, on: { click: () => { closeMap(); go("check"); } } },
+      extra.push(h("li", {}, h("button", { class: `pn-row${at === "check" ? " here" : ""}`, "aria-current": at === "check" ? "step" : false, on: { click: () => { closeMap(); go("check"); } } },
         h("span", { class: "pn-row-main" }, h("span", { class: "pn-row-title" }, "Say it back"), h("span", { class: "pn-row-meta" }, "Optional check")))));
     }
     extra.push(h("li", {}, h("button", { class: "pn-row", on: { click: () => { closeMap(); go("orient"); } } },
@@ -476,7 +497,7 @@ export function walkView({ walk, progress, projectLabel }, params, app) {
     mapOpener = document.activeElement;
     overlay = h("dialog", { class: "pn pn-overlay", "aria-label": "Map of steps" },
       h("div", { class: "pn-top" }, h("div", { class: "pn-top-row" },
-        h("div", { class: "pn-context" }, h("b", {}, "Map"), ` · ${walk.title}`),
+        h("div", { class: "pn-context", style: "padding-left:12px" }, h("b", {}, "Map"), ` · ${walk.title}`),
         h("button", { class: "pn-icon-btn", "aria-label": "Close map (Esc)", on: { click: closeMap } }, icon("close"), "Close"))),
       h("div", { class: "pn-overlay-inner" }, h("ul", { class: "pn-rows" }, rows, extra)));
     document.body.append(overlay);
@@ -511,7 +532,9 @@ export function walkView({ walk, progress, projectLabel }, params, app) {
       app.frame({ top: top(), main: orientMain(), bar: orientBar() });
     } else if (typeof at === "number") {
       app.frame({ top: top(), main: stepMain(), bar: stepBar() });
-      app.announce(`Step ${at + 1} of ${order().length}: ${order()[at].takeaway}`);
+      if (!keepScroll) {
+        app.announce(`Step ${at + 1} of ${order().length}: ${order()[at].takeaway}`);
+      }
     } else if (at === "check") {
       app.frame({ top: top(), main: checkMain(), bar: checkBar() });
     } else {
@@ -575,7 +598,7 @@ export function walkView({ walk, progress, projectLabel }, params, app) {
       }
       if (layer) {
         layer = null;
-        render();
+        render(true);
         return true;
       }
       return false;

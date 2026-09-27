@@ -58,13 +58,12 @@ const app = {
 function errorView(err) {
   const missing = /^404/.test(err.message);
   const copy = missing
-    ? { title: "Not found", body: "This walk or project no longer exists.", next: "It may have been deleted. Press H for all walks." }
-    : { title: "Couldn't load this", body: "Easel sent an error or no answer.", next: "Press R to try again. If it keeps failing, run `easel restart` in a terminal." };
+    ? { title: "Not found", body: "This walk or project no longer exists. It may have been deleted." }
+    : { title: "Couldn't load this", body: "Easel sent an error or no answer. If it keeps failing, run `easel restart` in a terminal." };
   app.frame({
     top: [h("div", { class: "pn-top-row" },
-      h("button", { class: "pn-icon-btn", "aria-label": "All walks (H)", on: { click: () => app.navigate("/panel") } }, icon("home")),
-      h("h1", { class: "pn-context pn-title" }, copy.title))],
-    main: h("div", { class: "pn-error" }, h("p", {}, copy.body), h("p", { class: "pn-sub" }, copy.next),
+      h("button", { class: "pn-icon-btn", "aria-label": "All walks (H)", on: { click: () => app.navigate("/panel") } }, icon("home")))],
+    main: h("div", { class: "pn-error", role: "alert" }, h("h1", { tabindex: "-1" }, copy.title), h("p", {}, copy.body),
       h("div", { class: "pn-reveal" },
         h("button", { class: "pn-btn primary", on: { click: () => app.navigate("/panel") } }, "All walks", kbd("H")),
         h("button", { class: "pn-btn", on: { click: () => route() } }, "Try again", kbd("R")))),
@@ -148,6 +147,7 @@ document.addEventListener("keydown", (e) => {
 });
 
 window.addEventListener("popstate", route);
+window.addEventListener("scroll", () => topEl.classList.toggle("scrolled", window.scrollY > 4), { passive: true });
 
 async function boot() {
   try {

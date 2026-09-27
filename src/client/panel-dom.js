@@ -39,6 +39,8 @@ const ICONS = {
   close: '<path d="M6 6l12 12M18 6 6 18"/>',
   saved: '<circle cx="12" cy="12" r="9"/><path d="M7.5 12.5l3 3 6-6.5"/>',
   more: '<circle cx="5.5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="18.5" cy="12" r="1.2"/>',
+  list: '<path d="M3.5 6.5l1.5 1.5 3-3M3.5 13l1.5 1.5 3-3M11 6.5h9.5M11 13h9.5M11 19h9.5"/>',
+  warn: '<circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5v.1"/>',
 };
 
 export function icon(name) {
@@ -89,13 +91,13 @@ const CSP =
  * Render untrusted walk HTML: sandboxed without allow-scripts (nothing in it
  * can run or reach the panel's token), same-origin only so we can size it.
  */
-export function htmlFrame(html, title) {
+export function htmlFrame(html, title, bodyClass = "") {
   const frame = h("iframe", { class: "pn-frame", sandbox: "allow-same-origin", title });
   frame.srcdoc =
     `<!doctype html><html><head><meta charset="utf-8">` +
     `<meta http-equiv="Content-Security-Policy" content="${CSP}">` +
     `<link rel="stylesheet" href="https://rsms.me/inter/inter.css">` +
-    `<style>${tokenCss()}${kitCss}</style></head><body>${html}</body></html>`;
+    `<style>${tokenCss()}${kitCss}</style></head><body class="${bodyClass}">${html}</body></html>`;
   const fit = () => {
     const doc = frame.contentDocument;
     if (!doc?.documentElement) {

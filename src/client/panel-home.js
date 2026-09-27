@@ -1,28 +1,35 @@
 // Home (one queue across projects) and Project (Walks + Keep tabs).
 
 import { clearDone, deleteProject, deleteWalk, getJson, moveWalk, putProgress, renameProject, restoreTrash } from "./panel-api.js";
-import { checkIcon, h, icon, openMenu, plural, timeAgo } from "./panel-dom.js";
+import { checkIcon, h, icon, kbd, openMenu, plural, timeAgo } from "./panel-dom.js";
+import { KIND_LABEL as KIND, liveSummary } from "./walk-nav.js";
 
 const STALE_MS = 14 * 24 * 60 * 60 * 1000;
+const NEW_SHOWN = 5;
 
 function homeButton(app) {
   return h("button", { class: "pn-icon-btn", "aria-label": "All walks (H)", on: { click: () => app.navigate("/panel") } }, icon("home"));
 }
 
-function section(title, rows) {
+function section(title, rows, count) {
   if (!rows.length) {
     return null;
   }
-  return h("section", {}, h("h2", { class: "pn-section-title" }, title), h("ul", { class: "pn-rows" }, rows));
+  return h("section", { class: "pn-sec" },
+    h("div", { class: "pn-sec-h" }, h("h2", {}, title), count === undefined ? null : h("span", { class: "pn-n" }, String(count))),
+    h("ul", { class: "pn-rows" }, rows));
 }
 
-function row({ title, meta, end, bar, onClick, stale }) {
+function row({ title, meta, end, bar, glyph, onClick, stale }) {
   return h("li", {}, h("button", { class: "pn-row", on: { click: onClick } },
+    glyph ? h("span", { class: "pn-row-glyph" }, icon(glyph)) : null,
     h("span", { class: "pn-row-main" },
       h("span", { class: "pn-row-title" }, title),
-      h("span", { class: "pn-row-meta" }, meta, stale ? h("span", { class: "pn-stale" }, ` · ${stale}`) : null),
-      bar === undefined ? null : h("span", { class: "pn-row-bar", "aria-hidden": "true" }, h("i", { style: `width:${Math.round(bar * 100)}%` }))),
-    end ? h("span", { class: "pn-row-end" }, end) : null));
+      h("span", { class: "pn-row-meta" }, meta, stale ? h("span", { class: "pn-stale" }, ` · ${stale}`) : null)),
+    end || bar !== undefined
+      ? h("span", { class: "pn-row-end" }, end ?? "",
+        bar === undefined ? null : h("span", { class: "pn-row-bar", "aria-hidden": "true" }, h("i", { style: `width:${Math.round(bar * 100)}%` })))
+      : null));
 }
 
 /** Run a trash-backed action, then offer Undo for 10 s. */
@@ -69,70 +76,157 @@ function countsLine(p) {
   return parts.join(" · ") || "No walks";
 }
 
+function newMeta(w, withProject) {
+  return `${withProject ? `${w.project.label} · ` : ""}${KIND[w.kind] ?? "Walk"} · ${plural(w.steps, "step")} · ${w.minutes} min`;
+}
+
+function homeTop(summary) {
+  return [h("div", { class: "pn-top-row" }, h("h1", { class: "pn-title" }, "Walks"), h("span", { class: "pn-context" }, summary))];
+}
+
+function skeleton() {
+  const line = (w, ht) => h("span", { class: "pn-sk", style: `width:${w};height:${ht}px` });
+  const skRow = () => h("div", { class: "pn-sk-row" }, line("62%", 16), line("40%", 12));
+  return h("div", { role: "status", "aria-label": "Loading walks" },
+    h("div", { class: "pn-hero", style: "display:grid;gap:10px" }, line("30%", 12), line("70%", 20), line("100%", 4)),
+    h("div", { class: "pn-sec" }, skRow(), skRow(), skRow(), skRow()));
+}
+
+/** In-progress walks with their real picked step and time left, most recent first. */
+async function liveWalks(projects) {
+  const resume = projects.flatMap((p) => p.resume.map((r) => ({ ...r, project: p })));
+  const live = await Promise.all(resume.map((r) => getJson(`/api/walks/${encodeURIComponent(r.walkId)}`)
+    .then(({ walk, progress }) => ({ id: r.walkId, title: r.title, project: r.project, updatedAt: progress.updatedAt ?? 0, ...liveSummary(walk, progress) }))
+    .catch(() => null)));
+  return live.filter(Boolean).sort((a, b) => b.updatedAt - a.updatedAt);
+}
+
 export async function homeView(app, stale = () => false) {
-  const projects = await getJson("/api/projects");
-  const waiting = (await Promise.all(projects.filter((p) => p.waiting > 0).map((p) =>
-    getJson(`/api/projects/${encodeURIComponent(p.slug)}/walks`).then((ws) =>
-      ws.filter((w) => w.status === "waiting").map((w) => ({ ...w, project: p }))))))
-    .flat()
-    .sort((a, b) => b.createdAt - a.createdAt);
-  if (stale()) {
-    return {};
+  const slow = setTimeout(() => {
+    if (!stale()) {
+      app.frame({ top: homeTop(""), main: skeleton(), bar: null });
+    }
+  }, 200);
+  let projects;
+  let waiting;
+  let live;
+  try {
+    projects = await getJson("/api/projects");
+    [waiting, live] = await Promise.all([
+      Promise.all(projects.filter((p) => p.waiting > 0).map((p) =>
+        getJson(`/api/projects/${encodeURIComponent(p.slug)}/walks`).then((ws) =>
+          ws.filter((w) => w.status === "waiting").map((w) => ({ ...w, project: p })))))
+        .then((lists) => lists.flat().sort((a, b) => b.createdAt - a.createdAt)),
+      liveWalks(projects),
+    ]);
+  } finally {
+    clearTimeout(slow);
   }
-
-  const top = [h("div", { class: "pn-top-row" }, h("h1", { class: "pn-context pn-title" }, "All walks"))];
-
-  if (!projects.length) {
-    app.frame({
-      top,
-      main: h("div", { class: "pn-empty" },
-        h("p", { class: "pn-h1" }, "Nothing to walk yet"),
-        h("p", {}, "Ask Claude to walk you through a PRD, TRD, flow or research. New walks land here.")),
-      bar: null,
-    });
+  if (stale()) {
     return {};
   }
 
   const totals = projects.reduce((t, p) => ({ waiting: t.waiting + p.waiting, inProgress: t.inProgress + p.inProgress }), { waiting: 0, inProgress: 0 });
   const summary = [totals.waiting ? `${totals.waiting} new` : null, totals.inProgress ? `${totals.inProgress} in progress` : null]
-    .filter(Boolean).join(" · ") || "All caught up";
+    .filter(Boolean).join(" · ");
 
-  const cont = projects.flatMap((p) => p.resume.map((r) => row({
-    title: r.title,
-    meta: `${p.label} · step ${Math.min(r.step + 1, r.total)} of ${r.total}`,
-    bar: r.total ? r.step / r.total : 0,
-    onClick: () => app.navigate(`/panel/w/${r.walkId}`),
-  })));
-  const fresh = waiting.map((w) => row({
-    title: w.title,
-    meta: `${w.project.label} · ${plural(w.steps, "step")}, ${w.minutes} min`,
-    end: timeAgo(w.createdAt),
-    stale: staleLabel(w),
-    onClick: () => app.navigate(`/panel/w/${w.id}`),
-  }));
-  const actions = projects.filter((p) => p.openActions > 0).map((p) => row({
-    title: p.label,
-    meta: plural(p.openActions, "open action"),
-    onClick: () => app.navigate(`/panel/p/${encodeURIComponent(p.slug)}?tab=keep`),
-  }));
-  const all = projects.map((p) => row({
-    title: p.label,
-    meta: countsLine(p),
-    end: p.lastActivity ? timeAgo(p.lastActivity) : null,
-    onClick: () => app.navigate(`/panel/p/${encodeURIComponent(p.slug)}`),
-  }));
+  if (!live.length && !waiting.length && !projects.length) {
+    app.frame({
+      top: homeTop(""),
+      main: h("div", { class: "pn-empty center" },
+        h("h2", {}, "No walks yet"),
+        h("p", {}, "When Claude finishes research, a PRD or a flow explanation, it arrives here as a walk you can step through."),
+        h("p", {}, "In any session, say ", h("code", {}, "walk me through"), " and add what you want explained.")),
+      bar: null,
+    });
+    return {};
+  }
 
-  app.frame({
-    top,
-    main: h("div", { class: "pn-step-enter" },
-      h("p", { class: "pn-sub" }, summary),
-      section("In progress", cont),
-      section("New", fresh),
-      section("Open actions", actions),
-      section("Projects", all)),
-    bar: null,
-  });
-  return { refreshOnWalk: true };
+  const open = (id) => () => app.navigate(`/panel/w/${id}`);
+  const lead = live[0] ?? waiting[0] ?? null;
+  let showAll = false;
+
+  function hero() {
+    if (!lead) {
+      return null;
+    }
+    if (live[0]) {
+      const w = live[0];
+      return h("section", { class: "pn-hero" },
+        h("p", { class: "pn-kicker" }, `Continue · ${w.project.label}`),
+        h("h2", { class: "pn-hero-title" }, w.title),
+        h("p", { class: "pn-meta" }, `Step ${w.step} of ${w.of}: ${w.stepName} · about ${w.minutesLeft} min left`),
+        h("div", { class: "pn-meter", role: "img", "aria-label": `Step ${w.step} of ${w.of}` }, h("i", { style: `width:${Math.round((w.step / w.of) * 100)}%` })),
+        h("div", { class: "pn-hero-actions" }, h("button", { class: "pn-btn primary", on: { click: open(w.id) } }, "Resume", kbd("⏎"))));
+    }
+    const w = waiting[0];
+    return h("section", { class: "pn-hero" },
+      h("p", { class: "pn-kicker" }, `Up next · ${w.project.label}`),
+      h("h2", { class: "pn-hero-title" }, w.title),
+      h("p", { class: "pn-meta" }, `${newMeta(w, false)} · arrived ${timeAgo(w.createdAt)}`),
+      h("div", { class: "pn-hero-actions" }, h("button", { class: "pn-btn primary", on: { click: open(w.id) } }, "Start", kbd("⏎"))));
+  }
+
+  function projectRows() {
+    return projects.map((p) => row({
+      title: p.label,
+      meta: countsLine(p),
+      onClick: () => app.navigate(`/panel/p/${encodeURIComponent(p.slug)}`),
+    }));
+  }
+
+  function render() {
+    const also = live.slice(1).map((w) => row({
+      title: w.title,
+      meta: `${w.project.label} · Step ${w.step} of ${w.of} · ${w.minutesLeft} min left`,
+      end: w.updatedAt ? timeAgo(w.updatedAt) : "",
+      bar: w.step / w.of,
+      onClick: open(w.id),
+    }));
+    const fresh = waiting.filter((w) => w !== lead);
+    const shown = showAll ? fresh : fresh.slice(0, NEW_SHOWN);
+    const freshRows = shown.map((w) => row({
+      title: w.title, meta: newMeta(w, true), end: timeAgo(w.createdAt), stale: staleLabel(w), onClick: open(w.id),
+    }));
+    const hidden = fresh.length - shown.length;
+    const actions = projects.filter((p) => p.openActions > 0).map((p) => row({
+      title: plural(p.openActions, "open action"),
+      meta: `${p.label} · in Keep`,
+      glyph: "list",
+      onClick: () => app.navigate(`/panel/p/${encodeURIComponent(p.slug)}?tab=keep`),
+    }));
+    const newSection = section("New", freshRows, totals.waiting);
+    if (newSection && hidden > 0) {
+      newSection.append(h("button", { class: "pn-more", on: { click: () => { showAll = true; render(); } } }, `Show ${hidden} more`));
+    }
+    const rail = projects.length > 1 ? h("aside", { class: "pn-rail" }, section("Projects", projectRows(), projects.length)) : null;
+    const projectsList = section("Projects", projectRows(), projects.length);
+    projectsList?.querySelector(".pn-rows").classList.add("pn-pgrid");
+    if (rail) {
+      projectsList?.classList.add("pn-narrow-only");
+    }
+    const caughtUp = lead ? null : h("div", { class: "pn-hero" },
+      h("h2", { class: "pn-hero-title" }, "All caught up"),
+      h("p", { class: "pn-meta", style: "margin-top:4px" }, "Nothing new or in progress. Finished walks stay in each project's Keep."));
+    const queue = h("div", {}, caughtUp, hero(), section("Also in progress", also, also.length), newSection, section("Open actions", actions, projects.reduce((n, p) => n + p.openActions, 0)), projectsList);
+    app.frame({
+      top: homeTop(summary),
+      main: h("div", { class: "pn-step-enter" }, rail ? h("div", { class: "pn-split" }, rail, queue) : queue),
+      bar: null,
+    });
+  }
+
+  render();
+  return {
+    refreshOnWalk: true,
+    onKey(e) {
+      if (e.key === "Enter" && lead) {
+        open(lead.id)();
+        return true;
+      }
+      return false;
+    },
+  };
 }
 
 export async function projectView(slug, params, app, stale = () => false) {
@@ -196,7 +290,7 @@ export async function projectView(slug, params, app, stale = () => false) {
 
   function titleNode() {
     if (!renaming) {
-      return h("h1", { class: "pn-context pn-title" }, project.label);
+      return h("h1", { class: "pn-title", style: "flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" }, project.label);
     }
     const input = h("input", {
       class: "pn-title-input", value: project.label, maxlength: "60", "aria-label": "Project name",
@@ -282,27 +376,27 @@ export async function projectView(slug, params, app, stale = () => false) {
   function walksTab() {
     const open = (w) => () => app.navigate(`/panel/w/${w.id}`);
     const inProgress = walks.filter((w) => w.status === "in_progress").map((w) => walkRow(w, {
-      title: w.title, meta: `step ${w.current + 1} of ${w.steps}`, bar: w.current / w.steps, onClick: open(w),
+      title: w.title, meta: `Step ${Math.min(w.current + 1, w.steps)} of ${w.steps}`, bar: w.current / w.steps, end: timeAgo(w.updatedAt), onClick: open(w),
     }));
     const fresh = walks.filter((w) => w.status === "waiting").map((w) => walkRow(w, {
-      title: w.title, meta: `${plural(w.steps, "step")}, ${w.minutes} min`, end: timeAgo(w.createdAt), stale: staleLabel(w), onClick: open(w),
+      title: w.title, meta: `${KIND[w.kind] ?? "Walk"} · ${plural(w.steps, "step")} · ${w.minutes} min`, end: timeAgo(w.createdAt), stale: staleLabel(w), onClick: open(w),
     }));
     const finished = done.map((w) => walkRow(w, { title: w.title, meta: `Done · ${plural(w.steps, "step")}`, end: timeAgo(w.updatedAt), onClick: open(w) }));
     if (!walks.length) {
       return h("div", { class: "pn-empty" }, h("p", {}, "No walks in this project yet."));
     }
-    return h("div", {}, section("In progress", inProgress), section("New", fresh), section("Done", finished));
+    return h("div", {}, section("In progress", inProgress, inProgress.length), section("New", fresh, fresh.length), section("Done", finished, finished.length));
   }
 
   function keepTab() {
     if (!done.length) {
       return h("div", { class: "pn-empty" },
-        h("p", { class: "pn-h1" }, "Nothing kept yet"),
+        h("h2", {}, "Nothing kept yet"),
         h("p", {}, `Finish a walk in ${project.label} and its recap and actions land here.`));
     }
     if (keepError) {
-      return h("div", { class: "pn-error", style: "margin-top:24px" },
-        h("p", {}, "Couldn't load Keep."),
+      return h("div", { class: "pn-error" },
+        h("h2", {}, "Couldn't load Keep"),
         h("div", { class: "pn-reveal" }, h("button", { class: "pn-btn", on: { click: () => { keepError = false; render(); } } }, "Try again")));
     }
     if (!kept) {
@@ -315,7 +409,7 @@ export async function projectView(slug, params, app, stale = () => false) {
           render();
         }
       });
-      return h("p", { class: "pn-sub", style: "margin-top:24px" }, "Loading...");
+      return h("p", { class: "pn-sub", style: "margin-top:24px", role: "status" }, "Loading...");
     }
     return h("div", {}, kept.map(({ walk, progress }) => {
       const actions = walk.actions.map((a, i) => {
@@ -338,11 +432,10 @@ export async function projectView(slug, params, app, stale = () => false) {
           },
         }, checkIcon(), h("span", {}, a)));
       });
-      return h("section", { style: "margin-top:28px" },
-        h("h2", { class: "pn-row-title", style: "font-size:17px" }, walk.title),
-        h("p", { class: "pn-row-meta" }, `Finished ${timeAgo(progress.updatedAt)}`),
-        walk.recap.length ? h("ul", { class: "pn-list", style: "margin-top:12px" }, walk.recap.map((r) => h("li", {}, r))) : null,
-        walk.actions.length ? h("ul", { class: "pn-rows", style: "gap:0;margin-top:8px" }, actions) : null);
+      return h("section", { class: "pn-sec" },
+        h("div", { class: "pn-sec-h" }, h("h2", {}, walk.title), h("span", { class: "pn-n" }, `finished ${timeAgo(progress.updatedAt)}`)),
+        walk.recap.length ? h("ul", { class: "pn-list" }, walk.recap.map((r) => h("li", {}, r))) : null,
+        walk.actions.length ? h("ul", { class: "pn-rows", style: "margin-top:8px" }, actions) : null);
     }));
   }
 
@@ -352,7 +445,7 @@ export async function projectView(slug, params, app, stale = () => false) {
     }
     app.frame({
       top: top(),
-      main: h("div", {}, h("p", { class: "pn-sub" }, countsLine(project)), tabs(), tab === "keep" ? keepTab() : walksTab()),
+      main: h("div", { class: "pn-col" }, h("p", { class: "pn-sub", style: "margin-top:8px" }, countsLine(project)), tabs(), tab === "keep" ? keepTab() : walksTab()),
       bar: null,
     });
   }

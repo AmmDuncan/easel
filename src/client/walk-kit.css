@@ -12,7 +12,7 @@ body {
 p { margin: 0 0 12px; }
 p:last-child { margin-bottom: 0; }
 b, strong { font-weight: 600; }
-small { font-size: 13px; color: var(--ds-ink-soft); letter-spacing: 0.01em; }
+small { font-size: 14px; color: var(--ds-ink-soft); }
 a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
 .wk-dim { color: var(--ds-ink-soft); }
 
@@ -21,9 +21,9 @@ a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
 .wk-stat {
   display: flex; flex-direction: column; gap: 4px;
   padding: 16px; border-radius: 10px;
-  background: var(--ds-surface); border: 1px solid var(--ds-line);
+  background: var(--ds-surface);
 }
-.wk-stat b { font-size: 22px; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.wk-stat b { font: 500 20px/1.2 ui-serif, "New York", Charter, Georgia, serif; font-variant-numeric: tabular-nums; }
 .wk-stat span { font-size: 14px; color: var(--ds-ink-soft); }
 
 /* Timeline: steps in order. */
@@ -38,29 +38,29 @@ a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
   content: counter(wk); position: absolute; left: 0; top: 0;
   width: 28px; height: 28px; border-radius: 50%;
   display: grid; place-items: center;
-  font-size: 13px; font-weight: 600;
+  font-size: 12px; font-weight: 600;
   background: var(--ds-surface); border: 1.5px solid var(--ds-ink-soft);
 }
 .wk-timeline li:not(:last-child)::after {
   content: ""; position: absolute; left: 13.25px; top: 32px; bottom: 4px;
   width: 1.5px; background: var(--ds-line);
 }
-.wk-timeline span { color: var(--ds-ink-soft); font-size: 15px; }
+.wk-timeline span { color: var(--ds-ink-soft); font-size: 14px; }
 
 /* Compare table: things side by side; .hl marks the row that matters. */
-.wk-compare { width: 100%; border-collapse: collapse; font-size: 15px; }
+.wk-compare { width: 100%; border-collapse: collapse; font-size: 14px; }
 .wk-compare th {
-  text-align: left; font-weight: 600; font-size: 13px; color: var(--ds-ink-soft);
+  text-align: left; font-weight: 600; font-size: 12px; color: var(--ds-ink-soft);
   padding: 8px 12px; border-bottom: 1px solid var(--ds-line);
 }
 .wk-compare td { padding: 10px 12px; border-bottom: 1px solid var(--ds-line-soft); vertical-align: top; }
-.wk-compare tr.hl td { background: var(--ds-accent-soft); font-weight: 600; }
-.wk-compare tr.hl td:first-child { box-shadow: inset 3px 0 0 var(--ds-accent); }
+.wk-compare tr:last-child td { border-bottom: 0; }
+.wk-compare tr.hl td { font-weight: 600; }
 
 /* Checklist: ticked vs not, never colour alone. */
 .wk-checklist { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .wk-checklist li {
-  display: flex; align-items: center; gap: 10px; font-size: 15px; color: var(--ds-ink-soft);
+  display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--ds-ink-soft);
 }
 .wk-checklist li::before {
   content: ""; flex: none; width: 18px; height: 18px; border-radius: 5px;
@@ -77,7 +77,7 @@ a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
 .wk-decision { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .wk-decision > div {
   padding: 14px 16px; border-radius: 10px;
-  background: var(--ds-surface); border: 1px solid var(--ds-line);
+  background: var(--ds-surface);
 }
 .wk-decision > div p { margin-top: 4px; }
 @media (max-width: 420px) { .wk-decision { grid-template-columns: 1fr; } }
@@ -90,19 +90,22 @@ a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
 
 /* Screen sketch: a tiny desktop with the terminal and a toast. */
 .wk-screen {
-  position: relative; height: 150px; border-radius: 10px; overflow: hidden;
-  background: var(--ds-surface-soft); border: 1px solid var(--ds-line);
+  position: relative; height: 150px; overflow: hidden;
 }
 .wk-screen-term {
   position: absolute; left: 16px; bottom: 16px; width: 60%; padding: 12px 14px;
   border-radius: 8px; background: var(--ds-code-bg); color: var(--ds-code-ink);
-  font: 13px/1.6 ui-monospace, "SF Mono", Menlo, monospace;
+  font: 12px/1.6 ui-monospace, "SF Mono", Menlo, monospace;
 }
 .wk-screen-term .wk-dim { color: var(--ds-code-ink); opacity: 0.72; }
 .wk-caret { opacity: 0.72; margin-right: 6px; }
 .wk-toast {
   position: absolute; top: 12px; right: 12px; display: flex; flex-direction: column; gap: 2px;
-  padding: 10px 14px; border-radius: 10px; font-size: 13px;
-  background: var(--ds-surface); border: 1px solid var(--ds-line); box-shadow: var(--ds-shadow-md);
+  padding: 10px 14px; border-radius: 10px; font-size: 12px;
+  background: var(--ds-bg-elev); box-shadow: var(--ds-shadow-md);
 }
 .wk-toast span { color: var(--ds-ink-soft); }
+
+/* Example text in the editorial voice. */
+body.wk-example { font: italic 400 16px/1.6 ui-serif, "New York", Charter, Georgia, serif; }
+body.wk-example b, body.wk-example strong { font-weight: 600; }
