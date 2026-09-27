@@ -1,6 +1,6 @@
 import express, { type Request, type Response, type NextFunction } from "express";
 import { existsSync, readFileSync } from "node:fs";
-import { homedir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -19,10 +19,11 @@ import { readConfig, writeConfig } from "./config-store.js";
 import { clearLockIfMine, writeLock } from "./server-manager.js";
 import { DATA_ROOT, DEFAULT_PROJECT_ROOTS, TOKEN_FILE, WALKS_DIR, resolvePort } from "./paths.js";
 import { inlineRemoteImages } from "./inline-images.js";
-import { createWalk, findWalk, listProjects, listWalks, saveProgress } from "./walk-store.js";
-import { parseWalkInput } from "./walk-types.js";
+import { createWalk, findWalk, listProjects, listWalks, saveProgress, saveWalk, walkProjectPath } from "./walk-store.js";
+import { parseWalkInput, type WalkAsk, type WalkStep } from "./walk-types.js";
 import { resolveProject } from "./project.js";
 import { isAllowedOrigin, readOrCreateToken } from "./token.js";
+import { buildAskPrompt, parseAskOutput, runAsk } from "./walk-ask.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const CLIENT_DIR = resolve(__dirname, "client");
@@ -61,6 +62,10 @@ let nextClientId = 1;
 // must never be counted as session tabs by `/api/push`'s sessionTabs/otherTabs
 // (MCP auto-open logic depends on those counts staying session-scoped).
 const globalClients = new Map<number, Response>();
+
+// One ask per walk at a time (Plan 4 constraint): a walk id in this set has an
+// ask in flight, guarding against a second request racing it.
+const askLocks = new Set<string>();
 
 function broadcastGlobal(event: string, payload: unknown): void {
   const data = `event: ${event}\ndata: ${JSON.stringify(payload)}\n\n`;
@@ -387,6 +392,92 @@ export function startHttpServer(): void {
     }
     broadcastGlobal("progress", { walkId: next.walkId });
     res.json(next);
+  });
+
+  app.post("/api/walks/:id/ask", requireWalkToken, async (req: Request, res: Response) => {
+    const walkId = String(req.params.id);
+    const found = findWalk(WALKS_DIR, walkId);
+    if (!found) {
+      res.status(404).json({ error: "unknown walk" });
+      return;
+    }
+    const { stepId, question } = req.body ?? {};
+    const q = typeof question === "string" ? question.trim() : "";
+    if (!q || q.length > 500) {
+      res.status(400).json({ error: "question must be 1..500 characters" });
+      return;
+    }
+    const step = found.walk.steps.find((s) => s.id === stepId);
+    if (typeof stepId !== "string" || !step) {
+      res.status(400).json({ error: "unknown stepId" });
+      return;
+    }
+    if (askLocks.has(walkId)) {
+      res.status(409).json({ error: "An answer is already on its way for this walk." });
+      return;
+    }
+    askLocks.add(walkId);
+    try {
+      const bin = process.env.EASEL_CLAUDE_BIN || "claude";
+      const projectPath = walkProjectPath(WALKS_DIR, found.walk.project);
+      const cwd = (found.walk.cwd && existsSync(found.walk.cwd))
+        ? found.walk.cwd
+        : (projectPath && existsSync(projectPath) ? projectPath : tmpdir());
+      const prompt = buildAskPrompt(found.walk, step, q);
+      const startedAt = Date.now();
+      const result = await runAsk({ bin, cwd, prompt, timeoutMs: 90_000 });
+      const ms = Date.now() - startedAt;
+
+      const logAsk = (outcome: WalkAsk["outcome"], error?: string) => {
+        const asks: WalkAsk[] = [
+          ...(found.walk.asks ?? []),
+          { stepId, question: q, at: startedAt, ms, outcome, ...(error ? { error } : {}) },
+        ];
+        saveWalk(WALKS_DIR, { ...found.walk, asks });
+      };
+
+      if (!result.ok) {
+        logAsk(result.timeout ? "timeout" : "error", result.error);
+        res.status(502).json({ error: result.error });
+        return;
+      }
+
+      const parsed = parseAskOutput(result.stdout);
+      if (!parsed) {
+        logAsk("error", "unparseable output");
+        res.status(502).json({ error: "unparseable output" });
+        return;
+      }
+
+      const childCount = found.walk.steps.filter((s) => s.parent === stepId).length;
+      const newStep: WalkStep = {
+        id: `${stepId}-a${childCount + 1}`,
+        parent: stepId,
+        asked: true,
+        name: q,
+        takeaway: parsed.takeaway,
+        body_html: parsed.body_html,
+        slower_html: "",
+        why_html: "",
+        sources: parsed.sources,
+      };
+      let insertAt = found.walk.steps.length;
+      for (let i = found.walk.steps.length - 1; i >= 0; i--) {
+        const s = found.walk.steps[i];
+        if (s.id === stepId || s.parent === stepId) {
+          insertAt = i + 1;
+          break;
+        }
+      }
+      const steps = [...found.walk.steps];
+      steps.splice(insertAt, 0, newStep);
+      const asks: WalkAsk[] = [...(found.walk.asks ?? []), { stepId, question: q, at: startedAt, ms, outcome: "ok" }];
+      saveWalk(WALKS_DIR, { ...found.walk, steps, asks });
+      broadcastGlobal("changed", { walkId, project: found.walk.project });
+      res.json({ step: newStep });
+    } finally {
+      askLocks.delete(walkId);
+    }
   });
 
   const server = app.listen(port, "127.0.0.1", () => {
