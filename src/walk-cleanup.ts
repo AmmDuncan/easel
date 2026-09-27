@@ -46,11 +46,11 @@ export function trashWalk(root: string, id: string): string | null {
   const trashId = newTrashId();
   const dest = join(trashRoot(root), trashId);
   mkdirSync(dest, { recursive: true });
+  writeJson(join(dest, "meta.json"), { kind: "walk", slug, ids: [id], at: Date.now() } satisfies TrashMeta);
   renameSync(files.json, join(dest, `${id}.json`));
   if (existsSync(files.progress)) {
     renameSync(files.progress, join(dest, `${id}.progress.json`));
   }
-  writeJson(join(dest, "meta.json"), { kind: "walk", slug, ids: [id], at: Date.now() } satisfies TrashMeta);
   return trashId;
 }
 
@@ -161,6 +161,7 @@ export function clearDone(root: string, slug: string): ClearDoneResult | "unknow
   const trashId = newTrashId();
   const dest = join(trashRoot(root), trashId);
   mkdirSync(dest, { recursive: true });
+  writeJson(join(dest, "meta.json"), { kind: "walks", slug, ids: doneIds, at: Date.now() } satisfies TrashMeta);
   for (const id of doneIds) {
     const files = walkFiles(root, slug, id);
     renameSync(files.json, join(dest, `${id}.json`));
@@ -168,7 +169,6 @@ export function clearDone(root: string, slug: string): ClearDoneResult | "unknow
       renameSync(files.progress, join(dest, `${id}.progress.json`));
     }
   }
-  writeJson(join(dest, "meta.json"), { kind: "walks", slug, ids: doneIds, at: Date.now() } satisfies TrashMeta);
   return { trashId, count: doneIds.length };
 }
 
@@ -181,8 +181,8 @@ export function trashProject(root: string, slug: string): string | null {
   const trashId = newTrashId();
   const dest = join(trashRoot(root), trashId);
   mkdirSync(dest, { recursive: true });
-  renameSync(dir, join(dest, slug));
   writeJson(join(dest, "meta.json"), { kind: "project", slug, ids: [], at: Date.now() } satisfies TrashMeta);
+  renameSync(dir, join(dest, slug));
   return trashId;
 }
 

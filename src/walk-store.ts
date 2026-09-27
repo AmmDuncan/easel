@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type {
   ProjectInfo, ProjectSummary, Walk, WalkInput, WalkProgress, WalkStatus, WalkSummary,
@@ -12,8 +12,11 @@ export function readJson<T>(path: string): T | null {
   }
 }
 
+/** Writes via a same-directory temp file + rename so a crash never leaves a half-written file. */
 export function writeJson(path: string, data: unknown): void {
-  writeFileSync(path, JSON.stringify(data, null, 2));
+  const tmp = `${path}.tmp-${process.pid}`;
+  writeFileSync(tmp, JSON.stringify(data, null, 2));
+  renameSync(tmp, path);
 }
 
 function newId(): string {

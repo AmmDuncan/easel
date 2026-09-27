@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, readdirSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { createWalk, findWalk, saveProgress, listProjects, listWalks } from "../../dist/walk-store.js";
+import { createWalk, findWalk, saveProgress, listProjects, listWalks, readJson, writeJson } from "../../dist/walk-store.js";
 import { sampleWalk } from "./walk-validate.test.mjs";
 
 const proj = { slug: "dvla", label: "dvla", path: "/x/dvla" };
@@ -74,4 +74,13 @@ test("resume total counts only picked steps; open actions count done walks' unti
   assert.equal(summaries.find((x) => x.id === inProg.id).steps, 2);
   assert.equal(summaries.find((x) => x.id === finished.id).openActions, 2);
   assert.equal(summaries.find((x) => x.id === inProg.id).openActions, 0);
+});
+
+test("writeJson leaves no .tmp- file behind and the target is valid JSON", () => {
+  const dir = mkdtempSync(join(tmpdir(), "walks-atomic-"));
+  const file = join(dir, "x.json");
+  writeJson(file, { a: 1 });
+  const names = readdirSync(dir);
+  assert.deepEqual(names, ["x.json"]);
+  assert.deepEqual(readJson(file), { a: 1 });
 });
