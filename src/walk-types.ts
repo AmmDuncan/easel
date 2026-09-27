@@ -6,7 +6,11 @@ export type WalkStep = {
   id: string; name: string; takeaway: string;
   body_html: string; picture_html?: string; example_html?: string;
   slower_html: string; why_html: string;
-  sources: WalkSource[]; asked?: boolean;
+  sources: WalkSource[]; asked?: boolean; parent?: string;
+};
+export type WalkAsk = {
+  stepId: string; question: string; at: number; ms: number;
+  outcome: "ok" | "error" | "timeout"; error?: string;
 };
 export type WalkMapItem = { stepId: string; name: string; takeaway: string; suggested: boolean };
 export type WalkInput = {
@@ -20,6 +24,7 @@ export type WalkInput = {
 export type Walk = WalkInput & {
   id: string; project: string; createdAt: number;
   sessionId: string | null; cwd: string | null;
+  asks?: WalkAsk[];
 };
 export type WalkStage = "orient" | "pick" | "walk" | "check" | "keep" | "done";
 export type StepStatus = "unseen" | "got" | "slower" | "why" | "asked" | "skipped";
