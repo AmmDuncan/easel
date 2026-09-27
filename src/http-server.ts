@@ -1,6 +1,7 @@
-import express, { type Request, type Response } from "express";
-import { readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import express, { type Request, type Response, type NextFunction } from "express";
+import { existsSync, readFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   appendPush,
@@ -16,8 +17,12 @@ import {
 } from "./session-store.js";
 import { readConfig, writeConfig } from "./config-store.js";
 import { clearLockIfMine, writeLock } from "./server-manager.js";
-import { resolvePort } from "./paths.js";
+import { DATA_ROOT, DEFAULT_PROJECT_ROOTS, TOKEN_FILE, WALKS_DIR, resolvePort } from "./paths.js";
 import { inlineRemoteImages } from "./inline-images.js";
+import { createWalk, findWalk, listProjects, listWalks, saveProgress } from "./walk-store.js";
+import { parseWalkInput } from "./walk-types.js";
+import { resolveProject } from "./project.js";
+import { isAllowedOrigin, readOrCreateToken } from "./token.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const CLIENT_DIR = resolve(__dirname, "client");
@@ -28,8 +33,45 @@ type SseClient = {
   res: Response;
 };
 
+// `readConfig()` (config-store.ts) coerces its return to the strict
+// `DisplayConfig` shape ({preset,theme,density}) and drops unknown keys, so
+// `panel.projectRoots` never survives it. Read the raw config file directly
+// for that one key instead of widening `readConfig`'s public type.
+function readPanelProjectRoots(): string[] {
+  const path = join(DATA_ROOT, "config.json");
+  if (!existsSync(path)) {
+    return DEFAULT_PROJECT_ROOTS;
+  }
+  try {
+    const raw = JSON.parse(readFileSync(path, "utf-8")) as { panel?: { projectRoots?: unknown } };
+    const roots = raw.panel?.projectRoots;
+    if (Array.isArray(roots) && roots.every((r) => typeof r === "string")) {
+      return roots as string[];
+    }
+  } catch {
+    /* fall through to default */
+  }
+  return DEFAULT_PROJECT_ROOTS;
+}
+
 const clients = new Map<number, SseClient>();
 let nextClientId = 1;
+
+// SEPARATE from `clients`: global listeners on `/events` (the walks panel)
+// must never be counted as session tabs by `/api/push`'s sessionTabs/otherTabs
+// (MCP auto-open logic depends on those counts staying session-scoped).
+const globalClients = new Map<number, Response>();
+
+function broadcastGlobal(event: string, payload: unknown): void {
+  const data = `event: ${event}\ndata: ${JSON.stringify(payload)}\n\n`;
+  for (const res of globalClients.values()) {
+    try {
+      res.write(data);
+    } catch {
+      /* client gone */
+    }
+  }
+}
 
 function broadcast(sessionId: string, event: string, payload: unknown): void {
   const data = `event: ${event}\ndata: ${JSON.stringify(payload)}\n\n`;
@@ -65,6 +107,11 @@ function renderViewerHtml(sessionId: string, port: number): string {
 function renderIndexHtml(port: number): string {
   const tpl = readFileSync(resolve(CLIENT_DIR, "index.html"), "utf-8");
   return tpl.replace(/__PORT__/g, String(port));
+}
+
+function renderPanelHtml(port: number, token: string): string {
+  const tpl = readFileSync(resolve(CLIENT_DIR, "panel.html"), "utf-8");
+  return tpl.replace(/__PORT__/g, String(port)).replace(/__TOKEN__/g, token);
 }
 
 export function startHttpServer(): void {
@@ -251,6 +298,95 @@ export function startHttpServer(): void {
       sessionTabs,
       otherTabs,
     });
+  });
+
+  const walkToken = readOrCreateToken(TOKEN_FILE);
+  const requireWalkToken = (req: Request, res: Response, next: NextFunction) => {
+    if (!isAllowedOrigin(req.get("origin"), port) || req.get("x-easel-token") !== walkToken) {
+      res.status(403).json({ error: "forbidden" });
+      return;
+    }
+    next();
+  };
+
+  app.get(["/panel", "/panel/p/:slug", "/panel/w/:id"], (_req, res) => {
+    res.type("html").send(renderPanelHtml(port, walkToken));
+  });
+
+  app.get("/events", (req: Request, res: Response) => {
+    res.set({
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache, no-transform",
+      Connection: "keep-alive",
+      "X-Accel-Buffering": "no",
+    });
+    res.flushHeaders();
+    res.write(`event: hello\ndata: {}\n\n`);
+    const id = nextClientId++;
+    globalClients.set(id, res);
+    const ka = setInterval(() => {
+      try {
+        res.write(`: keep-alive ${Date.now()}\n\n`);
+      } catch {
+        /* ignore */
+      }
+    }, 25_000);
+    req.on("close", () => {
+      clearInterval(ka);
+      globalClients.delete(id);
+    });
+  });
+
+  app.post("/api/walks", requireWalkToken, (req: Request, res: Response) => {
+    const { sessionId, cwd, walk } = req.body ?? {};
+    const parsed = parseWalkInput(walk);
+    if (!parsed.ok) {
+      res.status(400).json({ error: parsed.error });
+      return;
+    }
+    const roots = readPanelProjectRoots();
+    const project = resolveProject(typeof cwd === "string" ? cwd : null, roots, homedir());
+    const created = createWalk(WALKS_DIR, parsed.walk, project, {
+      sessionId: typeof sessionId === "string" ? sessionId : null,
+      cwd: typeof cwd === "string" ? cwd : null,
+    });
+    broadcastGlobal("walk", { project: project.slug, walkId: created.id, title: created.title });
+    res.status(201).json({
+      id: created.id, project: project.slug, url: `/panel/w/${created.id}`, globalClients: globalClients.size,
+    });
+  });
+
+  app.get("/api/projects", (_req, res) => {
+    res.json(listProjects(WALKS_DIR));
+  });
+
+  app.get("/api/projects/:slug/walks", (req, res) => {
+    const list = listWalks(WALKS_DIR, String(req.params.slug));
+    if (!list) {
+      res.status(404).json({ error: "unknown project" });
+      return;
+    }
+    res.json(list);
+  });
+
+  app.get("/api/walks/:id", (req, res) => {
+    const found = findWalk(WALKS_DIR, String(req.params.id));
+    if (!found) {
+      res.status(404).json({ error: "unknown walk" });
+      return;
+    }
+    res.json(found);
+  });
+
+  app.put("/api/walks/:id/progress", requireWalkToken, (req, res) => {
+    const { walkId: _ignored, ...patch } = req.body ?? {};
+    const next = saveProgress(WALKS_DIR, String(req.params.id), patch);
+    if (!next) {
+      res.status(404).json({ error: "unknown walk" });
+      return;
+    }
+    broadcastGlobal("progress", { walkId: next.walkId });
+    res.json(next);
   });
 
   const server = app.listen(port, "127.0.0.1", () => {
