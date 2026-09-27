@@ -145,3 +145,36 @@ test("/panel sets frame-ancestors none and X-Frame-Options DENY", async () => {
   assert.equal(r.headers.get("content-security-policy"), "frame-ancestors 'none'");
   assert.equal(r.headers.get("x-frame-options"), "DENY");
 });
+
+test("GET /api/walks/:id returns projectLabel and keeps walk/progress shape", async () => {
+  const cwd = join(home, "work/studios/dvla/dvla-label-test");
+  const r = await post({ cwd, walk: sampleWalk() });
+  const { id, project } = await r.json();
+  await fetch(`${base}/api/projects/${project}`, {
+    method: "PATCH", headers: { "content-type": "application/json", "x-easel-token": token },
+    body: JSON.stringify({ label: "DVLA Label Test" }),
+  });
+  const got = await (await fetch(`${base}/api/walks/${id}`)).json();
+  assert.equal(got.projectLabel, "DVLA Label Test");
+  assert.ok(got.walk);
+  assert.ok(got.progress);
+});
+
+test("global 'walk' SSE event carries the project label", async () => {
+  const ctrl = new AbortController();
+  const ev = await fetch(`${base}/events`, { signal: ctrl.signal });
+  const reader = ev.body.getReader();
+  const cwd = join(home, "work/studios/dvla/dvla-label-sse");
+  await post({ cwd, walk: sampleWalk() });
+  let text = "";
+  while (!text.includes("event: walk")) {
+    const { value } = await reader.read();
+    text += new TextDecoder().decode(value);
+  }
+  ctrl.abort();
+  const block = text.split("\n\n").find((b) => b.startsWith("event: walk")) ?? "";
+  const dataLine = block.split("\n").find((l) => l.startsWith("data:")) ?? "";
+  const payload = JSON.parse(dataLine.slice("data:".length));
+  // the prior test renamed project "dvla"'s label; this walk lands in the same project
+  assert.equal(payload.label, "DVLA Label Test");
+});

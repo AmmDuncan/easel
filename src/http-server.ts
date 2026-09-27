@@ -19,8 +19,10 @@ import { readConfig, writeConfig } from "./config-store.js";
 import { clearLockIfMine, writeLock } from "./server-manager.js";
 import { DATA_ROOT, DEFAULT_PROJECT_ROOTS, TOKEN_FILE, WALKS_DIR, resolvePort } from "./paths.js";
 import { inlineRemoteImages, inlineWalkHtml } from "./inline-images.js";
-import { createWalk, findWalk, listProjects, listWalks, saveProgress, saveWalk, walkProjectPath } from "./walk-store.js";
-import { parseProgressPatch, parseWalkInput, type WalkAsk, type WalkStep } from "./walk-types.js";
+import {
+  createWalk, findWalk, listProjects, listWalks, readJson, saveProgress, saveWalk, walkProjectPath,
+} from "./walk-store.js";
+import { parseProgressPatch, parseWalkInput, type ProjectInfo, type WalkAsk, type WalkStep } from "./walk-types.js";
 import { resolveProject } from "./project.js";
 import { isAllowedOrigin, readOrCreateToken } from "./token.js";
 import { buildAskPrompt, parseAskOutput, resolveAskCwd, runAsk } from "./walk-ask.js";
@@ -388,7 +390,12 @@ export function startHttpServer(): void {
       sessionId: typeof sessionId === "string" ? sessionId : null,
       cwd: typeof cwd === "string" ? cwd : null,
     });
-    broadcastGlobal("walk", { project: project.slug, walkId: created.id, title: created.title });
+    // `project` is freshly computed from cwd and doesn't see a prior rename;
+    // read the persisted project.json (which createWalk just ensured exists)
+    // so the toast label reflects any rename.
+    const persisted = readJson<ProjectInfo>(join(WALKS_DIR, project.slug, "project.json"));
+    const label = persisted?.label ?? project.label;
+    broadcastGlobal("walk", { project: project.slug, walkId: created.id, title: created.title, label });
     res.status(201).json({
       id: created.id, project: project.slug, url: `/panel/w/${created.id}`, globalClients: globalClients.size,
     });
@@ -413,7 +420,9 @@ export function startHttpServer(): void {
       res.status(404).json({ error: "unknown walk" });
       return;
     }
-    res.json(found);
+    const info = readJson<ProjectInfo>(join(WALKS_DIR, found.walk.project, "project.json"));
+    const projectLabel = info?.label ?? found.walk.project;
+    res.json({ ...found, projectLabel });
   });
 
   app.put("/api/walks/:id/progress", requireWalkToken, (req, res) => {
