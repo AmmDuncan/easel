@@ -64,9 +64,24 @@ let nextClientId = 1;
 // (MCP auto-open logic depends on those counts staying session-scoped).
 const globalClients = new Map<number, Response>();
 
-// One ask per walk at a time (Plan 4 constraint): a walk id in this set has an
-// ask in flight, guarding against a second request racing it.
-const askLocks = new Set<string>();
+// One ask per walk at a time (Plan 4 constraint): a walk id in this map has an
+// ask in flight (value = the project slug it belonged to when the ask
+// started), guarding against a second ask, or a delete/move/clear-done/
+// project-delete, racing it.
+const askLocks = new Map<string, string>();
+
+function askBusyForWalk(walkId: string): boolean {
+  return askLocks.has(walkId);
+}
+
+function askBusyForProject(slug: string): boolean {
+  for (const project of askLocks.values()) {
+    if (project === slug) {
+      return true;
+    }
+  }
+  return false;
+}
 
 function broadcastGlobal(event: string, payload: unknown): void {
   const data = `event: ${event}\ndata: ${JSON.stringify(payload)}\n\n`;
@@ -421,11 +436,11 @@ export function startHttpServer(): void {
       res.status(400).json({ error: "unknown stepId" });
       return;
     }
-    if (askLocks.has(walkId)) {
-      res.status(409).json({ error: "An answer is already on its way for this walk." });
+    if (askBusyForWalk(walkId)) {
+      res.status(409).json({ error: "another question on this walk is still being answered" });
       return;
     }
-    askLocks.add(walkId);
+    askLocks.set(walkId, found.walk.project);
     try {
       const bin = process.env.EASEL_CLAUDE_BIN || "claude";
       const projectPath = walkProjectPath(WALKS_DIR, found.walk.project);
@@ -435,12 +450,24 @@ export function startHttpServer(): void {
       const result = await runAsk({ bin, cwd, prompt, timeoutMs: 90_000 });
       const ms = Date.now() - startedAt;
 
+      // Re-read after the (slow) ask completes: the walk may have been moved
+      // or deleted while it ran. Always mutate the FRESH copy, never `found`.
+      const fresh = findWalk(WALKS_DIR, walkId);
+      const moved = fresh !== null && fresh.walk.project !== found.walk.project;
+      if (!fresh || moved) {
+        console.warn(
+          `[easel] ask outcome for walk ${walkId} dropped: walk was ${fresh ? "moved" : "deleted"} while answering`,
+        );
+        res.status(409).json({ error: "this walk was moved or deleted while it was being answered" });
+        return;
+      }
+
       const logAsk = (outcome: WalkAsk["outcome"], error?: string) => {
         const asks: WalkAsk[] = [
-          ...(found.walk.asks ?? []),
+          ...(fresh.walk.asks ?? []),
           { stepId, question: q, at: startedAt, ms, outcome, ...(error ? { error } : {}) },
         ];
-        saveWalk(WALKS_DIR, { ...found.walk, asks });
+        saveWalk(WALKS_DIR, { ...fresh.walk, asks });
       };
 
       if (!result.ok) {
@@ -456,9 +483,12 @@ export function startHttpServer(): void {
         return;
       }
 
-      const childCount = found.walk.steps.filter((s) => s.parent === stepId).length;
+      let n = 1;
+      while (fresh.walk.steps.some((s) => s.id === `${stepId}-a${n}`)) {
+        n++;
+      }
       const newStep: WalkStep = {
-        id: `${stepId}-a${childCount + 1}`,
+        id: `${stepId}-a${n}`,
         parent: stepId,
         asked: true,
         name: q,
@@ -468,19 +498,19 @@ export function startHttpServer(): void {
         why_html: "",
         sources: parsed.sources,
       };
-      let insertAt = found.walk.steps.length;
-      for (let i = found.walk.steps.length - 1; i >= 0; i--) {
-        const s = found.walk.steps[i];
+      let insertAt = fresh.walk.steps.length;
+      for (let i = fresh.walk.steps.length - 1; i >= 0; i--) {
+        const s = fresh.walk.steps[i];
         if (s.id === stepId || s.parent === stepId) {
           insertAt = i + 1;
           break;
         }
       }
-      const steps = [...found.walk.steps];
+      const steps = [...fresh.walk.steps];
       steps.splice(insertAt, 0, newStep);
-      const asks: WalkAsk[] = [...(found.walk.asks ?? []), { stepId, question: q, at: startedAt, ms, outcome: "ok" }];
-      saveWalk(WALKS_DIR, { ...found.walk, steps, asks });
-      broadcastGlobal("changed", { walkId, project: found.walk.project });
+      const asks: WalkAsk[] = [...(fresh.walk.asks ?? []), { stepId, question: q, at: startedAt, ms, outcome: "ok" }];
+      saveWalk(WALKS_DIR, { ...fresh.walk, steps, asks });
+      broadcastGlobal("changed", { walkId, project: fresh.walk.project });
       res.json({ step: newStep });
     } finally {
       askLocks.delete(walkId);
@@ -488,6 +518,10 @@ export function startHttpServer(): void {
   });
 
   app.delete("/api/walks/:id", requireWalkToken, (req, res) => {
+    if (askBusyForWalk(String(req.params.id))) {
+      res.status(409).json({ error: "an answer is being written for this walk, try again in a moment" });
+      return;
+    }
     const trashId = trashWalk(WALKS_DIR, String(req.params.id));
     if (!trashId) {
       res.status(404).json({ error: "unknown walk" });
@@ -512,6 +546,10 @@ export function startHttpServer(): void {
   });
 
   app.post("/api/walks/:id/move", requireWalkToken, (req, res) => {
+    if (askBusyForWalk(String(req.params.id))) {
+      res.status(409).json({ error: "an answer is being written for this walk, try again in a moment" });
+      return;
+    }
     const { project } = req.body ?? {};
     const result = moveWalk(WALKS_DIR, String(req.params.id), String(project));
     if (result === "unknown-walk" || result === "unknown-project") {
@@ -539,6 +577,10 @@ export function startHttpServer(): void {
 
   app.post("/api/projects/:slug/clear-done", requireWalkToken, (req, res) => {
     const slug = String(req.params.slug);
+    if (askBusyForProject(slug)) {
+      res.status(409).json({ error: "an answer is being written for this walk, try again in a moment" });
+      return;
+    }
     const result = clearDone(WALKS_DIR, slug);
     if (result === "unknown") {
       res.status(404).json({ error: "unknown project" });
@@ -550,6 +592,10 @@ export function startHttpServer(): void {
 
   app.delete("/api/projects/:slug", requireWalkToken, (req, res) => {
     const slug = String(req.params.slug);
+    if (askBusyForProject(slug)) {
+      res.status(409).json({ error: "an answer is being written for this walk, try again in a moment" });
+      return;
+    }
     const trashId = trashProject(WALKS_DIR, slug);
     if (!trashId) {
       res.status(404).json({ error: "unknown project" });

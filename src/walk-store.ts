@@ -88,13 +88,14 @@ export function findWalk(root: string, id: string): { walk: Walk; progress: Walk
   return { walk, progress };
 }
 
-/** Rewrites `<slug>/<id>.json` in place (used by ask/cleanup to persist a mutated walk). */
-export function saveWalk(root: string, walk: Walk): void {
+/** Rewrites `<slug>/<id>.json` in place (used by ask/cleanup to persist a mutated walk). Returns false if the walk no longer exists. */
+export function saveWalk(root: string, walk: Walk): boolean {
   const p = walkPath(root, walk.id);
   if (!p) {
-    return;
+    return false;
   }
   writeJson(p, walk);
+  return true;
 }
 
 /** Reads `project.json`'s `.path` for a project slug, or null if the project is unknown. */

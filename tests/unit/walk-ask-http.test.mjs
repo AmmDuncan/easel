@@ -1,7 +1,7 @@
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdtempSync, readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
@@ -26,7 +26,7 @@ async function startServer(mode) {
     await new Promise((r) => setTimeout(r, 100));
   }
   const token = readFileSync(join(home, ".easel", "token"), "utf-8").trim();
-  return { child, base, token };
+  return { child, base, token, home };
 }
 
 async function createWalk(base, token) {
@@ -139,4 +139,46 @@ test("two asks fired at once on the same walk: exactly one 409", async () => {
   ]);
   const statuses = [r1.status, r2.status].sort();
   assert.deepEqual(statuses, [200, 409]);
+});
+
+test("delete/move/clear-done/delete-project all 409 while an ask is in flight for that walk", async () => {
+  const id = await createWalk(slow.base, slow.token);
+  const askPromise = ask(slow.base, slow.token, id, { stepId: "s1", question: "Slow one?" });
+  await new Promise((r) => setTimeout(r, 100)); // let the ask register its lock before racing it
+
+  const del = await fetch(`${slow.base}/api/walks/${id}`, { method: "DELETE", headers: { "x-easel-token": slow.token } });
+  assert.equal(del.status, 409);
+
+  const move = await fetch(`${slow.base}/api/walks/${id}/move`, {
+    method: "POST", headers: { "content-type": "application/json", "x-easel-token": slow.token },
+    body: JSON.stringify({ project: "misc" }),
+  });
+  assert.equal(move.status, 409);
+
+  const clearDone = await fetch(`${slow.base}/api/projects/misc/clear-done`, {
+    method: "POST", headers: { "x-easel-token": slow.token },
+  });
+  assert.equal(clearDone.status, 409);
+
+  const delProject = await fetch(`${slow.base}/api/projects/misc`, {
+    method: "DELETE", headers: { "x-easel-token": slow.token },
+  });
+  assert.equal(delProject.status, 409);
+
+  const askRes = await askPromise;
+  assert.equal(askRes.status, 200); // walk untouched by the racing 409s, so it lands fine
+});
+
+test("walk file removed on disk mid-ask (bypassing the HTTP lock): the ask reports 409", async () => {
+  const id = await createWalk(slow.base, slow.token);
+  const askPromise = ask(slow.base, slow.token, id, { stepId: "s1", question: "Doomed?" });
+  await new Promise((r) => setTimeout(r, 100)); // let the ask start and lock
+
+  const walkFile = join(slow.home, ".easel", "walks", "misc", `${id}.json`);
+  rmSync(walkFile);
+
+  const askRes = await askPromise;
+  assert.equal(askRes.status, 409);
+  const body = await askRes.json();
+  assert.equal(body.error, "this walk was moved or deleted while it was being answered");
 });
