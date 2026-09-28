@@ -23,7 +23,7 @@ a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
   padding: 16px; border-radius: 10px;
   background: var(--ds-surface);
 }
-.wk-stat b { font: 500 20px/1.2 ui-serif, "New York", Charter, Georgia, serif; font-variant-numeric: tabular-nums; }
+.wk-stat b { font: 600 20px/1.2 ui-serif, "New York", Charter, Georgia, serif; font-variant-numeric: tabular-nums; }
 .wk-stat span { font-size: 14px; color: var(--ds-ink-soft); }
 
 /* Timeline: steps in order. */

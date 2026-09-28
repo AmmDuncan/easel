@@ -92,6 +92,24 @@ const CSP =
  * can run or reach the panel's token), same-origin only so we can size it.
  */
 const frameHeights = new Map();
+const liveFits = new Set();
+
+/** Re-measures every mounted frame; the native panel lays out while hidden and can measure 0. */
+function refitAll() {
+  for (const fit of liveFits) {
+    fit();
+  }
+}
+document.addEventListener("visibilitychange", refitAll);
+window.addEventListener("focus", refitAll);
+window.addEventListener("pageshow", refitAll);
+
+function contentHeight(doc) {
+  const body = doc.body;
+  const margins = body ? parseFloat(getComputedStyle(body).marginTop) + parseFloat(getComputedStyle(body).marginBottom) : 0;
+  const bodyBox = body ? body.getBoundingClientRect().height + margins : 0;
+  return Math.ceil(Math.max(doc.documentElement.scrollHeight, body?.scrollHeight ?? 0, bodyBox));
+}
 
 export function htmlFrame(html, title, bodyClass = "") {
   const frame = h("iframe", { class: "pn-frame", sandbox: "allow-same-origin", title });
@@ -106,12 +124,21 @@ export function htmlFrame(html, title, bodyClass = "") {
     `<link rel="stylesheet" href="https://rsms.me/inter/inter.css">` +
     `<style>${tokenCss()}${kitCss}</style></head><body class="${bodyClass}">${html}</body></html>`;
   const fit = () => {
+    if (!frame.isConnected && loaded) {
+      liveFits.delete(fit);
+      return;
+    }
     const doc = frame.contentDocument;
     if (!loaded || !doc?.documentElement) {
       return;
     }
+    const previous = frame.style.height;
     frame.style.height = "0px";
-    const height = doc.documentElement.scrollHeight;
+    const height = contentHeight(doc);
+    if (height === 0) {
+      frame.style.height = previous;
+      return;
+    }
     frame.style.height = `${height}px`;
     if (frameHeights.size > 200) {
       frameHeights.clear();
@@ -126,12 +153,14 @@ export function htmlFrame(html, title, bodyClass = "") {
       fit();
     }
   }).observe(frame);
-  frame.addEventListener("load", () => {
+  // Size once the srcdoc has parsed; `load` also waits for the external font and never fires if it stalls.
+  const ready = () => {
     const doc = frame.contentDocument;
-    if (!doc) {
+    if (loaded || !doc?.body || doc.URL !== "about:srcdoc") {
       return;
     }
     loaded = true;
+    liveFits.add(fit);
     fit();
     new ResizeObserver(fit).observe(doc.body);
     doc.fonts?.ready.then(fit);
@@ -146,7 +175,16 @@ export function htmlFrame(html, title, bodyClass = "") {
         openExternal(raw);
       }
     }, true);
-  });
+  };
+  frame.addEventListener("load", ready);
+  let tries = 0;
+  const poll = setInterval(() => {
+    ready();
+    tries += 1;
+    if (loaded || tries > 100) {
+      clearInterval(poll);
+    }
+  }, 50);
   return frame;
 }
 
