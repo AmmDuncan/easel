@@ -171,8 +171,19 @@ async function boot() {
       route();
     }
   };
-  onEvents({ walk: refreshLists, changed: refreshLists });
+  onEvents({ walk: refreshLists, changed: refreshLists }, reloadWhenIdle);
   route();
+}
+
+/** Reloads to pick up a rebuilt client, waiting while the user has typed text. */
+function reloadWhenIdle() {
+  const field = document.activeElement;
+  const typing = (field?.tagName === "TEXTAREA" || field?.tagName === "INPUT") && field.value.trim() !== "";
+  if (typing) {
+    setTimeout(reloadWhenIdle, 5000);
+    return;
+  }
+  location.reload();
 }
 
 boot();

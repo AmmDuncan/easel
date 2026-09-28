@@ -43,9 +43,19 @@ export const renameProject = (slug, label) => send("PATCH", `/api/projects/${enc
 export const clearDone = (slug) => send("POST", `/api/projects/${encodeURIComponent(slug)}/clear-done`);
 export const deleteProject = (slug) => send("DELETE", `/api/projects/${encodeURIComponent(slug)}`);
 
-/** Subscribe to the global event stream; returns an unsubscribe function. */
-export function onEvents(handlers) {
+/** Subscribe to the global event stream; `onReconnect` fires when the stream comes back after dropping (e.g. a server restart). */
+export function onEvents(handlers, onReconnect) {
   const es = new EventSource("/events");
+  let dropped = false;
+  es.addEventListener("error", () => {
+    dropped = true;
+  });
+  es.addEventListener("open", () => {
+    if (dropped) {
+      dropped = false;
+      onReconnect?.();
+    }
+  });
   for (const [event, fn] of Object.entries(handlers)) {
     es.addEventListener(event, (e) => fn(JSON.parse(e.data || "{}")));
   }
