@@ -33,6 +33,7 @@ const TOOL_OPEN = "open";
 const TOOL_CONFIG = "config";
 const TOOL_LABEL = "label";
 const TOOL_WALK = "walk";
+const TOOL_WALK_ANSWER = "walk_answer";
 
 const walkSourceSchema = {
   type: "object" as const,
@@ -386,6 +387,30 @@ export async function main() {
           "Send a WALK: a guided, step-by-step explanation Ammiel navigates in the easel panel (Orient -> pick steps -> steps with Slower/Why/Ask -> check -> Keep). Stored per project; arrives as a corner toast. Use via the `walk` skill. Ceilings: 12 steps, 12 map items, 3 check prompts, 5 recap lines, 20 actions.",
         inputSchema: walkInputSchema,
       },
+      {
+        name: TOOL_WALK_ANSWER,
+        description:
+          "Answer a question Ammiel asked in the easel walks panel about a walk you made. Only call this when a message from easel gives you an askId.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            askId: { type: "string", description: "The askId from the easel message." },
+            takeaway: { type: "string", description: "One-sentence answer." },
+            body_html: { type: "string", description: "1-3 short <p> paragraphs, plain HTML, no scripts." },
+            sources: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: { label: { type: "string" }, ref: { type: "string" } },
+                required: ["label", "ref"],
+                additionalProperties: false,
+              },
+            },
+          },
+          required: ["askId", "takeaway", "body_html"],
+          additionalProperties: false,
+        },
+      },
     ],
   }));
 
@@ -464,6 +489,23 @@ export async function main() {
           },
         ],
       };
+    }
+
+    if (req.params.name === TOOL_WALK_ANSWER) {
+      const { askId, ...answer } = (req.params.arguments ?? {}) as { askId?: unknown };
+      if (typeof askId !== "string" || !askId) {
+        throw new Error("easel.walk_answer: askId is required");
+      }
+      const r = await fetch(`http://127.0.0.1:${port}/api/asks/${encodeURIComponent(askId)}/answer`, {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-easel-token": readOrCreateToken(TOKEN_FILE) },
+        body: JSON.stringify(answer),
+      });
+      const body = (await r.json().catch(() => ({}))) as { error?: string };
+      if (!r.ok) {
+        throw new Error(`easel.walk_answer: ${body.error ?? r.statusText}`);
+      }
+      return { content: [{ type: "text" as const, text: "Answer delivered to the walks panel." }] };
     }
 
     if (req.params.name === TOOL_WALK) {

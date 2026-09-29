@@ -255,6 +255,7 @@ export function walkView({ walk, progress, projectLabel }, params, app) {
     return kids.map((kid, i) => h("section", { class: "pn-card", id: `ans-${kid.id}`, "data-k": `ans-${kid.id}`, tabindex: "-1", "aria-label": "Answer to your question" },
       h("p", { class: "pn-kicker" }, questions[i] ? `You asked: ${questions[i]}` : "You asked"),
       h("p", { class: "pn-answer-take" }, kid.takeaway),
+      kid.answeredBy === "session" ? h("p", { class: "pn-sub" }, "Answered by the session that made this walk") : null,
       htmlFrame(kid.body_html, "Answer"),
       sourceList(kid.sources)));
   }
@@ -275,9 +276,9 @@ export function walkView({ walk, progress, projectLabel }, params, app) {
         h("p", {}, "You asked: ", h("b", {}, ask.question)),
         h("ol", { class: "pn-ask-steps" },
           h("li", { class: "ok" }, h("span", { class: "dot" }), "Question sent"),
-          h("li", { class: "now" }, h("span", { class: "dot" }), "Reading this walk and the project files"),
+          h("li", { class: "now" }, h("span", { class: "dot" }), "Finding the answer"),
           h("li", {}, h("span", { class: "dot" }), "Answer goes under this step")),
-        h("p", { class: "pn-sub", style: "margin-top:12px" }, "This can take up to 90 seconds. You can keep reading or move to another step."));
+        h("p", { class: "pn-sub", style: "margin-top:12px" }, "This can take a minute or two. You can keep reading or move to another step."));
     }
     const input = h("textarea", {
       id: "pn-ask-q", "data-k": "ask-input", class: "pn-input pn-ask-input", rows: "3", maxlength: "500", placeholder: "Ask about this step",

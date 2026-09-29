@@ -2,9 +2,33 @@
 // Test double for the `claude` CLI, driven by env vars:
 // - FAKE_CLAUDE_MODE: ok (default) | fail | hang | garbage | slow
 // - FAKE_CLAUDE_STDIN_OUT: if set, the received stdin is written verbatim here.
-import { writeFileSync } from "node:fs";
+// - FAKE_ROSTER: JSON printed for `claude agents --json` (default "[]").
+// - FAKE_SESSION: answer | silent — how the originating session reacts to a sent question.
+import { readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 
 const mode = process.env.FAKE_CLAUDE_MODE || "ok";
+const args = process.argv.slice(2);
+
+if (args[0] === "agents") {
+  process.stdout.write(process.env.FAKE_ROSTER || "[]");
+  process.exit(0);
+}
+
+const sendPrompt = args.find((a) => a.includes("SendMessage"));
+if (sendPrompt) {
+  const askId = sendPrompt.match(/askId "([^"]+)"/)?.[1];
+  if (process.env.FAKE_SESSION === "answer" && askId) {
+    const token = readFileSync(join(process.env.HOME, ".easel", "token"), "utf-8").trim();
+    await fetch(`http://127.0.0.1:${process.env.EASEL_PORT}/api/asks/${askId}/answer`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-easel-token": token },
+      body: JSON.stringify({ takeaway: "From the session that made it.", body_html: "<p>Session answer.</p>", sources: [] }),
+    });
+  }
+  process.stdout.write(JSON.stringify({ type: "result", is_error: false, result: "sent" }));
+  process.exit(0);
+}
 
 let stdin = "";
 process.stdin.setEncoding("utf-8");

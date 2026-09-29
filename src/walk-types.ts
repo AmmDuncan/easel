@@ -7,6 +7,8 @@ export type WalkStep = {
   body_html: string; picture_html?: string; example_html?: string;
   slower_html: string; why_html: string;
   sources: WalkSource[]; asked?: boolean; parent?: string;
+  /** Set when the session that made the walk answered the question. */
+  answeredBy?: "session";
 };
 export type WalkAsk = {
   stepId: string; question: string; at: number; ms: number;

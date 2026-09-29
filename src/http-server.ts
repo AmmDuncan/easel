@@ -26,6 +26,7 @@ import { parseProgressPatch, parseWalkInput, type ProjectInfo, type WalkAsk, typ
 import { resolveProject } from "./project.js";
 import { isAllowedOrigin, readOrCreateToken } from "./token.js";
 import { buildAskPrompt, parseAskOutput, resolveAskCwd, runAsk } from "./walk-ask.js";
+import { askOriginSession, deliverSessionAnswer } from "./walk-ask-session.js";
 import { clearDone, moveWalk, renameProject, restoreTrash, sweepWalks, trashProject, trashWalk } from "./walk-cleanup.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -468,9 +469,9 @@ export function startHttpServer(): void {
       const bin = process.env.EASEL_CLAUDE_BIN || "claude";
       const projectPath = walkProjectPath(WALKS_DIR, found.walk.project);
       const cwd = resolveAskCwd(found.walk.cwd, projectPath, readPanelProjectRoots(), homedir(), existsSync);
-      const prompt = buildAskPrompt(found.walk, step, q);
       const startedAt = Date.now();
-      const result = await runAsk({ bin, cwd, prompt, timeoutMs: 90_000 });
+      const fromSession = await askOriginSession(bin, cwd, found.walk, step, q);
+      const result = fromSession ? null : await runAsk({ bin, cwd, prompt: buildAskPrompt(found.walk, step, q), timeoutMs: 90_000 });
       const ms = Date.now() - startedAt;
 
       // Re-read after the (slow) ask completes: the walk may have been moved
@@ -493,13 +494,13 @@ export function startHttpServer(): void {
         saveWalk(WALKS_DIR, { ...fresh.walk, asks });
       };
 
-      if (!result.ok) {
+      if (result && !result.ok) {
         logAsk(result.timeout ? "timeout" : "error", result.error);
         res.status(502).json({ error: result.error });
         return;
       }
 
-      const parsed = parseAskOutput(result.stdout);
+      const parsed = fromSession ?? (result?.ok ? parseAskOutput(result.stdout) : null);
       if (!parsed) {
         logAsk("error", "unparseable output");
         res.status(502).json({ error: "the reply was not in the expected format" });
@@ -520,6 +521,7 @@ export function startHttpServer(): void {
         slower_html: "",
         why_html: "",
         sources: parsed.sources,
+        ...(fromSession ? { answeredBy: "session" as const } : {}),
       };
       let insertAt = fresh.walk.steps.length;
       for (let i = fresh.walk.steps.length - 1; i >= 0; i--) {
@@ -538,6 +540,22 @@ export function startHttpServer(): void {
     } finally {
       askLocks.delete(walkId);
     }
+  });
+
+  app.post("/api/asks/:askId/answer", requireWalkToken, (req, res) => {
+    const { takeaway, body_html, sources } = req.body ?? {};
+    if (typeof takeaway !== "string" || !takeaway.trim() || typeof body_html !== "string") {
+      res.status(400).json({ error: "takeaway and body_html are required" });
+      return;
+    }
+    const cleanSources = Array.isArray(sources)
+      ? sources.filter((s): s is { label: string; ref: string } => typeof s?.label === "string" && typeof s?.ref === "string")
+      : [];
+    if (!deliverSessionAnswer(String(req.params.askId), { takeaway, body_html, sources: cleanSources })) {
+      res.status(410).json({ error: "that question is no longer waiting; the panel already answered it another way" });
+      return;
+    }
+    res.json({ ok: true });
   });
 
   app.delete("/api/walks/:id", requireWalkToken, (req, res) => {
