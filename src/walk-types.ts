@@ -26,6 +26,8 @@ export type WalkInput = {
 export type Walk = WalkInput & {
   id: string; project: string; createdAt: number;
   sessionId: string | null; cwd: string | null;
+  /** The making session's easel has the walk_answer tool, so Ask may route to it. */
+  canAnswer?: boolean;
   asks?: WalkAsk[];
 };
 export type WalkStage = "orient" | "pick" | "walk" | "check" | "keep" | "done";

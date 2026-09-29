@@ -15,9 +15,9 @@ if (args[0] === "agents") {
   process.exit(0);
 }
 
-const sendPrompt = args.find((a) => a.includes("SendMessage"));
+const sendPrompt = args.find((a) => a.includes("Call the SendMessage tool"));
 if (sendPrompt) {
-  const askId = sendPrompt.match(/askId "([^"]+)"/)?.[1];
+  const askId = sendPrompt.match(/askId \\?"([0-9a-f-]+)/)?.[1];
   if (process.env.FAKE_SESSION === "answer" && askId) {
     const token = readFileSync(join(process.env.HOME, ".easel", "token"), "utf-8").trim();
     await fetch(`http://127.0.0.1:${process.env.EASEL_PORT}/api/asks/${askId}/answer`, {

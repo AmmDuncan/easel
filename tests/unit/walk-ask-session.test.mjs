@@ -5,7 +5,7 @@ import { mkdtempSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
-import { deliverSessionAnswer, pickIdleSession, waitForSessionAnswer } from "../../dist/walk-ask-session.js";
+import { SEND_ARGS, pickIdleSession, settleAnswer, startAnswerClock, waitForSessionAnswer } from "../../dist/walk-ask-session.js";
 import { sampleWalk } from "./walk-validate.test.mjs";
 
 const FAKE_CLAUDE = fileURLToPath(new URL("../fixtures/fake-claude.mjs", import.meta.url));
@@ -28,20 +28,36 @@ test("pickIdleSession refuses a busy, pid-less, missing or ambiguous session", (
   assert.equal(pickIdleSession("not json", SID), null);
 });
 
-test("a delivered answer resolves the wait; an unknown or expired id is refused", async () => {
+test("a delivered answer resolves the wait; an unknown or settled id is refused", async () => {
   const answer = { takeaway: "Yes.", body_html: "<p>Yes.</p>", sources: [] };
-  const waiting = waitForSessionAnswer("a1", 1_000);
-  assert.equal(deliverSessionAnswer("a1", answer), true);
+  const waiting = waitForSessionAnswer("a1");
+  assert.equal(settleAnswer("a1", answer), true);
   assert.deepEqual(await waiting, answer);
-  assert.equal(deliverSessionAnswer("a1", answer), false);
-  assert.equal(await waitForSessionAnswer("a2", 20), null);
-  assert.equal(deliverSessionAnswer("a2", answer), false);
+  assert.equal(settleAnswer("a1", answer), false);
+});
+
+test("the answer clock only runs once started, then resolves null", async () => {
+  const waiting = waitForSessionAnswer("a2");
+  startAnswerClock("a2", 20);
+  assert.equal(await waiting, null);
+  assert.equal(settleAnswer("a2", { takeaway: "late", body_html: "", sources: [] }), false);
+});
+
+test("pickIdleSession skips a session that is blocked waiting on Ammiel", () => {
+  assert.equal(pickIdleSession(JSON.stringify([row({ state: "blocked" })]), SID), null);
+  assert.deepEqual(pickIdleSession(JSON.stringify([row({ state: "done" })]), SID), { name: "stock walk", pid: 42 });
+});
+
+test("the send helper can only use SendMessage, with no MCP servers and no prompts", () => {
+  assert.deepEqual(SEND_ARGS.slice(SEND_ARGS.indexOf("--tools"), SEND_ARGS.indexOf("--tools") + 2), ["--tools", "ToolSearch,SendMessage"]);
+  assert.ok(SEND_ARGS.includes("--strict-mcp-config"));
+  assert.equal(SEND_ARGS[SEND_ARGS.indexOf("--permission-mode") + 1], "dontAsk");
 });
 
 const servers = [];
 after(() => servers.forEach((c) => c.kill()));
 
-async function startServer(env) {
+async function startServer(env, walkExtra = { canAnswer: true }) {
   const home = mkdtempSync(join(tmpdir(), "easel-ask-session-"));
   const port = 20000 + Math.floor(Math.random() * 20000);
   const base = `http://127.0.0.1:${port}`;
@@ -60,7 +76,7 @@ async function startServer(env) {
   }
   const token = readFileSync(join(home, ".easel", "token"), "utf-8").trim();
   const headers = { "content-type": "application/json", "x-easel-token": token };
-  const created = await fetch(`${base}/api/walks`, { method: "POST", headers, body: JSON.stringify({ sessionId: SID, walk: sampleWalk() }) });
+  const created = await fetch(`${base}/api/walks`, { method: "POST", headers, body: JSON.stringify({ sessionId: SID, walk: sampleWalk(), ...walkExtra }) });
   const { id } = await created.json();
   const walk = await (await fetch(`${base}/api/walks/${id}`)).json();
   const stepId = (walk.walk ?? walk).steps[0].id;
@@ -90,12 +106,19 @@ test("a busy session is skipped and the fresh call answers", async () => {
   assert.equal(step.answeredBy, undefined);
 });
 
-test("an answer for a question nobody is waiting on is refused with 410", async () => {
+test("a walk from an older easel (no walk_answer tool) never routes to its session", async () => {
+  const s = await startServer({ FAKE_ROSTER: JSON.stringify([row()]), FAKE_SESSION: "answer" }, {});
+  const { step } = await (await s.ask()).json();
+  assert.equal(step.answeredBy, undefined);
+});
+
+test("an answer for a question nobody is waiting on is accepted but not delivered", async () => {
   const s = await startServer({});
   const r = await fetch(`${s.base}/api/asks/nope/answer`, {
     method: "POST",
     headers: s.headers,
     body: JSON.stringify({ takeaway: "x", body_html: "<p>x</p>" }),
   });
-  assert.equal(r.status, 410);
+  assert.equal(r.status, 200);
+  assert.deepEqual(await r.json(), { delivered: false });
 });

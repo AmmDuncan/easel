@@ -42,7 +42,7 @@ export function walkStatus(p: WalkProgress): WalkStatus {
 
 export function createWalk(
   root: string, input: WalkInput, project: ProjectInfo,
-  meta: { sessionId: string | null; cwd: string | null },
+  meta: { sessionId: string | null; cwd: string | null; canAnswer?: boolean },
 ): Walk {
   const dir = join(root, project.slug);
   mkdirSync(dir, { recursive: true });

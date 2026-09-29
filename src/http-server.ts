@@ -26,7 +26,7 @@ import { parseProgressPatch, parseWalkInput, type ProjectInfo, type WalkAsk, typ
 import { resolveProject } from "./project.js";
 import { isAllowedOrigin, readOrCreateToken } from "./token.js";
 import { buildAskPrompt, parseAskOutput, resolveAskCwd, runAsk } from "./walk-ask.js";
-import { askOriginSession, deliverSessionAnswer } from "./walk-ask-session.js";
+import { askOriginSession, settleAnswer } from "./walk-ask-session.js";
 import { clearDone, moveWalk, renameProject, restoreTrash, sweepWalks, trashProject, trashWalk } from "./walk-cleanup.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -371,7 +371,7 @@ export function startHttpServer(): void {
   });
 
   app.post("/api/walks", requireWalkToken, async (req: Request, res: Response) => {
-    const { sessionId, cwd, walk } = req.body ?? {};
+    const { sessionId, cwd, walk, canAnswer } = req.body ?? {};
     const parsed = parseWalkInput(walk);
     if (!parsed.ok) {
       res.status(400).json({ error: parsed.error });
@@ -390,6 +390,7 @@ export function startHttpServer(): void {
     const created = createWalk(WALKS_DIR, inputWalk, project, {
       sessionId: typeof sessionId === "string" ? sessionId : null,
       cwd: typeof cwd === "string" ? cwd : null,
+      ...(canAnswer === true ? { canAnswer: true } : {}),
     });
     // `project` is freshly computed from cwd and doesn't see a prior rename;
     // read the persisted project.json (which createWalk just ensured exists)
@@ -551,11 +552,9 @@ export function startHttpServer(): void {
     const cleanSources = Array.isArray(sources)
       ? sources.filter((s): s is { label: string; ref: string } => typeof s?.label === "string" && typeof s?.ref === "string")
       : [];
-    if (!deliverSessionAnswer(String(req.params.askId), { takeaway, body_html, sources: cleanSources })) {
-      res.status(410).json({ error: "that question is no longer waiting; the panel already answered it another way" });
-      return;
-    }
-    res.json({ ok: true });
+    // A late or repeated answer is not an error for the session: the panel already has one.
+    const delivered = settleAnswer(String(req.params.askId), { takeaway, body_html, sources: cleanSources });
+    res.json({ delivered });
   });
 
   app.delete("/api/walks/:id", requireWalkToken, (req, res) => {

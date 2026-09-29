@@ -501,11 +501,14 @@ export async function main() {
         headers: { "content-type": "application/json", "x-easel-token": readOrCreateToken(TOKEN_FILE) },
         body: JSON.stringify(answer),
       });
-      const body = (await r.json().catch(() => ({}))) as { error?: string };
+      const body = (await r.json().catch(() => ({}))) as { error?: string; delivered?: boolean };
       if (!r.ok) {
         throw new Error(`easel.walk_answer: ${body.error ?? r.statusText}`);
       }
-      return { content: [{ type: "text" as const, text: "Answer delivered to the walks panel." }] };
+      const text = body.delivered
+        ? "Answer delivered to the walks panel."
+        : "The panel already answered this question another way; nothing more to do.";
+      return { content: [{ type: "text" as const, text }] };
     }
 
     if (req.params.name === TOOL_WALK) {
@@ -516,7 +519,7 @@ export async function main() {
           "content-type": "application/json",
           "x-easel-token": readOrCreateToken(TOKEN_FILE),
         },
-        body: JSON.stringify({ sessionId, cwd: process.cwd(), walk }),
+        body: JSON.stringify({ sessionId, cwd: process.cwd(), walk, canAnswer: true }),
       });
       if (!r.ok) {
         const body = (await r.json().catch(() => ({}))) as { error?: string };
