@@ -534,6 +534,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             dragStrip.heightAnchor.constraint(equalToConstant: DragStripView.height),
         ])
         panel.contentView = container
+        panel.initialFirstResponder = webView
 
         if !panel.setFrameUsingName("EaselPanel") {
             panel.setFrame(defaultFrame(), display: false)
@@ -562,6 +563,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         previousFrontmostApp = NSWorkspace.shared.frontmostApplication
         panel.orderFrontRegardless()
         panel.makeKey()
+        // Keys go to the page, not the container view (which would just beep).
+        panel.makeFirstResponder(webView)
     }
 
     func hidePanel() {
