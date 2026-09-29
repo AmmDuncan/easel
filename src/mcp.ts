@@ -396,7 +396,21 @@ export async function main() {
           properties: {
             askId: { type: "string", description: "The askId from the easel message." },
             takeaway: { type: "string", description: "One-sentence answer." },
-            body_html: { type: "string", description: "1-3 short <p> paragraphs, plain HTML, no scripts." },
+            points: {
+              type: "array",
+              description: "2 to 5 key points.",
+              items: {
+                type: "object",
+                properties: {
+                  label: { type: "string", description: "2-4 word label." },
+                  text: { type: "string", description: "One plain sentence, max 25 words." },
+                },
+                required: ["label", "text"],
+                additionalProperties: false,
+              },
+            },
+            example: { type: "string", description: "Optional: one concrete line using real names." },
+            unsure: { type: "string", description: "Optional: what you could not confirm and who or what to check." },
             sources: {
               type: "array",
               items: {
@@ -407,7 +421,7 @@ export async function main() {
               },
             },
           },
-          required: ["askId", "takeaway", "body_html"],
+          required: ["askId", "takeaway", "points"],
           additionalProperties: false,
         },
       },

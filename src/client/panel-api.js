@@ -35,7 +35,7 @@ async function send(method, path, body) {
   return data;
 }
 
-export const askStep = (walkId, stepId, question) => send("POST", `/api/walks/${encodeURIComponent(walkId)}/ask`, { stepId, question });
+export const askStep = (walkId, stepId, question, replaces) => send("POST", `/api/walks/${encodeURIComponent(walkId)}/ask`, { stepId, question, replaces });
 export const deleteWalk = (walkId) => send("DELETE", `/api/walks/${encodeURIComponent(walkId)}`);
 export const restoreTrash = (trashId) => send("POST", `/api/trash/${encodeURIComponent(trashId)}/restore`);
 export const moveWalk = (walkId, project) => send("POST", `/api/walks/${encodeURIComponent(walkId)}/move`, { project });

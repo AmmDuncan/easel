@@ -2,7 +2,7 @@ import { spawn } from "node:child_process";
 import { tmpdir } from "node:os";
 import { relative, resolve, sep } from "node:path";
 import { expandHome } from "./project.js";
-import type { Walk, WalkSource, WalkStep } from "./walk-types.js";
+import type { AnswerPoint, Walk, WalkSource, WalkStep } from "./walk-types.js";
 
 /**
  * Args passed to the `claude` binary for a read-only ask.
@@ -65,7 +65,7 @@ export function buildAskPrompt(walk: Walk, step: WalkStep, question: string): st
     lines.push("");
     lines.push(
       "Answer the question using the walk and, where useful, files in this folder. Read-only. " +
-        'Reply with ONLY a JSON object: {"takeaway": "<one sentence answer>", "body_html": "<1-3 short <p> paragraphs, plain HTML, no scripts>", "sources": [{"label": "...", "ref": "<path or URL>"}]}',
+        `Reply with ONLY a JSON object: ${ANSWER_SHAPE}`,
     );
     return lines.join("\n").replace(DATA_URI_RE, "[image]");
   };
@@ -93,33 +93,36 @@ function extractJsonSpan(text: string): string | null {
   return text.slice(start, end + 1);
 }
 
-/** Parses the `claude --output-format json` envelope and the answer JSON inside `.result`. */
-export function parseAskOutput(
-  stdout: string,
-): { takeaway: string; body_html: string; sources: WalkSource[] } | null {
-  let envelope: { result?: unknown; is_error?: boolean };
-  try {
-    envelope = JSON.parse(stdout);
-  } catch {
+/** The answer shape both the fresh call and the originating session are asked for. */
+export const ANSWER_SHAPE =
+  '{"takeaway": "<the answer in one plain sentence>", ' +
+  '"points": [{"label": "<2-4 word label>", "text": "<one plain sentence, max 25 words>"}] (2 to 5 points), ' +
+  '"example": "<optional: one concrete line using real names>", ' +
+  '"unsure": "<optional: one line on what you could not confirm and who or what to check>", ' +
+  '"sources": [{"label": "...", "ref": "<path or URL>"}]}. Plain words, no HTML, no jargon a newcomer would not know.';
+
+export type ParsedAnswer = {
+  takeaway: string; body_html: string; points: AnswerPoint[]; example?: string; unsure?: string; sources: WalkSource[];
+};
+
+const clip = (value: unknown, max: number): string =>
+  typeof value === "string" ? value.replace(/\s+/g, " ").trim().slice(0, max) : "";
+
+/** Validates and trims an answer object; null unless it has a takeaway and either points or body_html. */
+export function normalizeAnswer(raw: unknown): ParsedAnswer | null {
+  if (typeof raw !== "object" || raw === null) {
     return null;
   }
-  if (envelope.is_error === true) {
-    return null;
-  }
-  if (typeof envelope.result !== "string") {
-    return null;
-  }
-  const span = extractJsonSpan(envelope.result);
-  if (!span) {
-    return null;
-  }
-  let answer: { takeaway?: unknown; body_html?: unknown; sources?: unknown };
-  try {
-    answer = JSON.parse(span);
-  } catch {
-    return null;
-  }
-  if (typeof answer.takeaway !== "string" || !answer.takeaway || typeof answer.body_html !== "string") {
+  const answer = raw as Record<string, unknown>;
+  const takeaway = clip(answer.takeaway, 300);
+  const points: AnswerPoint[] = Array.isArray(answer.points)
+    ? answer.points
+        .map((p) => ({ label: clip((p as AnswerPoint)?.label, 40), text: clip((p as AnswerPoint)?.text, 240) }))
+        .filter((p) => p.text)
+        .slice(0, 5)
+    : [];
+  const body_html = typeof answer.body_html === "string" ? answer.body_html : "";
+  if (!takeaway || (points.length === 0 && !body_html)) {
     return null;
   }
   const sources: WalkSource[] = Array.isArray(answer.sources)
@@ -129,7 +132,31 @@ export function parseAskOutput(
           typeof (s as WalkSource).ref === "string",
       )
     : [];
-  return { takeaway: answer.takeaway, body_html: answer.body_html, sources };
+  const example = clip(answer.example, 300);
+  const unsure = clip(answer.unsure, 300);
+  return { takeaway, body_html, points, ...(example ? { example } : {}), ...(unsure ? { unsure } : {}), sources };
+}
+
+/** Parses the `claude --output-format json` envelope and the answer JSON inside `.result`. */
+export function parseAskOutput(stdout: string): ParsedAnswer | null {
+  let envelope: { result?: unknown; is_error?: boolean };
+  try {
+    envelope = JSON.parse(stdout);
+  } catch {
+    return null;
+  }
+  if (envelope.is_error === true || typeof envelope.result !== "string") {
+    return null;
+  }
+  const span = extractJsonSpan(envelope.result);
+  if (!span) {
+    return null;
+  }
+  try {
+    return normalizeAnswer(JSON.parse(span));
+  } catch {
+    return null;
+  }
 }
 
 function isInsideRoot(target: string, root: string): boolean {

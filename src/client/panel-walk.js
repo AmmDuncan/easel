@@ -245,19 +245,27 @@ export function walkView({ walk, progress, projectLabel }, params, app) {
     return walk.example ? `Slower, with ${walk.example.name}` : "Slower";
   }
 
-  function questionsFor(stepId) {
-    return (walk.asks ?? []).filter((a) => a.stepId === stepId && a.outcome === "ok").map((a) => a.question);
+  function answerBody(kid) {
+    if (!kid.points?.length) {
+      return [htmlFrame(kid.body_html, "Answer")];
+    }
+    return [
+      h("ul", { class: "pn-points" }, kid.points.map((p) => h("li", {}, p.label ? h("b", {}, p.label) : null, h("span", {}, p.text)))),
+      kid.answer_example ? h("p", { class: "pn-answer-example" }, h("b", {}, "Example"), h("span", {}, kid.answer_example)) : null,
+      kid.unsure ? h("p", { class: "pn-answer-unsure" }, h("b", {}, "Not confirmed"), h("span", {}, kid.unsure)) : null,
+    ];
   }
 
   function answers(step) {
     const kids = walk.steps.filter((s) => s.parent === step.id);
-    const questions = questionsFor(step.id);
-    return kids.map((kid, i) => h("section", { class: "pn-card", id: `ans-${kid.id}`, "data-k": `ans-${kid.id}`, tabindex: "-1", "aria-label": "Answer to your question" },
-      h("p", { class: "pn-kicker" }, questions[i] ? `You asked: ${questions[i]}` : "You asked"),
+    return kids.map((kid) => h("section", { class: "pn-card", id: `ans-${kid.id}`, "data-k": `ans-${kid.id}`, tabindex: "-1", "aria-label": "Answer to your question" },
+      h("p", { class: "pn-kicker" }, `You asked: ${kid.name}`),
       h("p", { class: "pn-answer-take" }, kid.takeaway),
-      kid.answeredBy === "session" ? h("p", { class: "pn-sub" }, "Answered by the session that made this walk") : null,
-      htmlFrame(kid.body_html, "Answer"),
-      sourceList(kid.sources)));
+      ...answerBody(kid),
+      sourceList(kid.sources),
+      h("div", { class: "pn-answer-foot" },
+        h("span", { class: "pn-sub" }, kid.answeredBy === "session" ? "Answered by the session that made this walk" : ""),
+        h("button", { class: "pn-btn quiet", "data-k": `reask-${kid.id}`, disabled: ask.busy, on: { click: () => reAsk(step, kid) } }, "Ask again"))));
   }
 
   function waitingHere() {
@@ -329,7 +337,16 @@ export function walkView({ walk, progress, projectLabel }, params, app) {
     return true;
   }
 
-  async function sendAsk(step) {
+  /** Sends the same question again; the new answer replaces `kid` only if it arrives. */
+  function reAsk(step, kid) {
+    if (ask.busy) {
+      return;
+    }
+    ask = { ...CLOSED_ASK, text: kid.name };
+    sendAsk(step, kid.id);
+  }
+
+  async function sendAsk(step, replaces = null) {
     const question = ask.text.trim();
     if (!question || ask.busy) {
       return;
@@ -338,9 +355,14 @@ export function walkView({ walk, progress, projectLabel }, params, app) {
     focusTarget = "ask";
     render(true);
     try {
-      const { step: answer } = await askStep(walk.id, step.id, question);
-      const lastKid = walk.steps.map((s) => s.id === step.id || s.parent === step.id).lastIndexOf(true);
-      walk.steps.splice(lastKid + 1, 0, answer);
+      const { step: answer, replaced } = await askStep(walk.id, step.id, question, replaces ?? undefined);
+      const replaceAt = replaced ? walk.steps.findIndex((s) => s.id === replaced) : -1;
+      if (replaceAt === -1) {
+        const lastKid = walk.steps.map((s) => s.id === step.id || s.parent === step.id).lastIndexOf(true);
+        walk.steps.splice(lastKid + 1, 0, answer);
+      } else {
+        walk.steps.splice(replaceAt, 1, answer);
+      }
       walk.asks = [...(walk.asks ?? []), { stepId: step.id, question, outcome: "ok" }];
       statuses[step.id] = statuses[step.id] === "got" ? "got" : "asked";
       ask = { ...CLOSED_ASK };

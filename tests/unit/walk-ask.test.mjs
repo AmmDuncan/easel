@@ -33,13 +33,28 @@ test("ASK_ARGS is exactly the required arg array", () => {
 test("parseAskOutput parses a fenced json block inside the result envelope", () => {
   const stdout = okEnvelope('```json\n{"takeaway":"t","body_html":"<p>b</p>","sources":[{"label":"L","ref":"R"}]}\n```');
   const parsed = parseAskOutput(stdout);
-  assert.deepEqual(parsed, { takeaway: "t", body_html: "<p>b</p>", sources: [{ label: "L", ref: "R" }] });
+  assert.deepEqual(parsed, { takeaway: "t", body_html: "<p>b</p>", points: [], sources: [{ label: "L", ref: "R" }] });
 });
 
 test("parseAskOutput parses a bare {...} span in result", () => {
   const stdout = okEnvelope('here you go {"takeaway":"t","body_html":"<p>b</p>"} thanks');
   const parsed = parseAskOutput(stdout);
-  assert.deepEqual(parsed, { takeaway: "t", body_html: "<p>b</p>", sources: [] });
+  assert.deepEqual(parsed, { takeaway: "t", body_html: "<p>b</p>", points: [], sources: [] });
+});
+
+test("parseAskOutput keeps structured points, example and unsure, trimmed and capped at 5 points", () => {
+  const points = Array.from({ length: 7 }, (_, i) => ({ label: ` P${i} `, text: `line\n ${i}` }));
+  const stdout = okEnvelope(JSON.stringify({ takeaway: "It checks three things.", points, example: "Isaac's pass", unsure: "Not seen the code." }));
+  const parsed = parseAskOutput(stdout);
+  assert.equal(parsed.points.length, 5);
+  assert.deepEqual(parsed.points[0], { label: "P0", text: "line 0" });
+  assert.equal(parsed.example, "Isaac's pass");
+  assert.equal(parsed.unsure, "Not seen the code.");
+  assert.equal(parsed.body_html, "");
+});
+
+test("parseAskOutput refuses an answer with neither points nor body_html", () => {
+  assert.equal(parseAskOutput(okEnvelope('{"takeaway":"t","points":[]}')), null);
 });
 
 test("parseAskOutput returns null on garbage", () => {

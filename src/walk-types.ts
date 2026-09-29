@@ -2,6 +2,7 @@ import { z } from "zod";
 
 export type WalkKind = "prd" | "trd" | "flow" | "research" | "mixed";
 export type WalkSource = { label: string; ref: string };
+export type AnswerPoint = { label: string; text: string };
 export type WalkStep = {
   id: string; name: string; takeaway: string;
   body_html: string; picture_html?: string; example_html?: string;
@@ -9,6 +10,8 @@ export type WalkStep = {
   sources: WalkSource[]; asked?: boolean; parent?: string;
   /** Set when the session that made the walk answered the question. */
   answeredBy?: "session";
+  /** Structured answer parts; older answers carry only body_html. */
+  points?: AnswerPoint[]; answer_example?: string; unsure?: string;
 };
 export type WalkAsk = {
   stepId: string; question: string; at: number; ms: number;

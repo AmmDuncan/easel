@@ -219,7 +219,15 @@ body.pn {
 .pn-layer .pn-kicker { color: var(--ds-ink); }
 .pn-prose { max-width: 62ch; }
 .pn-card { margin: 24px 0; padding: 14px 16px; max-width: 62ch; border-radius: 12px; background: var(--ds-surface); border: 1px solid var(--ds-line-soft); }
-.pn-answer-take { font: 600 20px/1.3 var(--pn-display); margin-bottom: 8px; }
+.pn-answer-take { font: 600 20px/1.3 var(--pn-display); margin-bottom: 12px; }
+.pn-points { display: grid; grid-template-columns: fit-content(12rem) 1fr; gap: 10px 20px; margin: 0 0 12px; padding: 0; list-style: none; font-size: 16px; line-height: 1.5; }
+.pn-points li { display: contents; }
+.pn-points b, .pn-answer-example b, .pn-answer-unsure b { font-weight: 600; color: var(--ds-ink); }
+@media (max-width: 479px) { .pn-points { grid-template-columns: 1fr; gap: 2px; } .pn-points li:not(:first-child) b { margin-top: 10px; } }
+.pn-answer-example, .pn-answer-unsure { display: grid; gap: 2px; margin: 12px 0 0; padding: 10px 12px; border-radius: 8px; font-size: 15px; line-height: 1.5; }
+.pn-answer-example { background: var(--ds-bg); }
+.pn-answer-unsure { border-left: 3px solid var(--ds-line); color: var(--ds-ink-soft); padding-left: 12px; border-radius: 0; }
+.pn-answer-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; }
 .pn-frame { display: block; width: 100%; border: 0; height: 0; background: transparent; }
 .pn-sources { margin-top: 24px; font-size: 14px; color: var(--ds-ink-soft); }
 .pn-sources a { color: inherit; }

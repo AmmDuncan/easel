@@ -25,7 +25,7 @@ import {
 import { parseProgressPatch, parseWalkInput, type ProjectInfo, type WalkAsk, type WalkStep } from "./walk-types.js";
 import { resolveProject } from "./project.js";
 import { isAllowedOrigin, readOrCreateToken } from "./token.js";
-import { buildAskPrompt, parseAskOutput, resolveAskCwd, runAsk } from "./walk-ask.js";
+import { buildAskPrompt, normalizeAnswer, parseAskOutput, resolveAskCwd, runAsk } from "./walk-ask.js";
 import { askOriginSession, settleAnswer } from "./walk-ask-session.js";
 import { clearDone, moveWalk, renameProject, restoreTrash, sweepWalks, trashProject, trashWalk } from "./walk-cleanup.js";
 
@@ -450,7 +450,7 @@ export function startHttpServer(): void {
       res.status(404).json({ error: "that walk no longer exists" });
       return;
     }
-    const { stepId, question } = req.body ?? {};
+    const { stepId, question, replaces } = req.body ?? {};
     const q = typeof question === "string" ? question.trim() : "";
     if (!q || q.length > 500) {
       res.status(400).json({ error: "question must be 1..500 characters" });
@@ -459,6 +459,11 @@ export function startHttpServer(): void {
     const step = found.walk.steps.find((s) => s.id === stepId);
     if (typeof stepId !== "string" || !step) {
       res.status(400).json({ error: "unknown stepId" });
+      return;
+    }
+    const replaced = typeof replaces === "string" ? replaces : null;
+    if (replaced && !found.walk.steps.some((s) => s.id === replaced && s.parent === stepId)) {
+      res.status(400).json({ error: "that answer is no longer on this step" });
       return;
     }
     if (askBusyForWalk(walkId)) {
@@ -522,6 +527,9 @@ export function startHttpServer(): void {
         slower_html: "",
         why_html: "",
         sources: parsed.sources,
+        ...(parsed.points.length ? { points: parsed.points } : {}),
+        ...(parsed.example ? { answer_example: parsed.example } : {}),
+        ...(parsed.unsure ? { unsure: parsed.unsure } : {}),
         ...(fromSession ? { answeredBy: "session" as const } : {}),
       };
       let insertAt = fresh.walk.steps.length;
@@ -533,27 +541,30 @@ export function startHttpServer(): void {
         }
       }
       const steps = [...fresh.walk.steps];
-      steps.splice(insertAt, 0, newStep);
+      // Ask again swaps the old answer in place; if it vanished meanwhile, the new one goes last under the step.
+      const replaceAt = replaced ? steps.findIndex((s) => s.id === replaced && s.parent === stepId) : -1;
+      if (replaceAt === -1) {
+        steps.splice(insertAt, 0, newStep);
+      } else {
+        steps.splice(replaceAt, 1, newStep);
+      }
       const asks: WalkAsk[] = [...(fresh.walk.asks ?? []), { stepId, question: q, at: startedAt, ms, outcome: "ok" }];
       saveWalk(WALKS_DIR, { ...fresh.walk, steps, asks });
       broadcastGlobal("changed", { walkId, project: fresh.walk.project });
-      res.json({ step: newStep });
+      res.json({ step: newStep, replaced: replaceAt === -1 ? null : replaced });
     } finally {
       askLocks.delete(walkId);
     }
   });
 
   app.post("/api/asks/:askId/answer", requireWalkToken, (req, res) => {
-    const { takeaway, body_html, sources } = req.body ?? {};
-    if (typeof takeaway !== "string" || !takeaway.trim() || typeof body_html !== "string") {
-      res.status(400).json({ error: "takeaway and body_html are required" });
+    const answer = normalizeAnswer(req.body);
+    if (!answer) {
+      res.status(400).json({ error: "takeaway and at least one point are required" });
       return;
     }
-    const cleanSources = Array.isArray(sources)
-      ? sources.filter((s): s is { label: string; ref: string } => typeof s?.label === "string" && typeof s?.ref === "string")
-      : [];
     // A late or repeated answer is not an error for the session: the panel already has one.
-    const delivered = settleAnswer(String(req.params.askId), { takeaway, body_html, sources: cleanSources });
+    const delivered = settleAnswer(String(req.params.askId), answer);
     res.json({ delivered });
   });
 

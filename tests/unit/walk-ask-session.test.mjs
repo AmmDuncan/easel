@@ -80,8 +80,10 @@ async function startServer(env, walkExtra = { canAnswer: true }) {
   const { id } = await created.json();
   const walk = await (await fetch(`${base}/api/walks/${id}`)).json();
   const stepId = (walk.walk ?? walk).steps[0].id;
-  const ask = () => fetch(`${base}/api/walks/${id}/ask`, { method: "POST", headers, body: JSON.stringify({ stepId, question: "Why?" }) });
-  return { base, headers, ask };
+  const ask = (extra = {}) =>
+    fetch(`${base}/api/walks/${id}/ask`, { method: "POST", headers, body: JSON.stringify({ stepId, question: "Why?", ...extra }) });
+  const steps = async () => ((await (await fetch(`${base}/api/walks/${id}`)).json()).walk ?? {}).steps;
+  return { base, headers, ask, steps };
 }
 
 test("an idle originating session answers the question, marked as answered by the session", async () => {
@@ -91,6 +93,23 @@ test("an idle originating session answers the question, marked as answered by th
   const { step } = await r.json();
   assert.equal(step.takeaway, "From the session that made it.");
   assert.equal(step.answeredBy, "session");
+  assert.deepEqual(step.points, [{ label: "Why", text: "It knows the work." }]);
+});
+
+test("Ask again replaces the old answer in place instead of adding one", async () => {
+  const s = await startServer({ FAKE_ROSTER: JSON.stringify([row()]), FAKE_SESSION: "answer" });
+  const first = (await (await s.ask()).json()).step;
+  const again = await (await s.ask({ replaces: first.id })).json();
+  assert.equal(again.replaced, first.id);
+  const kids = (await s.steps()).filter((x) => x.parent === first.parent);
+  assert.equal(kids.length, 1);
+  assert.equal(kids[0].id, again.step.id);
+});
+
+test("Ask again for an answer that is not on this step is refused", async () => {
+  const s = await startServer({});
+  const r = await s.ask({ replaces: "nope" });
+  assert.equal(r.status, 400);
 });
 
 test("a session that never answers falls back to the fresh call", async () => {

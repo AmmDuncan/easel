@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import type { Walk, WalkSource, WalkStep } from "./walk-types.js";
+import type { Walk, WalkStep } from "./walk-types.js";
+import type { ParsedAnswer } from "./walk-ask.js";
 
 /** A walk's originating Claude session, found live and idle in the agents roster. */
 export interface LiveSession {
@@ -8,11 +9,7 @@ export interface LiveSession {
   pid: number;
 }
 
-export interface SessionAnswer {
-  takeaway: string;
-  body_html: string;
-  sources: WalkSource[];
-}
+export type SessionAnswer = ParsedAnswer;
 
 type RosterRow = { sessionId?: unknown; name?: unknown; pid?: unknown; status?: unknown; state?: unknown };
 
@@ -59,8 +56,10 @@ export function buildSessionMessage(walk: Walk, step: WalkStep, question: string
       JSON.stringify({ walk: oneLine(walk.title, 200), step: oneLine(step.name, 200), takeaway: oneLine(step.takeaway, 300) }),
     "",
     "Answer from what you know about this work; read files only if you must. Change nothing and message no one.",
-    `Then call the easel walk_answer tool once with askId "${askId}", takeaway (one sentence), ` +
-      "body_html (1-3 short <p> paragraphs, plain HTML) and sources ([{label, ref}], may be empty).",
+    `Then call the easel walk_answer tool once with askId "${askId}": takeaway (the answer in one plain sentence), ` +
+      "points (2 to 5 of {label: 2-4 words, text: one plain sentence, max 25 words}), optional example (one concrete line), " +
+      "optional unsure (what you could not confirm and who or what to check), and sources ([{label, ref}], may be empty). " +
+      "Plain words, no HTML, no jargon a newcomer would not know.",
     "After that call, carry on with whatever you were doing before; do not reply in chat about it.",
   ].join("\n");
 }

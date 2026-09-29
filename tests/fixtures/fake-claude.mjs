@@ -23,7 +23,7 @@ if (sendPrompt) {
     await fetch(`http://127.0.0.1:${process.env.EASEL_PORT}/api/asks/${askId}/answer`, {
       method: "POST",
       headers: { "content-type": "application/json", "x-easel-token": token },
-      body: JSON.stringify({ takeaway: "From the session that made it.", body_html: "<p>Session answer.</p>", sources: [] }),
+      body: JSON.stringify({ takeaway: "From the session that made it.", points: [{ label: "Why", text: "It knows the work." }], sources: [] }),
     });
   }
   process.stdout.write(JSON.stringify({ type: "result", is_error: false, result: "sent" }));
@@ -65,6 +65,22 @@ process.stdin.on("end", () => {
     process.stdout.write(JSON.stringify(envelope));
     process.exit(0);
   };
+
+  if (mode === "structured") {
+    const answer = {
+      takeaway: "Each word is one check the service runs on a pass: is it genuine, who made it, and who it is for.",
+      points: [
+        { label: "Signature", text: "A stamp only Auth0 can make, so a forged pass fails the check." },
+        { label: "Issuer", text: "Who printed the pass. Only our Auth0 tenant is accepted." },
+        { label: "Audience", text: "Who the pass is for. Isaac's pass says webwiz-api, so other services refuse it." },
+      ],
+      example: "Isaac's pass from our Auth0, made for webwiz-api, passes all three checks.",
+      unsure: "Not checked which of the three JwtValidation.java actually runs; ask Harold.",
+      sources: [{ label: "Login check", ref: "src/main/java/JwtValidation.java" }],
+    };
+    process.stdout.write(JSON.stringify({ type: "result", is_error: false, result: JSON.stringify(answer) }));
+    process.exit(0);
+  }
 
   if (mode === "slow") {
     setTimeout(ok, 800);
