@@ -5,7 +5,7 @@ import { checkIcon, h, htmlFrame, icon, kbd, plural, sourceList } from "./panel-
 import { KIND_LABEL as KIND, defaultPicked, minutesFor, pickedOrder, topSteps } from "./walk-nav.js";
 
 const STAGE_OF = { orient: "orient", check: "check", end: "done" };
-const CLOSED_ASK = { open: false, busy: false, error: null, text: "", question: "" };
+const CLOSED_ASK = { open: false, busy: false, error: null, text: "", question: "", replacing: null };
 
 function initialAt(params, progress, orderLength) {
   const at = params.get("at");
@@ -258,18 +258,26 @@ export function walkView({ walk, progress, projectLabel }, params, app) {
 
   function answers(step) {
     const kids = walk.steps.filter((s) => s.parent === step.id);
-    return kids.map((kid) => h("section", { class: "pn-card", id: `ans-${kid.id}`, "data-k": `ans-${kid.id}`, tabindex: "-1", "aria-label": "Answer to your question" },
-      h("p", { class: "pn-kicker" }, `You asked: ${kid.name}`),
-      h("p", { class: "pn-answer-take" }, kid.takeaway),
-      ...answerBody(kid),
-      sourceList(kid.sources),
-      h("div", { class: "pn-answer-foot" },
-        h("span", { class: "pn-sub" }, kid.answeredBy === "session" ? "Answered by the session that made this walk" : ""),
-        h("button", { class: "pn-btn quiet", "data-k": `reask-${kid.id}`, disabled: ask.busy, on: { click: () => reAsk(step, kid) } }, "Ask again"))));
+    return kids.map((kid) => {
+      const reasking = ask.busy && ask.replacing === kid.id;
+      const foot = reasking
+        ? h("p", { class: "pn-reasking", role: "status" }, h("span", { class: "dot" }),
+          h("span", {}, h("b", {}, "Asking again…"), " The new answer will replace this one."))
+        : h("button", { class: "pn-btn quiet", "data-k": `reask-${kid.id}`, disabled: ask.busy, on: { click: () => reAsk(step, kid) } }, "Ask again");
+      return h("section", { class: reasking ? "pn-card is-reasking" : "pn-card", id: `ans-${kid.id}`, "data-k": `ans-${kid.id}`, tabindex: "-1", "aria-label": "Answer to your question", "aria-busy": String(reasking) },
+        h("div", { class: "pn-answer-main" },
+          h("p", { class: "pn-kicker" }, `You asked: ${kid.name}`),
+          h("p", { class: "pn-answer-take" }, kid.takeaway),
+          ...answerBody(kid),
+          sourceList(kid.sources)),
+        h("div", { class: "pn-answer-foot" },
+          h("span", { class: "pn-sub" }, kid.answeredBy === "session" ? "Answered by the session that made this walk" : ""),
+          foot));
+    });
   }
 
   function waitingHere() {
-    return ask.busy && typeof at === "number" && order()[at]?.id === ask.origin;
+    return ask.busy && !ask.replacing && typeof at === "number" && order()[at]?.id === ask.origin;
   }
 
   /** "step 3" while the step is picked, else its name. */
@@ -342,7 +350,8 @@ export function walkView({ walk, progress, projectLabel }, params, app) {
     if (ask.busy) {
       return;
     }
-    ask = { ...CLOSED_ASK, text: kid.name };
+    ask = { ...CLOSED_ASK, text: kid.name, replacing: kid.id };
+    focusTarget = `ans-${kid.id}`;
     sendAsk(step, kid.id);
   }
 
@@ -352,7 +361,9 @@ export function walkView({ walk, progress, projectLabel }, params, app) {
       return;
     }
     ask = { ...ask, busy: true, error: null, question, origin: step.id };
-    focusTarget = "ask";
+    if (!replaces) {
+      focusTarget = "ask";
+    }
     render(true);
     try {
       const { step: answer, replaced } = await askStep(walk.id, step.id, question, replaces ?? undefined);
@@ -386,7 +397,13 @@ export function walkView({ walk, progress, projectLabel }, params, app) {
     } catch (err) {
       const raw = err.message || "no reply from easel";
       const message = raw.charAt(0).toUpperCase() + raw.slice(1);
-      if (!destroyed && order()[at]?.id === step.id) {
+      if (replaces) {
+        ask = { ...CLOSED_ASK };
+        if (!destroyed) {
+          render(true);
+        }
+        app.toast(`Could not ask again: ${message.replace(/\.$/, "")}. The earlier answer is still there.`);
+      } else if (!destroyed && order()[at]?.id === step.id) {
         ask = { ...CLOSED_ASK, open: true, error: message, text: question };
         focusTarget = "ask-input";
         render(true);

@@ -227,6 +227,11 @@ body.pn {
 .pn-answer-example, .pn-answer-unsure { display: grid; gap: 2px; margin: 12px 0 0; padding: 10px 12px; border-radius: 8px; font-size: 15px; line-height: 1.5; }
 .pn-answer-example { background: var(--ds-bg); }
 .pn-answer-unsure { border-left: 3px solid var(--ds-line); color: var(--ds-ink-soft); padding-left: 12px; border-radius: 0; }
+.pn-answer-main { transition: opacity 200ms ease; }
+.pn-card.is-reasking .pn-answer-main { opacity: 0.45; }
+.pn-reasking { display: flex; align-items: center; gap: 10px; margin: 0; font-size: 14px; color: var(--ds-ink-soft); }
+.pn-reasking b { color: var(--ds-ink); font-weight: 600; }
+.pn-reasking .dot { flex: none; width: 14px; height: 14px; border-radius: 50%; box-shadow: inset 0 0 0 2px var(--ds-accent); animation: pn-pulse 1.4s ease-in-out infinite; }
 .pn-answer-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; }
 .pn-frame { display: block; width: 100%; border: 0; height: 0; background: transparent; }
 .pn-sources { margin-top: 24px; font-size: 14px; color: var(--ds-ink-soft); }

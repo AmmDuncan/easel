@@ -78,8 +78,11 @@ process.stdin.on("end", () => {
       unsure: "Not checked which of the three JwtValidation.java actually runs; ask Harold.",
       sources: [{ label: "Login check", ref: "src/main/java/JwtValidation.java" }],
     };
-    process.stdout.write(JSON.stringify({ type: "result", is_error: false, result: JSON.stringify(answer) }));
-    process.exit(0);
+    setTimeout(() => {
+      process.stdout.write(JSON.stringify({ type: "result", is_error: false, result: JSON.stringify(answer) }));
+      process.exit(0);
+    }, Number(process.env.FAKE_DELAY_MS) || 0);
+    return;
   }
 
   if (mode === "slow") {
