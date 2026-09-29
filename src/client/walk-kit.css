@@ -4,7 +4,7 @@
 *, *::before, *::after { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; background: transparent; }
 body {
-  font: 400 16px/1.6 Inter, -apple-system, system-ui, sans-serif;
+  font: 400 16px/1.6 -apple-system, "SF Pro Text", system-ui, sans-serif;
   font-feature-settings: "cv11", "ss01";
   color: var(--ds-ink);
   overflow: hidden;
@@ -23,7 +23,7 @@ a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
   padding: 16px; border-radius: 10px;
   background: var(--ds-surface);
 }
-.wk-stat b { font: 600 20px/1.2 ui-serif, "New York", Charter, Georgia, serif; font-variant-numeric: tabular-nums; }
+.wk-stat b { font: 600 20px/1.2 -apple-system, "SF Pro Display", system-ui, sans-serif; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
 .wk-stat span { font-size: 14px; color: var(--ds-ink-soft); }
 
 /* Timeline: steps in order. */
@@ -107,5 +107,5 @@ a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
 .wk-toast span { color: var(--ds-ink-soft); }
 
 /* Example text in the editorial voice. */
-body.wk-example { font: italic 400 16px/1.6 ui-serif, "New York", Charter, Georgia, serif; }
+body.wk-example { font: italic 400 16px/1.6 -apple-system, "SF Pro Text", system-ui, sans-serif; }
 body.wk-example b, body.wk-example strong { font-weight: 600; }

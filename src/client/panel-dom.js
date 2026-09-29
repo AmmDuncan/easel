@@ -85,7 +85,7 @@ function tokenCss() {
 }
 
 const CSP =
-  "default-src 'none'; img-src data:; style-src 'unsafe-inline' https://rsms.me; font-src https://rsms.me";
+  "default-src 'none'; img-src data:; style-src 'unsafe-inline'";
 
 /**
  * Render untrusted walk HTML: sandboxed without allow-scripts (nothing in it
@@ -121,7 +121,6 @@ export function htmlFrame(html, title, bodyClass = "") {
   frame.srcdoc =
     `<!doctype html><html><head><meta charset="utf-8">` +
     `<meta http-equiv="Content-Security-Policy" content="${CSP}">` +
-    `<link rel="stylesheet" href="https://rsms.me/inter/inter.css">` +
     `<style>${tokenCss()}${kitCss}</style></head><body class="${bodyClass}">${html}</body></html>`;
   const fit = () => {
     if (!frame.isConnected && loaded) {

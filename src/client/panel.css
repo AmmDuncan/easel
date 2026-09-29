@@ -3,7 +3,7 @@
 
 :root {
   --pn-pad: 24px;
-  --pn-display: ui-serif, "New York", Charter, Georgia, serif;
+  --pn-display: -apple-system, "SF Pro Display", system-ui, sans-serif;
   --pn-danger-ink: color-mix(in oklab, var(--ds-danger) 70%, var(--ds-ink));
 }
 html { --pn-chrome: 0px; scroll-padding-bottom: calc(var(--pn-bar-h, 76px) + 16px); scroll-padding-top: calc(64px + var(--pn-chrome)); }
@@ -15,7 +15,7 @@ html.in-shell { --pn-chrome: 28px; }
 html, body { height: 100%; }
 body.pn {
   margin: 0; padding: 0; background: var(--ds-bg); color: var(--ds-ink);
-  font: 400 16px/1.6 Inter, -apple-system, system-ui, sans-serif;
+  font: 400 16px/1.6 -apple-system, "SF Pro Text", system-ui, sans-serif;
   font-feature-settings: "cv11", "ss01";
   -webkit-font-smoothing: antialiased;
 }
@@ -337,6 +337,9 @@ body.pn {
   flex: 1; min-width: 0; height: 40px; padding: 0 10px; border-radius: 8px; font: 600 16px/1 inherit;
   border: 1px solid var(--ds-ink-soft); background: var(--ds-surface); color: var(--ds-ink);
 }
+
+/* SF Pro Display reads loose at heading sizes; tighten every display heading the same way. */
+:is(.pn-answer, .pn-takeaway, .pn-sec-h h2, .pn-hero-title, .pn-empty h2, .pn-keep-title, .pn-path-h h2, .pn-answer-take, .pn-error :is(h1, h2)) { letter-spacing: -0.02em; }
 
 /* ---------- motion ---------- */
 @keyframes pn-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
