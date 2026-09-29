@@ -6,7 +6,9 @@
   --pn-display: ui-serif, "New York", Charter, Georgia, serif;
   --pn-danger-ink: color-mix(in oklab, var(--ds-danger) 70%, var(--ds-ink));
 }
-html { scroll-padding-bottom: calc(var(--pn-bar-h, 76px) + 16px); scroll-padding-top: 64px; }
+html { --pn-chrome: 0px; scroll-padding-bottom: calc(var(--pn-bar-h, 76px) + 16px); scroll-padding-top: calc(64px + var(--pn-chrome)); }
+/* The native panel draws its window buttons over the page's top-left corner. */
+html.in-shell { --pn-chrome: 28px; }
 .pn [tabindex="-1"]:focus { outline: none; }
 @media (max-width: 479px) { :root { --pn-pad: 16px; } }
 
@@ -27,7 +29,7 @@ body.pn {
 /* ---------- top bar: opaque; Home left, where you are, Map right ---------- */
 .pn-top {
   position: sticky; top: 0; z-index: 10;
-  padding: 4px calc(var(--pn-pad) - 12px);
+  padding: calc(4px + var(--pn-chrome)) calc(var(--pn-pad) - 12px) 4px;
   background: var(--ds-bg); border-bottom: 1px solid transparent;
 }
 .pn-top.scrolled { border-bottom-color: var(--ds-line-soft); }

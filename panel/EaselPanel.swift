@@ -99,6 +99,18 @@ final class EaselMainPanel: NSPanel {
     override var canBecomeMain: Bool { false }
 }
 
+/// Transparent strip over the page's top band so the panel can be dragged; the web view swallows background drags.
+final class DragStripView: NSView {
+    static let height: CGFloat = 28
+    override func mouseDown(with event: NSEvent) {
+        if event.clickCount == 2 {
+            window?.zoom(nil)
+            return
+        }
+        window?.performDrag(with: event)
+    }
+}
+
 // MARK: - Toast panel (never takes keyboard)
 
 final class ToastPanel: NSPanel {
@@ -505,7 +517,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         panel.titleVisibility = .hidden
         panel.titlebarAppearsTransparent = true
         panel.isMovableByWindowBackground = true
-        panel.contentView = webView
+        let container = NSView()
+        webView.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(webView)
+        let dragStrip = DragStripView()
+        dragStrip.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(dragStrip)
+        NSLayoutConstraint.activate([
+            webView.topAnchor.constraint(equalTo: container.topAnchor),
+            webView.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+            webView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            webView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            dragStrip.topAnchor.constraint(equalTo: container.topAnchor),
+            dragStrip.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            dragStrip.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            dragStrip.heightAnchor.constraint(equalToConstant: DragStripView.height),
+        ])
+        panel.contentView = container
 
         if !panel.setFrameUsingName("EaselPanel") {
             panel.setFrame(defaultFrame(), display: false)

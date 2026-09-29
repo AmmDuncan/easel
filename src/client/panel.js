@@ -5,6 +5,7 @@ import { h, icon, kbd, loadKit } from "./panel-dom.js";
 import { homeView, projectView } from "./panel-home.js";
 import { walkView } from "./panel-walk.js";
 
+document.documentElement.classList.toggle("in-shell", Boolean(window.webkit?.messageHandlers?.easel));
 const topEl = document.querySelector(".pn-top");
 const mainEl = document.querySelector(".pn-main");
 const liveEl = document.querySelector(".pn-live");
