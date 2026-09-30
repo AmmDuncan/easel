@@ -4,7 +4,7 @@ import { mkdtempSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
-import { ASK_ARGS, buildAskPrompt, parseAskOutput, resolveAskCwd, runAsk } from "../../dist/walk-ask.js";
+import { ASK_ARGS, buildAskPrompt, citedSourceDirs, parseAskOutput, resolveAskCwd, runAsk } from "../../dist/walk-ask.js";
 import { sampleWalk } from "./walk-validate.test.mjs";
 
 const FAKE_CLAUDE = fileURLToPath(new URL("../fixtures/fake-claude.mjs", import.meta.url));
@@ -223,4 +223,33 @@ test("a timeout reports the seconds-based copy", async () => {
   const r = await withFakeClaudeMode("hang", () =>
     runAsk({ bin: FAKE_CLAUDE, cwd: process.cwd(), prompt: "hi", timeoutMs: 300 }));
   assert.equal(r.error, "no answer after 0 seconds");
+});
+
+test("citedSourceDirs keeps existing folders the walk cites under home, and skips hidden, Library, relative and outside paths", () => {
+  const walk = {
+    sources: [{ label: "g", ref: "~/work/mine/java/guides/guide.md:91" }],
+    steps: [{ sources: [
+      { label: "a", ref: "/Users/me/work/mtn/app/src/Repo.java" },
+      { label: "b", ref: "~/.ssh/config" },
+      { label: "c", ref: "~/Library/Prefs/x.plist" },
+      { label: "d", ref: "src/relative.ts" },
+      { label: "e", ref: "/etc/hosts" },
+      { label: "f", ref: "~/work/mine/java/guides/other.md" },
+    ] }],
+  };
+  const dirs = citedSourceDirs(walk, "/Users/me", () => true);
+  assert.deepEqual(dirs, ["/Users/me/work/mine/java/guides", "/Users/me/work/mtn/app/src"]);
+  assert.deepEqual(citedSourceDirs(walk, "/Users/me", () => false), []);
+});
+
+test("runAsk passes each read folder as --add-dir", async () => {
+  const out = join(mkdtempSync(join(tmpdir(), "easel-args-")), "args.json");
+  process.env.FAKE_CLAUDE_ARGS_OUT = out;
+  try {
+    await runAsk({ bin: FAKE_CLAUDE, cwd: process.cwd(), prompt: "hi", timeoutMs: 5000, readDirs: ["/a", "/b"] });
+  } finally {
+    delete process.env.FAKE_CLAUDE_ARGS_OUT;
+  }
+  const args = JSON.parse(readFileSync(out, "utf-8"));
+  assert.deepEqual(args.slice(-4), ["--add-dir", "/a", "--add-dir", "/b"]);
 });

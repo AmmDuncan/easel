@@ -25,7 +25,7 @@ import {
 import { parseProgressPatch, parseWalkInput, type ProjectInfo, type WalkAsk, type WalkStep } from "./walk-types.js";
 import { resolveProject } from "./project.js";
 import { isAllowedOrigin, readOrCreateToken } from "./token.js";
-import { buildAskPrompt, normalizeAnswer, parseAskOutput, resolveAskCwd, runAsk } from "./walk-ask.js";
+import { buildAskPrompt, citedSourceDirs, normalizeAnswer, parseAskOutput, resolveAskCwd, runAsk } from "./walk-ask.js";
 import { askOriginSession, settleAnswer } from "./walk-ask-session.js";
 import { clearDone, moveWalk, renameProject, restoreTrash, sweepWalks, trashProject, trashWalk } from "./walk-cleanup.js";
 
@@ -42,6 +42,18 @@ type SseClient = {
 // `DisplayConfig` shape ({preset,theme,density}) and drops unknown keys, so
 // `panel.projectRoots` never survives it. Read the raw config file directly
 // for that one key instead of widening `readConfig`'s public type.
+/** Tells the ask which absolute folders it may open, since sources often cite `~/...` paths. */
+function withReadDirs(prompt: string, readDirs: string[]): string {
+  if (!readDirs.length) {
+    return prompt;
+  }
+  return (
+    `${prompt}\n\nYou can read files in these folders (use absolute paths, ~ is ${homedir()}): ${readDirs.join(", ")}. ` +
+    "Open the current step's source files before answering and ground the answer in them. " +
+    'Only say in "unsure" that you could not read a file if a Read call actually failed.'
+  );
+}
+
 function readPanelProjectRoots(): string[] {
   const path = join(DATA_ROOT, "config.json");
   if (!existsSync(path)) {
@@ -477,7 +489,10 @@ export function startHttpServer(): void {
       const cwd = resolveAskCwd(found.walk.cwd, projectPath, readPanelProjectRoots(), homedir(), existsSync);
       const startedAt = Date.now();
       const fromSession = await askOriginSession(bin, cwd, found.walk, step, q);
-      const result = fromSession ? null : await runAsk({ bin, cwd, prompt: buildAskPrompt(found.walk, step, q), timeoutMs: 90_000 });
+      const readDirs = citedSourceDirs(found.walk, homedir(), existsSync);
+      const result = fromSession
+        ? null
+        : await runAsk({ bin, cwd, prompt: withReadDirs(buildAskPrompt(found.walk, step, q), readDirs), timeoutMs: 90_000, readDirs });
       const ms = Date.now() - startedAt;
 
       // Re-read after the (slow) ask completes: the walk may have been moved

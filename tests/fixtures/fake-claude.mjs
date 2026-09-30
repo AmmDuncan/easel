@@ -9,6 +9,9 @@ import { join } from "node:path";
 
 const mode = process.env.FAKE_CLAUDE_MODE || "ok";
 const args = process.argv.slice(2);
+if (process.env.FAKE_CLAUDE_ARGS_OUT) {
+  writeFileSync(process.env.FAKE_CLAUDE_ARGS_OUT, JSON.stringify(args));
+}
 
 if (args[0] === "agents") {
   process.stdout.write(process.env.FAKE_ROSTER || "[]");

@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { tmpdir } from "node:os";
-import { relative, resolve, sep } from "node:path";
+import { dirname, relative, resolve, sep } from "node:path";
 import { expandHome } from "./project.js";
 import type { AnswerPoint, Walk, WalkSource, WalkStep } from "./walk-types.js";
 
@@ -199,6 +199,30 @@ export function resolveAskCwd(
   return tmpdir();
 }
 
+/**
+ * Folders the walk's own sources live in, so the read-only ask can open them.
+ * Only existing folders inside home; never home itself, hidden folders or ~/Library.
+ */
+export function citedSourceDirs(walk: Walk, home: string, exists: (p: string) => boolean): string[] {
+  const homeAbs = resolve(home);
+  const dirs = new Set<string>();
+  const refs = [...walk.sources, ...walk.steps.flatMap((s) => s.sources)].map((s) => s.ref);
+  for (const ref of refs) {
+    if (!/^(~\/|\/)/.test(ref)) {
+      continue;
+    }
+    const file = resolve(expandHome(ref.replace(/:\d+(-\d+)?$/, ""), home));
+    const dir = dirname(file);
+    const rel = relative(homeAbs, dir);
+    const hidden = rel.split(sep).some((part) => part.startsWith("."));
+    if (!rel || rel.startsWith("..") || hidden || rel === "Library" || rel.startsWith(`Library${sep}`) || !exists(dir)) {
+      continue;
+    }
+    dirs.add(dir);
+  }
+  return [...dirs].slice(0, 10);
+}
+
 export type RunAskResult =
   | { ok: true; stdout: string }
   | { ok: false; error: string; timeout?: boolean };
@@ -209,9 +233,12 @@ export function runAsk(opts: {
   cwd: string;
   prompt: string;
   timeoutMs: number;
+  /** Extra folders the ask may read (passed as --add-dir). */
+  readDirs?: string[];
 }): Promise<RunAskResult> {
   return new Promise((resolvePromise) => {
-    const child = spawn(opts.bin, [...ASK_ARGS], { cwd: opts.cwd, stdio: ["pipe", "pipe", "pipe"] });
+    const addDirs = (opts.readDirs ?? []).flatMap((dir) => ["--add-dir", dir]);
+    const child = spawn(opts.bin, [...ASK_ARGS, ...addDirs], { cwd: opts.cwd, stdio: ["pipe", "pipe", "pipe"] });
     let stdout = "";
     let stderr = "";
     let settled = false;
